@@ -119,6 +119,91 @@ export interface DashboardMetrics {
   recentTransactions: Transaction[];
 }
 
+// ─── Service Types ──────────────────────────────────────────────────
+
+export interface TransactionFilter {
+  workspaceId: string;
+  bankId?: string;
+  transactionType?: TransactionType;
+  sourceType?: SourceType;
+  category?: Category;
+  status?: TransactionStatus;
+  dateFrom?: string;
+  dateTo?: string;
+  search?: string;
+}
+
+export interface PaginationParams {
+  page: number;
+  pageSize: number;
+}
+
+export interface PaginatedResult<T> {
+  items: T[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
+export interface CreateTransactionInput {
+  workspaceId: string;
+  bankId?: string | null;
+  transactionType: TransactionType;
+  title: string;
+  category: Category;
+  amount: number;
+  date: string;
+  note?: string;
+}
+
+export interface UpdateTransactionInput {
+  title?: string;
+  category?: Category;
+  amount?: number;
+  date?: string;
+  note?: string;
+  status?: TransactionStatus;
+}
+
+export interface CategoryBreakdown {
+  category: Category;
+  label: string;
+  amount: number;
+  percentage: number;
+}
+
+export interface AccountDistribution {
+  bankId: string;
+  institutionName: string;
+  displayMask: string;
+  balance: number;
+  percentage: number;
+}
+
+export interface MonthlyFlow {
+  month: string;
+  income: number;
+  expense: number;
+}
+
+// ─── Extended Dashboard Metrics ─────────────────────────────────────
+
+export interface DashboardMetrics {
+  totalBalance: number;
+  totalIncome: number;
+  totalExpense: number;
+  totalTransactionValue: number;
+  savingsRate: number;
+  spendingRate: number;
+  topCategory: Category;
+  accountCount: number;
+  recentTransactions: Transaction[];
+  categoryBreakdown: CategoryBreakdown[];
+  accountDistribution: AccountDistribution[];
+  monthlyFlow: MonthlyFlow[];
+}
+
 // ─── Navigation ─────────────────────────────────────────────────────
 
 export interface NavItem {

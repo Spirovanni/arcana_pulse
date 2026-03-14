@@ -1,21 +1,15 @@
 import {
-  DollarSign,
   TrendingUp,
   TrendingDown,
   ArrowLeftRight,
   Wallet,
 } from "lucide-react";
-import { mockDashboardMetrics, mockBanks, mockTransactions } from "@/lib/mock/data";
+import { computeDashboardMetrics } from "@/lib/services/dashboard";
+import { DEFAULT_WORKSPACE_ID } from "@/lib/services/workspace";
 import { CATEGORY_LABELS } from "@/lib/constants";
+import { formatCurrency } from "@/lib/utils";
 
-function formatCurrency(value: number) {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-  }).format(value);
-}
-
-const metrics = mockDashboardMetrics;
+const metrics = computeDashboardMetrics(DEFAULT_WORKSPACE_ID);
 
 const summaryCards = [
   {
@@ -71,7 +65,7 @@ export default function DashboardPage() {
         ))}
       </div>
 
-      {/* Charts placeholder row */}
+      {/* Charts row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Account Distribution */}
         <div className="rounded-xl bg-arcana-surface border border-arcana-border p-5">
@@ -79,27 +73,24 @@ export default function DashboardPage() {
             Account Distribution
           </h3>
           <div className="space-y-3">
-            {mockBanks.map((bank) => {
-              const pct = (bank.balance / metrics.totalBalance) * 100;
-              return (
-                <div key={bank.bankId}>
-                  <div className="flex justify-between text-sm mb-1">
-                    <span className="text-slate-300">
-                      {bank.institutionName} (...{bank.displayMask})
-                    </span>
-                    <span className="text-white font-medium">
-                      {formatCurrency(bank.balance)}
-                    </span>
-                  </div>
-                  <div className="h-2 rounded-full bg-arcana-navy overflow-hidden">
-                    <div
-                      className="h-full rounded-full bg-arcana-blue"
-                      style={{ width: `${pct}%` }}
-                    />
-                  </div>
+            {metrics.accountDistribution.map((acct) => (
+              <div key={acct.bankId}>
+                <div className="flex justify-between text-sm mb-1">
+                  <span className="text-slate-300">
+                    {acct.institutionName} (...{acct.displayMask})
+                  </span>
+                  <span className="text-white font-medium">
+                    {formatCurrency(acct.balance)}
+                  </span>
                 </div>
-              );
-            })}
+                <div className="h-2 rounded-full bg-arcana-navy overflow-hidden">
+                  <div
+                    className="h-full rounded-full bg-arcana-blue"
+                    style={{ width: `${acct.percentage}%` }}
+                  />
+                </div>
+              </div>
+            ))}
           </div>
         </div>
 
@@ -109,31 +100,71 @@ export default function DashboardPage() {
             Category Breakdown
           </h3>
           <div className="space-y-2">
-            {Object.entries(
-              mockTransactions
-                .filter((t) => t.transactionType === "expense")
-                .reduce<Record<string, number>>((acc, t) => {
-                  acc[t.category] = (acc[t.category] || 0) + t.amount;
-                  return acc;
-                }, {})
-            )
-              .sort(([, a], [, b]) => b - a)
-              .map(([cat, amount]) => (
-                <div
-                  key={cat}
-                  className="flex justify-between text-sm py-1.5 border-b border-arcana-border last:border-0"
-                >
-                  <span className="text-slate-300">
-                    {CATEGORY_LABELS[cat as keyof typeof CATEGORY_LABELS] || cat}
-                  </span>
-                  <span className="text-white font-medium">
-                    {formatCurrency(amount)}
-                  </span>
-                </div>
-              ))}
+            {metrics.categoryBreakdown.map((item) => (
+              <div
+                key={item.category}
+                className="flex justify-between text-sm py-1.5 border-b border-arcana-border last:border-0"
+              >
+                <span className="text-slate-300">{item.label}</span>
+                <span className="text-white font-medium">
+                  {formatCurrency(item.amount)}
+                </span>
+              </div>
+            ))}
           </div>
         </div>
       </div>
+
+      {/* Monthly Flow */}
+      {metrics.monthlyFlow.length > 0 && (
+        <div className="rounded-xl bg-arcana-surface border border-arcana-border p-5">
+          <h3 className="text-sm font-semibold text-white mb-4">
+            Monthly Cash Flow
+          </h3>
+          <div className="space-y-3">
+            {metrics.monthlyFlow.map((m) => (
+              <div
+                key={m.month}
+                className="flex items-center gap-4 text-sm"
+              >
+                <span className="w-20 text-slate-400 font-mono text-xs">
+                  {m.month}
+                </span>
+                <div className="flex-1 flex gap-2 items-center">
+                  <div className="flex-1 h-2 rounded-full bg-arcana-navy overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-arcana-success"
+                      style={{
+                        width: `${
+                          (m.income / Math.max(m.income, m.expense, 1)) * 100
+                        }%`,
+                      }}
+                    />
+                  </div>
+                  <span className="text-xs text-arcana-success w-20 text-right">
+                    +{formatCurrency(m.income)}
+                  </span>
+                </div>
+                <div className="flex-1 flex gap-2 items-center">
+                  <div className="flex-1 h-2 rounded-full bg-arcana-navy overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-arcana-danger"
+                      style={{
+                        width: `${
+                          (m.expense / Math.max(m.income, m.expense, 1)) * 100
+                        }%`,
+                      }}
+                    />
+                  </div>
+                  <span className="text-xs text-arcana-danger w-20 text-right">
+                    -{formatCurrency(m.expense)}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Financial Summary Card */}
       <div className="rounded-xl bg-arcana-surface border border-arcana-border p-5">

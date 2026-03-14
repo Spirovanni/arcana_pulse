@@ -1,20 +1,66 @@
-import { TrendingUp, Plus } from "lucide-react";
-import { mockTransactions } from "@/lib/mock/data";
-import { CATEGORY_LABELS } from "@/lib/constants";
+"use client";
 
-function formatCurrency(value: number) {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-  }).format(value);
-}
-
-const incomeRecords = mockTransactions.filter(
-  (t) => t.transactionType === "income"
-);
-const totalIncome = incomeRecords.reduce((sum, t) => sum + t.amount, 0);
+import { useState, useCallback } from "react";
+import { TrendingUp, Plus, Pencil, Trash2 } from "lucide-react";
+import {
+  listTransactions,
+  createTransaction,
+  updateTransaction,
+  deleteTransaction,
+  getCategoryBreakdown,
+  sumByType,
+} from "@/lib/services/transactions";
+import { DEFAULT_WORKSPACE_ID } from "@/lib/services/workspace";
+import { formatCurrency } from "@/lib/utils";
+import type {
+  Transaction,
+  CreateTransactionInput,
+  UpdateTransactionInput,
+} from "@/lib/types";
+import TransactionForm from "@/components/TransactionForm";
+import DeleteConfirmation from "@/components/DeleteConfirmation";
 
 export default function IncomePage() {
+  const [showForm, setShowForm] = useState(false);
+  const [editingTxn, setEditingTxn] = useState<Transaction | null>(null);
+  const [deletingTxn, setDeletingTxn] = useState<Transaction | null>(null);
+  const [version, setVersion] = useState(0);
+  const bump = useCallback(() => setVersion((v) => v + 1), []);
+
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const _ = version;
+  const result = listTransactions(
+    { workspaceId: DEFAULT_WORKSPACE_ID, transactionType: "income" },
+    { page: 1, pageSize: 100 }
+  );
+  const incomeRecords = result.items;
+  const totalIncome = sumByType(DEFAULT_WORKSPACE_ID, "income");
+  const breakdown = getCategoryBreakdown(DEFAULT_WORKSPACE_ID, "income");
+
+  function handleCreate(data: CreateTransactionInput | UpdateTransactionInput) {
+    const input = data as CreateTransactionInput;
+    createTransaction(
+      { ...input, workspaceId: DEFAULT_WORKSPACE_ID, transactionType: "income" },
+      "usr-001"
+    );
+    setShowForm(false);
+    bump();
+  }
+
+  function handleUpdate(data: CreateTransactionInput | UpdateTransactionInput) {
+    if (!editingTxn) return;
+    updateTransaction(editingTxn.transactionId, data as UpdateTransactionInput);
+    setEditingTxn(null);
+    bump();
+  }
+
+  function handleDelete() {
+    if (!deletingTxn) return;
+    deleteTransaction(deletingTxn.transactionId);
+    setDeletingTxn(null);
+    bump();
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -24,7 +70,11 @@ export default function IncomePage() {
             Track and manage all income activity
           </p>
         </div>
-        <button className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-arcana-success text-white text-sm font-medium hover:bg-green-600 transition-colors">
+        <button
+          type="button"
+          onClick={() => setShowForm(true)}
+          className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-arcana-success text-white text-sm font-medium hover:bg-green-600 transition-colors"
+        >
           <Plus className="w-4 h-4" />
           Add Income
         </button>
@@ -44,42 +94,32 @@ export default function IncomePage() {
         </p>
       </div>
 
-      {/* Income chart placeholder */}
-      <div className="rounded-xl bg-arcana-surface border border-arcana-border p-5">
-        <h3 className="text-sm font-semibold text-white mb-4">
-          Income by Source
-        </h3>
-        <div className="space-y-3">
-          {Object.entries(
-            incomeRecords.reduce<Record<string, number>>((acc, t) => {
-              acc[t.category] = (acc[t.category] || 0) + t.amount;
-              return acc;
-            }, {})
-          )
-            .sort(([, a], [, b]) => b - a)
-            .map(([cat, amount]) => {
-              const pct = (amount / totalIncome) * 100;
-              return (
-                <div key={cat}>
-                  <div className="flex justify-between text-sm mb-1">
-                    <span className="text-slate-300">
-                      {CATEGORY_LABELS[cat as keyof typeof CATEGORY_LABELS] || cat}
-                    </span>
-                    <span className="text-white font-medium">
-                      {formatCurrency(amount)}
-                    </span>
-                  </div>
-                  <div className="h-2 rounded-full bg-arcana-navy overflow-hidden">
-                    <div
-                      className="h-full rounded-full bg-arcana-success"
-                      style={{ width: `${pct}%` }}
-                    />
-                  </div>
+      {/* Income by source chart */}
+      {breakdown.length > 0 && (
+        <div className="rounded-xl bg-arcana-surface border border-arcana-border p-5">
+          <h3 className="text-sm font-semibold text-white mb-4">
+            Income by Source
+          </h3>
+          <div className="space-y-3">
+            {breakdown.map((item) => (
+              <div key={item.category}>
+                <div className="flex justify-between text-sm mb-1">
+                  <span className="text-slate-300">{item.label}</span>
+                  <span className="text-white font-medium">
+                    {formatCurrency(item.amount)}
+                  </span>
                 </div>
-              );
-            })}
+                <div className="h-2 rounded-full bg-arcana-navy overflow-hidden">
+                  <div
+                    className="h-full rounded-full bg-arcana-success"
+                    style={{ width: `${item.percentage}%` }}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Income Records */}
       {incomeRecords.length === 0 ? (
@@ -103,6 +143,9 @@ export default function IncomePage() {
                 <th className="px-5 py-3 font-medium">Date</th>
                 <th className="px-5 py-3 font-medium">Status</th>
                 <th className="px-5 py-3 font-medium text-right">Amount</th>
+                <th className="px-5 py-3 font-medium w-20">
+                  <span className="sr-only">Actions</span>
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -115,37 +158,90 @@ export default function IncomePage() {
                     {txn.title}
                   </td>
                   <td className="px-5 py-3">
-                    <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${
-                      txn.sourceType === "synced"
-                        ? "bg-purple-500/10 text-purple-400"
-                        : "bg-yellow-500/10 text-yellow-400"
-                    }`}>
+                    <span
+                      className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${
+                        txn.sourceType === "synced"
+                          ? "bg-purple-500/10 text-purple-400"
+                          : "bg-yellow-500/10 text-yellow-400"
+                      }`}
+                    >
                       {txn.sourceType}
                     </span>
                   </td>
                   <td className="px-5 py-3 text-slate-300">
-                    {CATEGORY_LABELS[txn.category]}
+                    {txn.category}
                   </td>
                   <td className="px-5 py-3 text-slate-400">
                     {new Date(txn.date).toLocaleDateString()}
                   </td>
                   <td className="px-5 py-3">
-                    <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${
-                      txn.status === "posted"
-                        ? "bg-green-500/10 text-arcana-success"
-                        : "bg-yellow-500/10 text-yellow-400"
-                    }`}>
+                    <span
+                      className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${
+                        txn.status === "posted"
+                          ? "bg-green-500/10 text-arcana-success"
+                          : "bg-yellow-500/10 text-yellow-400"
+                      }`}
+                    >
                       {txn.status}
                     </span>
                   </td>
                   <td className="px-5 py-3 text-right font-medium text-arcana-success">
                     +{formatCurrency(txn.amount)}
                   </td>
+                  <td className="px-5 py-3">
+                    {txn.sourceType === "manual" && (
+                      <div className="flex gap-1 justify-end">
+                        <button
+                          type="button"
+                          onClick={() => setEditingTxn(txn)}
+                          className="p-1.5 rounded text-slate-400 hover:text-white hover:bg-arcana-navy transition-colors"
+                          title="Edit"
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setDeletingTxn(txn)}
+                          className="p-1.5 rounded text-slate-400 hover:text-arcana-danger hover:bg-red-500/10 transition-colors"
+                          title="Delete"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
+      )}
+
+      {/* Modals */}
+      {showForm && (
+        <TransactionForm
+          mode="create"
+          defaultType="income"
+          onSubmit={handleCreate}
+          onClose={() => setShowForm(false)}
+        />
+      )}
+      {editingTxn && (
+        <TransactionForm
+          mode="edit"
+          defaultType="income"
+          transaction={editingTxn}
+          onSubmit={handleUpdate}
+          onClose={() => setEditingTxn(null)}
+        />
+      )}
+      {deletingTxn && (
+        <DeleteConfirmation
+          title="Delete Income Record"
+          message={`Are you sure you want to delete "${deletingTxn.title}"? This action cannot be undone.`}
+          onConfirm={handleDelete}
+          onCancel={() => setDeletingTxn(null)}
+        />
       )}
     </div>
   );

@@ -4,7 +4,6 @@ import type {
   Bank,
   Transaction,
   Transfer,
-  DashboardMetrics,
 } from "@/lib/types";
 
 // ─── Workspace ──────────────────────────────────────────────────────
@@ -296,23 +295,3 @@ export const mockTransfers: Transfer[] = [
   },
 ];
 
-// ─── Dashboard Metrics ──────────────────────────────────────────────
-
-export const mockDashboardMetrics: DashboardMetrics = {
-  totalBalance: mockBanks.reduce((sum, b) => sum + b.balance, 0),
-  totalIncome: mockTransactions
-    .filter((t) => t.transactionType === "income")
-    .reduce((sum, t) => sum + t.amount, 0),
-  totalExpense: mockTransactions
-    .filter((t) => t.transactionType === "expense")
-    .reduce((sum, t) => sum + t.amount, 0),
-  totalTransactionValue: mockTransactions.reduce(
-    (sum, t) => sum + t.amount,
-    0
-  ),
-  savingsRate: 0.58,
-  spendingRate: 0.42,
-  topCategory: "housing",
-  accountCount: mockBanks.length,
-  recentTransactions: mockTransactions.slice(0, 5),
-};

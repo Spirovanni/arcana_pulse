@@ -1,15 +1,85 @@
-import { ArrowLeftRight, Plus, Filter } from "lucide-react";
-import { mockTransactions, mockBanks } from "@/lib/mock/data";
-import { CATEGORY_LABELS } from "@/lib/constants";
+"use client";
 
-function formatCurrency(value: number) {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-  }).format(value);
-}
+import { useState, useCallback } from "react";
+import { Plus, Filter, Pencil, Trash2 } from "lucide-react";
+import {
+  listTransactions,
+  createTransaction,
+  updateTransaction,
+  deleteTransaction,
+} from "@/lib/services/transactions";
+import { getBanksByWorkspace, DEFAULT_WORKSPACE_ID } from "@/lib/services/workspace";
+import { CATEGORY_LABELS } from "@/lib/constants";
+import { formatCurrency } from "@/lib/utils";
+import type {
+  Transaction,
+  TransactionType,
+  TransactionFilter,
+  CreateTransactionInput,
+  UpdateTransactionInput,
+  PaginatedResult,
+} from "@/lib/types";
+import TransactionForm from "@/components/TransactionForm";
+import DeleteConfirmation from "@/components/DeleteConfirmation";
+
+const PAGE_SIZE = 10;
 
 export default function TransactionsPage() {
+  const banks = getBanksByWorkspace(DEFAULT_WORKSPACE_ID);
+
+  // ─── Filters ────────────────────────────────────────────────────
+  const [bankFilter, setBankFilter] = useState("");
+  const [typeFilter, setTypeFilter] = useState<TransactionType | "">("");
+  const [page, setPage] = useState(1);
+
+  // ─── Modal state ────────────────────────────────────────────────
+  const [showForm, setShowForm] = useState(false);
+  const [editingTxn, setEditingTxn] = useState<Transaction | null>(null);
+  const [deletingTxn, setDeletingTxn] = useState<Transaction | null>(null);
+
+  // ─── Force re-render after mutations ────────────────────────────
+  const [version, setVersion] = useState(0);
+  const bump = useCallback(() => setVersion((v) => v + 1), []);
+
+  // ─── Query ──────────────────────────────────────────────────────
+  const filter: TransactionFilter = {
+    workspaceId: DEFAULT_WORKSPACE_ID,
+    ...(bankFilter ? { bankId: bankFilter } : {}),
+    ...(typeFilter ? { transactionType: typeFilter as TransactionType } : {}),
+  };
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const _ = version; // trigger re-computation
+  const result: PaginatedResult<Transaction> = listTransactions(filter, {
+    page,
+    pageSize: PAGE_SIZE,
+  });
+
+  // ─── Handlers ───────────────────────────────────────────────────
+  function handleCreate(data: CreateTransactionInput | UpdateTransactionInput) {
+    const input = data as CreateTransactionInput;
+    createTransaction(
+      { ...input, workspaceId: DEFAULT_WORKSPACE_ID },
+      "usr-001"
+    );
+    setShowForm(false);
+    setPage(1);
+    bump();
+  }
+
+  function handleUpdate(data: CreateTransactionInput | UpdateTransactionInput) {
+    if (!editingTxn) return;
+    updateTransaction(editingTxn.transactionId, data as UpdateTransactionInput);
+    setEditingTxn(null);
+    bump();
+  }
+
+  function handleDelete() {
+    if (!deletingTxn) return;
+    deleteTransaction(deletingTxn.transactionId);
+    setDeletingTxn(null);
+    bump();
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -19,7 +89,11 @@ export default function TransactionsPage() {
             View and manage all financial activity
           </p>
         </div>
-        <button className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-arcana-blue text-white text-sm font-medium hover:bg-blue-600 transition-colors">
+        <button
+          type="button"
+          onClick={() => setShowForm(true)}
+          className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-arcana-blue text-white text-sm font-medium hover:bg-blue-600 transition-colors"
+        >
           <Plus className="w-4 h-4" />
           Add Transaction
         </button>
@@ -27,24 +101,36 @@ export default function TransactionsPage() {
 
       {/* Filters */}
       <div className="flex flex-wrap gap-3">
-        <select className="px-3 py-2 rounded-lg bg-arcana-surface border border-arcana-border text-white text-sm focus:outline-none focus:ring-2 focus:ring-arcana-blue">
+        <select
+          aria-label="Filter by account"
+          value={bankFilter}
+          onChange={(e) => {
+            setBankFilter(e.target.value);
+            setPage(1);
+          }}
+          className="px-3 py-2 rounded-lg bg-arcana-surface border border-arcana-border text-white text-sm focus:outline-none focus:ring-2 focus:ring-arcana-blue"
+        >
           <option value="">All Accounts</option>
-          {mockBanks.map((bank) => (
+          {banks.map((bank) => (
             <option key={bank.bankId} value={bank.bankId}>
               {bank.institutionName} (...{bank.displayMask})
             </option>
           ))}
         </select>
-        <select className="px-3 py-2 rounded-lg bg-arcana-surface border border-arcana-border text-white text-sm focus:outline-none focus:ring-2 focus:ring-arcana-blue">
+        <select
+          aria-label="Filter by type"
+          value={typeFilter}
+          onChange={(e) => {
+            setTypeFilter(e.target.value as TransactionType | "");
+            setPage(1);
+          }}
+          className="px-3 py-2 rounded-lg bg-arcana-surface border border-arcana-border text-white text-sm focus:outline-none focus:ring-2 focus:ring-arcana-blue"
+        >
           <option value="">All Types</option>
           <option value="income">Income</option>
           <option value="expense">Expense</option>
           <option value="transfer">Transfer</option>
         </select>
-        <button className="flex items-center gap-2 px-3 py-2 rounded-lg bg-arcana-surface border border-arcana-border text-sm text-slate-300 hover:text-white transition-colors">
-          <Filter className="w-4 h-4" />
-          More Filters
-        </button>
       </div>
 
       {/* Transaction Table */}
@@ -60,10 +146,11 @@ export default function TransactionsPage() {
                 <th className="px-5 py-3 font-medium">Date</th>
                 <th className="px-5 py-3 font-medium">Status</th>
                 <th className="px-5 py-3 font-medium text-right">Amount</th>
+                <th className="px-5 py-3 font-medium w-20"><span className="sr-only">Actions</span></th>
               </tr>
             </thead>
             <tbody>
-              {mockTransactions.map((txn) => (
+              {result.items.map((txn) => (
                 <tr
                   key={txn.transactionId}
                   className="border-b border-arcana-border last:border-0 hover:bg-arcana-navy/30 transition-colors"
@@ -133,25 +220,97 @@ export default function TransactionsPage() {
                     {txn.transactionType === "income" ? "+" : "-"}
                     {formatCurrency(txn.amount)}
                   </td>
+                  <td className="px-5 py-3">
+                    {txn.sourceType === "manual" && (
+                      <div className="flex gap-1 justify-end">
+                        <button
+                          type="button"
+                          onClick={() => setEditingTxn(txn)}
+                          className="p-1.5 rounded text-slate-400 hover:text-white hover:bg-arcana-navy transition-colors"
+                          title="Edit"
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setDeletingTxn(txn)}
+                          className="p-1.5 rounded text-slate-400 hover:text-arcana-danger hover:bg-red-500/10 transition-colors"
+                          title="Delete"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
 
-        {/* Pagination placeholder */}
+        {/* Pagination */}
         <div className="flex items-center justify-between px-5 py-3 border-t border-arcana-border text-sm text-slate-400">
-          <span>Showing {mockTransactions.length} transactions</span>
+          <span>
+            Showing {result.items.length} of {result.total} transactions
+          </span>
           <div className="flex gap-2">
-            <button className="px-3 py-1 rounded bg-arcana-navy text-slate-400 cursor-not-allowed">
+            <button
+              type="button"
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page <= 1}
+              className={`px-3 py-1 rounded text-sm ${
+                page <= 1
+                  ? "bg-arcana-navy text-slate-500 cursor-not-allowed"
+                  : "bg-arcana-navy text-slate-300 hover:text-white"
+              }`}
+            >
               Previous
             </button>
-            <button className="px-3 py-1 rounded bg-arcana-navy text-slate-400 cursor-not-allowed">
+            <span className="px-2 py-1 text-slate-300">
+              {result.page} / {result.totalPages || 1}
+            </span>
+            <button
+              type="button"
+              onClick={() =>
+                setPage((p) => Math.min(result.totalPages, p + 1))
+              }
+              disabled={page >= result.totalPages}
+              className={`px-3 py-1 rounded text-sm ${
+                page >= result.totalPages
+                  ? "bg-arcana-navy text-slate-500 cursor-not-allowed"
+                  : "bg-arcana-navy text-slate-300 hover:text-white"
+              }`}
+            >
               Next
             </button>
           </div>
         </div>
       </div>
+
+      {/* Modals */}
+      {showForm && (
+        <TransactionForm
+          mode="create"
+          onSubmit={handleCreate}
+          onClose={() => setShowForm(false)}
+        />
+      )}
+      {editingTxn && (
+        <TransactionForm
+          mode="edit"
+          transaction={editingTxn}
+          onSubmit={handleUpdate}
+          onClose={() => setEditingTxn(null)}
+        />
+      )}
+      {deletingTxn && (
+        <DeleteConfirmation
+          title="Delete Transaction"
+          message={`Are you sure you want to delete "${deletingTxn.title}"? This action cannot be undone.`}
+          onConfirm={handleDelete}
+          onCancel={() => setDeletingTxn(null)}
+        />
+      )}
     </div>
   );
 }
