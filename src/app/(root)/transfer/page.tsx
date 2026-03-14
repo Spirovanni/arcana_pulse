@@ -1,13 +1,10 @@
-import { SendHorizontal, Clock, CheckCircle, AlertCircle } from "lucide-react";
-import { mockBanks, mockTransfers } from "@/lib/mock/data";
-import { TRANSFER_STATUS_LABELS } from "@/lib/constants";
+"use client";
 
-function formatCurrency(value: number) {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-  }).format(value);
-}
+import { SendHorizontal, Clock, CheckCircle, AlertCircle } from "lucide-react";
+import { getBanksByWorkspace, DEFAULT_WORKSPACE_ID } from "@/lib/services/workspace";
+import { TRANSFER_STATUS_LABELS } from "@/lib/constants";
+import { formatCurrency } from "@/lib/utils";
+import { mockTransfers } from "@/lib/mock/data";
 
 const statusIcon: Record<string, React.ComponentType<{ className?: string }>> = {
   posted: CheckCircle,
@@ -17,6 +14,8 @@ const statusIcon: Record<string, React.ComponentType<{ className?: string }>> = 
 };
 
 export default function TransferPage() {
+  const banks = getBanksByWorkspace(DEFAULT_WORKSPACE_ID);
+
   return (
     <div className="space-y-6">
       <div>
@@ -37,9 +36,12 @@ export default function TransferPage() {
               <label className="block text-sm text-slate-300 mb-1.5">
                 From Account
               </label>
-              <select className="w-full px-3 py-2.5 rounded-lg bg-arcana-navy border border-arcana-border text-white text-sm focus:outline-none focus:ring-2 focus:ring-arcana-blue">
+              <select
+                aria-label="From Account"
+                className="w-full px-3 py-2.5 rounded-lg bg-arcana-navy border border-arcana-border text-white text-sm focus:outline-none focus:ring-2 focus:ring-arcana-blue"
+              >
                 <option value="">Select source account</option>
-                {mockBanks.map((bank) => (
+                {banks.map((bank) => (
                   <option key={bank.bankId} value={bank.bankId}>
                     {bank.institutionName} (...{bank.displayMask}) -{" "}
                     {formatCurrency(bank.balance)}
@@ -122,7 +124,7 @@ export default function TransferPage() {
             <div className="space-y-3">
               {mockTransfers.map((xfr) => {
                 const StatusIcon = statusIcon[xfr.status] || Clock;
-                const senderBank = mockBanks.find(
+                const senderBank = banks.find(
                   (b) => b.bankId === xfr.senderBankId
                 );
                 return (

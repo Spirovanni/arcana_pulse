@@ -105,20 +105,6 @@ export interface Transfer {
   updatedAt: string;
 }
 
-// ─── Dashboard Metrics ──────────────────────────────────────────────
-
-export interface DashboardMetrics {
-  totalBalance: number;
-  totalIncome: number;
-  totalExpense: number;
-  totalTransactionValue: number;
-  savingsRate: number;
-  spendingRate: number;
-  topCategory: Category;
-  accountCount: number;
-  recentTransactions: Transaction[];
-}
-
 // ─── Service Types ──────────────────────────────────────────────────
 
 export interface TransactionFilter {
@@ -187,7 +173,7 @@ export interface MonthlyFlow {
   expense: number;
 }
 
-// ─── Extended Dashboard Metrics ─────────────────────────────────────
+// ─── Dashboard Metrics ──────────────────────────────────────────────
 
 export interface DashboardMetrics {
   totalBalance: number;

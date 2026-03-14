@@ -1,6 +1,13 @@
-import { mockWorkspace, mockUser } from "@/lib/mock/data";
+"use client";
+
+import { getWorkspace, getCurrentUser, DEFAULT_WORKSPACE_ID } from "@/lib/services/workspace";
 
 export default function SettingsPage() {
+  const workspace = getWorkspace(DEFAULT_WORKSPACE_ID);
+  const user = getCurrentUser();
+
+  if (!workspace) return null;
+
   return (
     <div className="space-y-6">
       <div>
@@ -16,22 +23,22 @@ export default function SettingsPage() {
         <div className="space-y-3 text-sm">
           <div className="flex justify-between py-2 border-b border-arcana-border">
             <span className="text-slate-400">Workspace Name</span>
-            <span className="text-white">{mockWorkspace.name}</span>
+            <span className="text-white">{workspace.name}</span>
           </div>
           <div className="flex justify-between py-2 border-b border-arcana-border">
             <span className="text-slate-400">Plan</span>
-            <span className="text-white capitalize">{mockWorkspace.plan}</span>
+            <span className="text-white capitalize">{workspace.plan}</span>
           </div>
           <div className="flex justify-between py-2 border-b border-arcana-border">
             <span className="text-slate-400">Status</span>
             <span className="inline-block px-2 py-0.5 rounded text-xs font-medium bg-green-500/10 text-arcana-success">
-              {mockWorkspace.status}
+              {workspace.status}
             </span>
           </div>
           <div className="flex justify-between py-2">
             <span className="text-slate-400">Created</span>
             <span className="text-white">
-              {new Date(mockWorkspace.createdAt).toLocaleDateString()}
+              {new Date(workspace.createdAt).toLocaleDateString()}
             </span>
           </div>
         </div>
@@ -44,16 +51,16 @@ export default function SettingsPage() {
           <div className="flex justify-between py-2 border-b border-arcana-border">
             <span className="text-slate-400">Name</span>
             <span className="text-white">
-              {mockUser.firstName} {mockUser.lastName}
+              {user.firstName} {user.lastName}
             </span>
           </div>
           <div className="flex justify-between py-2 border-b border-arcana-border">
             <span className="text-slate-400">Email</span>
-            <span className="text-white">{mockUser.email}</span>
+            <span className="text-white">{user.email}</span>
           </div>
           <div className="flex justify-between py-2">
             <span className="text-slate-400">Role</span>
-            <span className="text-white capitalize">{mockUser.role}</span>
+            <span className="text-white capitalize">{user.role}</span>
           </div>
         </div>
       </div>

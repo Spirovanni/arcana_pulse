@@ -1,3 +1,5 @@
+"use client";
+
 import {
   TrendingUp,
   TrendingDown,
@@ -9,36 +11,35 @@ import { DEFAULT_WORKSPACE_ID } from "@/lib/services/workspace";
 import { CATEGORY_LABELS } from "@/lib/constants";
 import { formatCurrency } from "@/lib/utils";
 
-const metrics = computeDashboardMetrics(DEFAULT_WORKSPACE_ID);
-
-const summaryCards = [
-  {
-    label: "Total Balance",
-    value: formatCurrency(metrics.totalBalance),
-    icon: Wallet,
-    color: "text-arcana-sky",
-  },
-  {
-    label: "Total Income",
-    value: formatCurrency(metrics.totalIncome),
-    icon: TrendingUp,
-    color: "text-arcana-success",
-  },
-  {
-    label: "Total Expenses",
-    value: formatCurrency(metrics.totalExpense),
-    icon: TrendingDown,
-    color: "text-arcana-danger",
-  },
-  {
-    label: "Transaction Volume",
-    value: formatCurrency(metrics.totalTransactionValue),
-    icon: ArrowLeftRight,
-    color: "text-arcana-warning",
-  },
-];
-
 export default function DashboardPage() {
+  const metrics = computeDashboardMetrics(DEFAULT_WORKSPACE_ID);
+
+  const summaryCards = [
+    {
+      label: "Total Balance",
+      value: formatCurrency(metrics.totalBalance),
+      icon: Wallet,
+      color: "text-arcana-sky",
+    },
+    {
+      label: "Total Income",
+      value: formatCurrency(metrics.totalIncome),
+      icon: TrendingUp,
+      color: "text-arcana-success",
+    },
+    {
+      label: "Total Expenses",
+      value: formatCurrency(metrics.totalExpense),
+      icon: TrendingDown,
+      color: "text-arcana-danger",
+    },
+    {
+      label: "Transaction Volume",
+      value: formatCurrency(metrics.totalTransactionValue),
+      icon: ArrowLeftRight,
+      color: "text-arcana-warning",
+    },
+  ];
   return (
     <div className="space-y-6">
       {/* Greeting */}
