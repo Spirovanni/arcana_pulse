@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useCallback } from "react";
-import { Plus, Filter, Pencil, Trash2 } from "lucide-react";
+import { useState, useCallback, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
+import { Plus, Pencil, Trash2, Landmark, X } from "lucide-react";
 import {
   listTransactions,
   createTransaction,
@@ -25,10 +26,21 @@ import DeleteConfirmation from "@/components/DeleteConfirmation";
 const PAGE_SIZE = 10;
 
 export default function TransactionsPage() {
+  return (
+    <Suspense>
+      <TransactionsContent />
+    </Suspense>
+  );
+}
+
+function TransactionsContent() {
+  const searchParams = useSearchParams();
+  const bankParam = searchParams.get("bank") ?? "";
   const banks = getBanksByWorkspace(DEFAULT_WORKSPACE_ID);
+  const contextBank = bankParam ? banks.find((b) => b.bankId === bankParam) : null;
 
   // ─── Filters ────────────────────────────────────────────────────
-  const [bankFilter, setBankFilter] = useState("");
+  const [bankFilter, setBankFilter] = useState(bankParam);
   const [typeFilter, setTypeFilter] = useState<TransactionType | "">("");
   const [page, setPage] = useState(1);
 
@@ -132,6 +144,37 @@ export default function TransactionsPage() {
           <option value="transfer">Transfer</option>
         </select>
       </div>
+
+      {/* Bank context header */}
+      {contextBank && bankFilter === bankParam && (
+        <div className="flex items-center gap-3 rounded-xl bg-arcana-surface border border-arcana-border px-5 py-3">
+          <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-arcana-navy">
+            <Landmark className="w-4 h-4 text-arcana-sky" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-white">
+              {contextBank.institutionName}{" "}
+              <span className="text-slate-400 font-normal">
+                ...{contextBank.displayMask}
+              </span>
+            </p>
+            <p className="text-xs text-slate-500">
+              Showing transactions for this account
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              setBankFilter("");
+              setPage(1);
+            }}
+            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs text-slate-400 hover:text-white hover:bg-arcana-navy transition-colors"
+          >
+            <X className="w-3 h-3" />
+            Clear filter
+          </button>
+        </div>
+      )}
 
       {/* Transaction Table */}
       <div className="rounded-xl bg-arcana-surface border border-arcana-border overflow-hidden">
