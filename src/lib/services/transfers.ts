@@ -37,6 +37,15 @@ export function getTransferById(transferId: string): Transfer | null {
   return xfr ? { ...xfr } : null;
 }
 
+export function getTransferByProviderRef(
+  providerReference: string
+): Transfer | null {
+  const xfr = transfers.find(
+    (t) => t.providerReference === providerReference
+  );
+  return xfr ? { ...xfr } : null;
+}
+
 // ─── Create ─────────────────────────────────────────────────────────
 
 export interface CreateTransferInput {

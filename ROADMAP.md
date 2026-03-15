@@ -80,7 +80,7 @@ My Banks page (7wf)
 
 ---
 
-## Milestone 4 — Transfer Workflow
+## Milestone 4 — Transfer Workflow ✅
 
 > Transfer service, form validation, confirmation, Dwolla sandbox integration, status lifecycle.
 
@@ -93,7 +93,7 @@ My Banks page (7wf)
 | ✅ | Integrate Dwolla sandbox transfer flow | `arcana_pulse-4mi` |
 | ✅ | Add Dwolla API routes for customer and transfer | `arcana_pulse-4rf` |
 | ✅ | Map Dwolla transfer statuses to Arcana lifecycle | `arcana_pulse-zw7` |
-| ⬜ | Add Dwolla webhook handler | `arcana_pulse-2sb` |
+| ✅ | Add Dwolla webhook handler | `arcana_pulse-2sb` |
 
 **Dependency chain:**
 ```
