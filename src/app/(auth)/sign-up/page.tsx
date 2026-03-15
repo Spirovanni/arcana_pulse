@@ -1,6 +1,52 @@
+"use client";
+
+import { useState, FormEvent } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { Loader2 } from "lucide-react";
 
 export default function SignUpPage() {
+  const router = useRouter();
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  async function handleSubmit(e: FormEvent) {
+    e.preventDefault();
+    setError("");
+
+    if (password.length < 8) {
+      setError("Password must be at least 8 characters");
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const res = await fetch("/api/auth/sign-up", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ firstName, lastName, email, password }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.error || "Sign up failed");
+        return;
+      }
+
+      router.push("/");
+    } catch {
+      setError("Something went wrong. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
   return (
     <div className="rounded-xl bg-arcana-surface border border-arcana-border p-8">
       <h2 className="text-lg font-semibold text-white mb-1">
@@ -10,7 +56,13 @@ export default function SignUpPage() {
         Join Arcana Credit Union and start managing your finances
       </p>
 
-      <form className="space-y-4">
+      {error && (
+        <div className="mb-4 rounded-lg bg-red-500/10 border border-red-500/20 px-4 py-3 text-sm text-red-400">
+          {error}
+        </div>
+      )}
+
+      <form onSubmit={handleSubmit} className="space-y-4">
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="block text-sm text-slate-300 mb-1.5">
@@ -18,7 +70,10 @@ export default function SignUpPage() {
             </label>
             <input
               type="text"
+              value={firstName}
+              onChange={(e) => setFirstName(e.target.value)}
               placeholder="Alex"
+              required
               className="w-full px-3 py-2.5 rounded-lg bg-arcana-navy border border-arcana-border text-white text-sm placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-arcana-blue"
             />
           </div>
@@ -28,7 +83,10 @@ export default function SignUpPage() {
             </label>
             <input
               type="text"
+              value={lastName}
+              onChange={(e) => setLastName(e.target.value)}
               placeholder="Morgan"
+              required
               className="w-full px-3 py-2.5 rounded-lg bg-arcana-navy border border-arcana-border text-white text-sm placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-arcana-blue"
             />
           </div>
@@ -37,7 +95,10 @@ export default function SignUpPage() {
           <label className="block text-sm text-slate-300 mb-1.5">Email</label>
           <input
             type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
             placeholder="you@arcanacu.org"
+            required
             className="w-full px-3 py-2.5 rounded-lg bg-arcana-navy border border-arcana-border text-white text-sm placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-arcana-blue"
           />
         </div>
@@ -47,15 +108,20 @@ export default function SignUpPage() {
           </label>
           <input
             type="password"
-            placeholder="Create a password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Create a password (min. 8 characters)"
+            required
             className="w-full px-3 py-2.5 rounded-lg bg-arcana-navy border border-arcana-border text-white text-sm placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-arcana-blue"
           />
         </div>
         <button
           type="submit"
-          className="w-full py-2.5 rounded-lg bg-arcana-blue text-white text-sm font-medium hover:bg-blue-600 transition-colors"
+          disabled={loading}
+          className="w-full py-2.5 rounded-lg bg-arcana-blue text-white text-sm font-medium hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
         >
-          Create Account
+          {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+          {loading ? "Creating account..." : "Create Account"}
         </button>
       </form>
 
