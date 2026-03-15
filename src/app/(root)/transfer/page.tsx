@@ -24,6 +24,7 @@ import {
 } from "@/lib/services/transfers";
 import { TRANSFER_STATUS_LABELS } from "@/lib/constants";
 import { formatCurrency } from "@/lib/utils";
+import EmptyState from "@/components/EmptyState";
 import type { Transfer, TransferStatus } from "@/lib/types";
 
 // ─── Status config ──────────────────────────────────────────────────
@@ -527,10 +528,11 @@ export default function TransferPage() {
             Recent Transfers
           </h3>
           {transfers.length === 0 ? (
-            <div className="text-center py-8">
-              <SendHorizontal className="w-10 h-10 text-slate-500 mx-auto mb-3" />
-              <p className="text-sm text-slate-400">No transfers yet</p>
-            </div>
+            <EmptyState
+              icon={SendHorizontal}
+              title="No transfers yet"
+              description="Send your first transfer to move money between accounts"
+            />
           ) : (
             <div className="space-y-3">
               {transfers.map((xfr) => {

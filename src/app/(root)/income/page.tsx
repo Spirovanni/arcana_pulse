@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from "react";
 import { TrendingUp, Plus, Pencil, Trash2 } from "lucide-react";
+import EmptyState from "@/components/EmptyState";
 import {
   listTransactions,
   createTransaction,
@@ -123,15 +124,12 @@ export default function IncomePage() {
 
       {/* Income Records */}
       {incomeRecords.length === 0 ? (
-        <div className="rounded-xl bg-arcana-surface border border-arcana-border p-12 text-center">
-          <TrendingUp className="w-12 h-12 text-slate-500 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-white mb-2">
-            No income records
-          </h3>
-          <p className="text-sm text-slate-400">
-            Add your first income entry to start tracking
-          </p>
-        </div>
+        <EmptyState
+          icon={TrendingUp}
+          title="No income records"
+          description="Add your first income entry to start tracking"
+          action={{ label: "Add Income", onClick: () => setShowForm(true) }}
+        />
       ) : (
         <div className="rounded-xl bg-arcana-surface border border-arcana-border overflow-hidden">
           <table className="w-full text-sm">

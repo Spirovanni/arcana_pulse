@@ -116,7 +116,7 @@ Transfer page (u0f)
 | ✅ | Install and configure Sentry SDK | `arcana_pulse-9ea` |
 | ✅ | Add error boundaries and PII scrubbing | `arcana_pulse-9pb` |
 | ✅ | Add environment validation and Vercel config | `arcana_pulse-klu` |
-| ⬜ | Add loading states and empty state standardization | `arcana_pulse-4qb` |
+| ✅ | Add loading states and empty state standardization | `arcana_pulse-4qb` |
 | ⬜ | Responsive QA and mobile polish | `arcana_pulse-udr` |
 
 **Dependency chain:**

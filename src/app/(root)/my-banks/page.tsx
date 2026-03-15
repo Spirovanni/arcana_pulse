@@ -12,6 +12,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { usePlaidLink } from "react-plaid-link";
+import EmptyState from "@/components/EmptyState";
 import {
   getBanksByWorkspace,
   DEFAULT_WORKSPACE_ID,
@@ -143,23 +144,16 @@ export default function MyBanksPage() {
       </div>
 
       {banks.length === 0 ? (
-        <div className="rounded-xl bg-arcana-surface border border-arcana-border p-12 text-center">
-          <Landmark className="w-12 h-12 text-slate-500 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-white mb-2">
-            No banks connected
-          </h3>
-          <p className="text-sm text-slate-400 mb-6">
-            Connect your first bank account to see balances and transactions
-          </p>
-          <button
-            type="button"
-            disabled={!canConnect}
-            className="px-6 py-2.5 rounded-lg bg-arcana-blue text-white text-sm font-medium hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            onClick={() => openPlaidLink()}
-          >
-            {linking ? "Linking..." : "Connect Your First Bank"}
-          </button>
-        </div>
+        <EmptyState
+          icon={Landmark}
+          title="No banks connected"
+          description="Connect your first bank account to see balances and transactions"
+          action={{
+            label: linking ? "Linking..." : "Connect Your First Bank",
+            onClick: () => openPlaidLink(),
+            disabled: !canConnect,
+          }}
+        />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {banks.map((bank) => {

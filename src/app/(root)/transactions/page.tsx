@@ -2,7 +2,9 @@
 
 import { useState, useCallback, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import { Plus, Pencil, Trash2, Landmark, X } from "lucide-react";
+import { Plus, Pencil, Trash2, Landmark, X, ArrowLeftRight } from "lucide-react";
+import LoadingSpinner from "@/components/LoadingSpinner";
+import EmptyState from "@/components/EmptyState";
 import {
   listTransactions,
   createTransaction,
@@ -27,7 +29,7 @@ const PAGE_SIZE = 10;
 
 export default function TransactionsPage() {
   return (
-    <Suspense>
+    <Suspense fallback={<LoadingSpinner label="Loading transactions..." />}>
       <TransactionsContent />
     </Suspense>
   );
@@ -177,6 +179,22 @@ function TransactionsContent() {
       )}
 
       {/* Transaction Table */}
+      {result.items.length === 0 ? (
+        <EmptyState
+          icon={ArrowLeftRight}
+          title="No transactions found"
+          description={
+            bankFilter || typeFilter
+              ? "No transactions match the selected filters. Try adjusting your filters."
+              : "Add your first transaction to start tracking your finances."
+          }
+          action={
+            !bankFilter && !typeFilter
+              ? { label: "Add Transaction", onClick: () => setShowForm(true) }
+              : undefined
+          }
+        />
+      ) : (
       <div className="rounded-xl bg-arcana-surface border border-arcana-border overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -329,6 +347,7 @@ function TransactionsContent() {
           </div>
         </div>
       </div>
+      )}
 
       {/* Modals */}
       {showForm && (
