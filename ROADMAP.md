@@ -112,10 +112,10 @@ Transfer page (u0f)
 | Status | Task | Bead |
 |--------|------|------|
 | ✅ | Add auth flow with protected route middleware | `arcana_pulse-6b3` |
-| ⬜ | Add Sentry monitoring and deployment hardening | `arcana_pulse-785` |
-| ⬜ | Install and configure Sentry SDK | `arcana_pulse-9ea` |
-| ⬜ | Add error boundaries and PII scrubbing | `arcana_pulse-9pb` |
-| ⬜ | Add environment validation and Vercel config | `arcana_pulse-klu` |
+| ✅ | Add Sentry monitoring and deployment hardening | `arcana_pulse-785` |
+| ✅ | Install and configure Sentry SDK | `arcana_pulse-9ea` |
+| ✅ | Add error boundaries and PII scrubbing | `arcana_pulse-9pb` |
+| ✅ | Add environment validation and Vercel config | `arcana_pulse-klu` |
 | ⬜ | Add loading states and empty state standardization | `arcana_pulse-4qb` |
 | ⬜ | Responsive QA and mobile polish | `arcana_pulse-udr` |
 
