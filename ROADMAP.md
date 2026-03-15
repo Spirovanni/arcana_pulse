@@ -87,7 +87,7 @@ My Banks page (7wf)
 | Status | Task | Bead |
 |--------|------|------|
 | ✅ | Build transfer funds page | `arcana_pulse-u0f` |
-| ⬜ | Create transfer service layer | `arcana_pulse-ban` |
+| ✅ | Create transfer service layer | `arcana_pulse-ban` |
 | ⬜ | Wire transfer form with validation and confirmation | `arcana_pulse-2bk` |
 | ⬜ | Add transfer status lifecycle display | `arcana_pulse-9jz` |
 | ⬜ | Integrate Dwolla sandbox transfer flow | `arcana_pulse-4mi` |
