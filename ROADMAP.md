@@ -136,7 +136,7 @@ Transfer page (u0f)
 | Status | Task | Bead |
 |--------|------|------|
 | ✅ | Design and apply production database schema | `arcana_pulse-dwg` |
-| | Replace in-memory stores with Appwrite database | `arcana_pulse-9kx` |
+| ✅ | Replace in-memory stores with Appwrite database | `arcana_pulse-9kx` |
 | | Migrate auth to NextAuth.js with production-safe credentials | `arcana_pulse-ph3` |
 | | Add email verification and password reset flow | `arcana_pulse-756` |
 | | Add database connection pooling and error retry logic | `arcana_pulse-2fz` |
