@@ -105,7 +105,7 @@ Transfer page (u0f)
 
 ---
 
-## Milestone 5 — Auth, Monitoring, and Hardening
+## Milestone 5 — Auth, Monitoring, and Hardening ✅
 
 > Authentication, route protection, Sentry, error handling, deployment.
 
@@ -117,16 +117,15 @@ Transfer page (u0f)
 | ✅ | Add error boundaries and PII scrubbing | `arcana_pulse-9pb` |
 | ✅ | Add environment validation and Vercel config | `arcana_pulse-klu` |
 | ✅ | Add loading states and empty state standardization | `arcana_pulse-4qb` |
-| ⬜ | Responsive QA and mobile polish | `arcana_pulse-udr` |
+| ✅ | Responsive QA and mobile polish | `arcana_pulse-udr` |
 
-**Dependency chain:**
-```
-Sentry (785) → Install SDK (9ea) → Error boundaries + PII scrubbing (9pb)
-             → Env validation + Vercel config (klu)
-Auth (6b3) — independent, can be parallelized
-Loading states (4qb) — independent
-Responsive QA (udr) — final pass, after all features
-```
+**Delivered:**
+- Cookie-based auth with in-memory session store, sign-in/sign-up forms, route protection middleware
+- Sentry SDK (client/server/edge) with session replay, PII scrubbing, and error boundaries
+- Environment validation module with `requireEnv()` helper
+- Vercel deployment config (`vercel.json`)
+- Reusable `LoadingSpinner` and `EmptyState` components standardized across all pages
+- Responsive mobile polish: stacking page headers, horizontal-scroll tables with `min-w`, 44px touch targets, settings row stacking
 
 ---
 
@@ -134,10 +133,10 @@ Responsive QA (udr) — final pass, after all features
 
 | Epic | Status | Phase |
 |------|--------|-------|
-| Platform foundation | ✅ In progress (M1-M2 done) | `arcana_pulse-5g0` |
-| Connected banking | ✅ Milestone 3 complete | `arcana_pulse-58p` |
-| Finance tracker SaaS layer | ✅ In progress (M2 done) | `arcana_pulse-2jq` |
-| Transfers, monitoring, hardening | ⬜ Milestones 4-5 | `arcana_pulse-h8h` |
+| Platform foundation | ✅ Complete (M1-M2) | `arcana_pulse-5g0` |
+| Connected banking | ✅ Complete (M3) | `arcana_pulse-58p` |
+| Finance tracker SaaS layer | ✅ Complete (M2) | `arcana_pulse-2jq` |
+| Transfers, monitoring, hardening | ✅ Complete (M4-M5) | `arcana_pulse-h8h` |
 
 ---
 

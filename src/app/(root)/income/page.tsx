@@ -64,7 +64,7 @@ export default function IncomePage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-white">Income</h1>
           <p className="text-sm text-slate-400 mt-1">
@@ -74,7 +74,7 @@ export default function IncomePage() {
         <button
           type="button"
           onClick={() => setShowForm(true)}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-arcana-success text-white text-sm font-medium hover:bg-green-600 transition-colors"
+          className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-arcana-success text-white text-sm font-medium hover:bg-green-600 transition-colors self-start sm:self-auto"
         >
           <Plus className="w-4 h-4" />
           Add Income
@@ -131,8 +131,8 @@ export default function IncomePage() {
           action={{ label: "Add Income", onClick: () => setShowForm(true) }}
         />
       ) : (
-        <div className="rounded-xl bg-arcana-surface border border-arcana-border overflow-hidden">
-          <table className="w-full text-sm">
+        <div className="rounded-xl bg-arcana-surface border border-arcana-border overflow-hidden overflow-x-auto">
+          <table className="w-full text-sm min-w-[640px]">
             <thead>
               <tr className="text-slate-400 text-left border-b border-arcana-border bg-arcana-navy/50">
                 <th className="px-5 py-3 font-medium">Title</th>
@@ -192,7 +192,7 @@ export default function IncomePage() {
                         <button
                           type="button"
                           onClick={() => setEditingTxn(txn)}
-                          className="p-1.5 rounded text-slate-400 hover:text-white hover:bg-arcana-navy transition-colors"
+                          className="p-2 rounded text-slate-400 hover:text-white hover:bg-arcana-navy transition-colors"
                           title="Edit"
                         >
                           <Pencil className="w-3.5 h-3.5" />
@@ -200,7 +200,7 @@ export default function IncomePage() {
                         <button
                           type="button"
                           onClick={() => setDeletingTxn(txn)}
-                          className="p-1.5 rounded text-slate-400 hover:text-arcana-danger hover:bg-red-500/10 transition-colors"
+                          className="p-2 rounded text-slate-400 hover:text-arcana-danger hover:bg-red-500/10 transition-colors"
                           title="Delete"
                         >
                           <Trash2 className="w-3.5 h-3.5" />

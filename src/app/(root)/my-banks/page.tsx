@@ -121,7 +121,7 @@ export default function MyBanksPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-white">My Banks</h1>
           <p className="text-sm text-slate-400 mt-1">
@@ -131,7 +131,7 @@ export default function MyBanksPage() {
         <button
           type="button"
           disabled={!canConnect}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-arcana-blue text-white text-sm font-medium hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-arcana-blue text-white text-sm font-medium hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed self-start sm:self-auto"
           onClick={() => openPlaidLink()}
         >
           {linking ? (

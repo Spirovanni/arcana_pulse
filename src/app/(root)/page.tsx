@@ -214,7 +214,7 @@ export default function DashboardPage() {
           </a>
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="w-full text-sm min-w-[500px]">
             <thead>
               <tr className="text-slate-400 text-left border-b border-arcana-border">
                 <th className="pb-2 font-medium">Title</th>

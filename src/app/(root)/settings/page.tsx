@@ -21,21 +21,21 @@ export default function SettingsPage() {
       <div className="rounded-xl bg-arcana-surface border border-arcana-border p-6">
         <h3 className="text-sm font-semibold text-white mb-4">Workspace</h3>
         <div className="space-y-3 text-sm">
-          <div className="flex justify-between py-2 border-b border-arcana-border">
+          <div className="flex flex-col sm:flex-row sm:justify-between gap-1 py-2 border-b border-arcana-border">
             <span className="text-slate-400">Workspace Name</span>
             <span className="text-white">{workspace.name}</span>
           </div>
-          <div className="flex justify-between py-2 border-b border-arcana-border">
+          <div className="flex flex-col sm:flex-row sm:justify-between gap-1 py-2 border-b border-arcana-border">
             <span className="text-slate-400">Plan</span>
             <span className="text-white capitalize">{workspace.plan}</span>
           </div>
-          <div className="flex justify-between py-2 border-b border-arcana-border">
+          <div className="flex flex-col sm:flex-row sm:justify-between gap-1 py-2 border-b border-arcana-border">
             <span className="text-slate-400">Status</span>
             <span className="inline-block px-2 py-0.5 rounded text-xs font-medium bg-green-500/10 text-arcana-success">
               {workspace.status}
             </span>
           </div>
-          <div className="flex justify-between py-2">
+          <div className="flex flex-col sm:flex-row sm:justify-between gap-1 py-2">
             <span className="text-slate-400">Created</span>
             <span className="text-white">
               {new Date(workspace.createdAt).toLocaleDateString()}
@@ -48,17 +48,17 @@ export default function SettingsPage() {
       <div className="rounded-xl bg-arcana-surface border border-arcana-border p-6">
         <h3 className="text-sm font-semibold text-white mb-4">Profile</h3>
         <div className="space-y-3 text-sm">
-          <div className="flex justify-between py-2 border-b border-arcana-border">
+          <div className="flex flex-col sm:flex-row sm:justify-between gap-1 py-2 border-b border-arcana-border">
             <span className="text-slate-400">Name</span>
             <span className="text-white">
               {user.firstName} {user.lastName}
             </span>
           </div>
-          <div className="flex justify-between py-2 border-b border-arcana-border">
+          <div className="flex flex-col sm:flex-row sm:justify-between gap-1 py-2 border-b border-arcana-border">
             <span className="text-slate-400">Email</span>
             <span className="text-white">{user.email}</span>
           </div>
-          <div className="flex justify-between py-2">
+          <div className="flex flex-col sm:flex-row sm:justify-between gap-1 py-2">
             <span className="text-slate-400">Role</span>
             <span className="text-white capitalize">{user.role}</span>
           </div>
