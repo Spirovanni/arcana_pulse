@@ -1,12 +1,14 @@
-import type { Workspace, User, Bank, WorkspacePlan } from "@/lib/types";
-import { mockWorkspace, mockUser, mockBanks } from "@/lib/mock/data";
+import type { Workspace, User, WorkspacePlan } from "@/lib/types";
+import { mockWorkspace, mockUser } from "@/lib/mock/data";
+
+// Re-export bank operations from dedicated bank service
+export { getBanksByWorkspace, getBankById, getTotalBalance } from "./banks";
 
 // ─── In-memory store (mock persistence) ─────────────────────────────
 // Structured for future replacement with Appwrite SDK calls.
 
 let workspace: Workspace = { ...mockWorkspace };
 let user: User = { ...mockUser };
-let banks: Bank[] = [...mockBanks];
 
 // ─── Workspace operations ───────────────────────────────────────────
 
@@ -37,25 +39,6 @@ export function getCurrentUser(): User {
 
 export function getUserByWorkspace(workspaceId: string): User | null {
   return user.workspaceId === workspaceId ? { ...user } : null;
-}
-
-// ─── Bank operations ────────────────────────────────────────────────
-
-export function getBanksByWorkspace(workspaceId: string): Bank[] {
-  return banks
-    .filter((b) => b.workspaceId === workspaceId)
-    .map((b) => ({ ...b }));
-}
-
-export function getBankById(bankId: string): Bank | null {
-  const bank = banks.find((b) => b.bankId === bankId);
-  return bank ? { ...bank } : null;
-}
-
-export function getTotalBalance(workspaceId: string): number {
-  return banks
-    .filter((b) => b.workspaceId === workspaceId)
-    .reduce((sum, b) => sum + b.balance, 0);
 }
 
 // ─── Default workspace ID ───────────────────────────────────────────

@@ -53,14 +53,14 @@
 
 ---
 
-## Milestone 3 — Connected Banking (next)
+## Milestone 3 — Connected Banking (in progress)
 
 > Bank service layer, My Banks page, Plaid sandbox integration, transaction sync.
 
 | Status | Task | Bead |
 |--------|------|------|
-| ⬜ | Build My Banks (Accounts) page | `arcana_pulse-7wf` |
-| ⬜ | Create bank service layer | `arcana_pulse-4km` |
+| ✅ | Build My Banks (Accounts) page | `arcana_pulse-7wf` |
+| ✅ | Create bank service layer | `arcana_pulse-4km` |
 | ⬜ | Wire My Banks page to bank service | `arcana_pulse-c5f` |
 | ⬜ | Add bank-level transaction filtering | `arcana_pulse-6dq` |
 | ⬜ | Integrate Plaid sandbox bank linking | `arcana_pulse-agr` |
@@ -146,9 +146,9 @@ Responsive QA (udr) — final pass, after all features
 | Metric | Count |
 |--------|-------|
 | Total issues | 39 |
-| Closed | 11 |
-| Open | 28 |
-| Blocked (waiting on dependency) | 18 |
+| Closed | 13 |
+| Open | 26 |
+| Blocked (waiting on dependency) | 16 |
 | Ready to work | 10 |
 
 ---
