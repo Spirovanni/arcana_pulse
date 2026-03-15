@@ -53,7 +53,7 @@
 
 ---
 
-## Milestone 3 — Connected Banking (in progress)
+## Milestone 3 — Connected Banking ✅
 
 > Bank service layer, My Banks page, Plaid sandbox integration, transaction sync.
 
@@ -67,7 +67,7 @@
 | ✅ | Add Plaid API routes for link token and token exchange | `arcana_pulse-2af` |
 | ✅ | Build Plaid Link React component | `arcana_pulse-3t4` |
 | ✅ | Sync Plaid sandbox transactions | `arcana_pulse-6pf` |
-| ⬜ | Create Dwolla funding source on bank link | `arcana_pulse-4dm` |
+| ✅ | Create Dwolla funding source on bank link | `arcana_pulse-4dm` |
 
 **Dependency chain:**
 ```
@@ -135,7 +135,7 @@ Responsive QA (udr) — final pass, after all features
 | Epic | Status | Phase |
 |------|--------|-------|
 | Platform foundation | ✅ In progress (M1-M2 done) | `arcana_pulse-5g0` |
-| Connected banking | ⬜ Milestone 3 | `arcana_pulse-58p` |
+| Connected banking | ✅ Milestone 3 complete | `arcana_pulse-58p` |
 | Finance tracker SaaS layer | ✅ In progress (M2 done) | `arcana_pulse-2jq` |
 | Transfers, monitoring, hardening | ⬜ Milestones 4-5 | `arcana_pulse-h8h` |
 
@@ -146,8 +146,8 @@ Responsive QA (udr) — final pass, after all features
 | Metric | Count |
 |--------|-------|
 | Total issues | 39 |
-| Closed | 19 |
-| Open | 20 |
+| Closed | 20 |
+| Open | 19 |
 | Blocked (waiting on dependency) | 16 |
 | Ready to work | 10 |
 

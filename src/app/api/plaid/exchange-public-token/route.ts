@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { plaidClient } from "@/lib/plaid";
-import { addBank } from "@/lib/services/banks";
+import { ProcessorTokenCreateRequestProcessorEnum } from "plaid";
+import { addBank, updateBank } from "@/lib/services/banks";
+import { dwollaClient } from "@/lib/dwolla";
 
 export async function POST(request: NextRequest) {
   try {
@@ -44,10 +46,11 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Persist each linked account via bank service
-    const linkedBanks = accounts.map((account) => {
+    // Persist each linked account and create Dwolla funding sources
+    const linkedBanks = [];
+    for (const account of accounts) {
       const mask = account.mask ?? "0000";
-      return addBank({
+      const bank = addBank({
         workspaceId,
         institutionName,
         accountId: account.account_id,
@@ -56,7 +59,48 @@ export async function POST(request: NextRequest) {
         balance: account.balances.current ?? 0,
         accessTokenRef: accessToken,
       });
-    });
+
+      // Create Dwolla funding source via Plaid processor token
+      try {
+        // Generate Plaid processor token for Dwolla
+        const processorResponse = await plaidClient.processorTokenCreate({
+          access_token: accessToken,
+          account_id: account.account_id,
+          processor: ProcessorTokenCreateRequestProcessorEnum.Dwolla,
+        });
+        const processorToken = processorResponse.data.processor_token;
+
+        // Create Dwolla customer funding source
+        // In sandbox, use the Dwolla master account's funding-sources endpoint
+        const rootRes = await dwollaClient.get("/");
+        const rootLinks = rootRes.body._links;
+        const accountUrl =
+          rootLinks?.account?.href ?? rootLinks?.self?.href ?? "";
+
+        if (accountUrl) {
+          const fundingRes = await dwollaClient.post(
+            `${accountUrl}/funding-sources`,
+            {
+              plaidToken: processorToken,
+              name: `${institutionName} ...${mask}`,
+            }
+          );
+          const fundingSourceUrl =
+            fundingRes.headers.get("Location") ??
+            fundingRes.headers.get("location") ??
+            "";
+
+          if (fundingSourceUrl) {
+            updateBank(bank.bankId, { fundingSourceUrl });
+            bank.fundingSourceUrl = fundingSourceUrl;
+          }
+        }
+      } catch {
+        // Dwolla funding source creation failed — bank still linked without it
+      }
+
+      linkedBanks.push(bank);
+    }
 
     return NextResponse.json({ banks: linkedBanks });
   } catch (error: unknown) {

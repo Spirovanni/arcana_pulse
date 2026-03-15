@@ -58,6 +58,23 @@ export function addBank(input: AddBankInput): Bank {
   return { ...bank };
 }
 
+// ─── Update ─────────────────────────────────────────────────────────
+
+export function updateBank(
+  bankId: string,
+  updates: { fundingSourceUrl?: string; balance?: number }
+): Bank {
+  const idx = banks.findIndex((b) => b.bankId === bankId);
+  if (idx === -1) throw new Error(`Bank ${bankId} not found`);
+  const updated: Bank = {
+    ...banks[idx],
+    ...updates,
+    updatedAt: new Date().toISOString(),
+  };
+  banks = [...banks.slice(0, idx), updated, ...banks.slice(idx + 1)];
+  return { ...updated };
+}
+
 // ─── Delete ─────────────────────────────────────────────────────────
 
 export function removeBankLink(bankId: string): void {
