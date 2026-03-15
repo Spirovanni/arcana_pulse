@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import {
   SendHorizontal,
   Clock,
@@ -9,6 +9,10 @@ import {
   X,
   Loader2,
   ArrowRight,
+  ChevronDown,
+  ChevronUp,
+  RotateCw,
+  XCircle,
 } from "lucide-react";
 import {
   getBanksByWorkspace,
@@ -20,17 +24,90 @@ import {
 } from "@/lib/services/transfers";
 import { TRANSFER_STATUS_LABELS } from "@/lib/constants";
 import { formatCurrency } from "@/lib/utils";
-import type { Transfer } from "@/lib/types";
+import type { Transfer, TransferStatus } from "@/lib/types";
 
-const statusIcon: Record<
-  string,
-  React.ComponentType<{ className?: string }>
+// ─── Status config ──────────────────────────────────────────────────
+
+const STATUS_CONFIG: Record<
+  TransferStatus,
+  {
+    icon: React.ComponentType<{ className?: string }>;
+    color: string;
+    bg: string;
+    border: string;
+  }
 > = {
-  posted: CheckCircle,
-  pending: Clock,
-  processing: Clock,
-  failed: AlertCircle,
+  initiated: {
+    icon: Clock,
+    color: "text-slate-400",
+    bg: "bg-slate-400/10",
+    border: "border-slate-400/20",
+  },
+  pending: {
+    icon: Clock,
+    color: "text-arcana-warning",
+    bg: "bg-yellow-400/10",
+    border: "border-yellow-400/20",
+  },
+  processing: {
+    icon: RotateCw,
+    color: "text-blue-400",
+    bg: "bg-blue-400/10",
+    border: "border-blue-400/20",
+  },
+  posted: {
+    icon: CheckCircle,
+    color: "text-arcana-success",
+    bg: "bg-green-400/10",
+    border: "border-green-400/20",
+  },
+  failed: {
+    icon: XCircle,
+    color: "text-arcana-danger",
+    bg: "bg-red-400/10",
+    border: "border-red-400/20",
+  },
+  reversed: {
+    icon: AlertCircle,
+    color: "text-orange-400",
+    bg: "bg-orange-400/10",
+    border: "border-orange-400/20",
+  },
 };
+
+// The standard lifecycle path
+const LIFECYCLE_STEPS: TransferStatus[] = [
+  "initiated",
+  "pending",
+  "processing",
+  "posted",
+];
+
+function getStepState(
+  step: TransferStatus,
+  currentStatus: TransferStatus
+): "complete" | "current" | "upcoming" | "failed" {
+  if (currentStatus === "failed" || currentStatus === "reversed") {
+    const currentIdx = LIFECYCLE_STEPS.indexOf(step);
+    // For failed/reversed, show which step it was at
+    // We don't know exactly when it failed, so mark all as complete up to where it got
+    if (currentStatus === "failed") {
+      // The last step before failure — treat the step as the failure point
+      return currentIdx === 0 ? "failed" : "upcoming";
+    }
+    if (currentStatus === "reversed") {
+      // Reversed means it was posted, so all lifecycle steps are complete
+      return "complete";
+    }
+  }
+  const stepIdx = LIFECYCLE_STEPS.indexOf(step);
+  const currentIdx = LIFECYCLE_STEPS.indexOf(currentStatus);
+  if (stepIdx < currentIdx) return "complete";
+  if (stepIdx === currentIdx) return "current";
+  return "upcoming";
+}
+
+// ─── Form types ─────────────────────────────────────────────────────
 
 interface TransferFormData {
   senderBankId: string;
@@ -47,6 +124,8 @@ const emptyForm: TransferFormData = {
   amount: "",
   note: "",
 };
+
+// ─── Component ──────────────────────────────────────────────────────
 
 export default function TransferPage() {
   const [version, setVersion] = useState(0);
@@ -65,6 +144,13 @@ export default function TransferPage() {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [receipt, setReceipt] = useState<Transfer | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  // Auto-refresh every 10s to pick up status changes
+  useEffect(() => {
+    const interval = setInterval(() => bump(), 10_000);
+    return () => clearInterval(interval);
+  }, [bump]);
 
   function updateField(field: keyof TransferFormData, value: string) {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -230,11 +316,9 @@ export default function TransferPage() {
                     </span>
                   </div>
                 )}
-                <div className="flex justify-between text-sm">
+                <div className="flex justify-between items-center text-sm">
                   <span className="text-slate-400">Status</span>
-                  <span className="text-arcana-warning font-medium">
-                    {TRANSFER_STATUS_LABELS[receipt.status]}
-                  </span>
+                  <StatusBadge status={receipt.status} />
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-slate-400">Date</span>
@@ -242,6 +326,11 @@ export default function TransferPage() {
                     {new Date(receipt.createdAt).toLocaleString()}
                   </span>
                 </div>
+              </div>
+
+              {/* Lifecycle tracker in receipt */}
+              <div className="mb-6">
+                <LifecycleTracker status={receipt.status} />
               </div>
 
               <button
@@ -406,43 +495,125 @@ export default function TransferPage() {
           ) : (
             <div className="space-y-3">
               {transfers.map((xfr) => {
-                const StatusIcon = statusIcon[xfr.status] || Clock;
+                const config = STATUS_CONFIG[xfr.status];
+                const StatusIcon = config.icon;
                 const xfrSenderBank = banks.find(
                   (b) => b.bankId === xfr.senderBankId
                 );
+                const isExpanded = expandedId === xfr.transferId;
+
                 return (
                   <div
                     key={xfr.transferId}
-                    className="flex items-start justify-between p-4 rounded-lg bg-arcana-navy"
+                    className="rounded-lg bg-arcana-navy overflow-hidden"
                   >
-                    <div className="flex items-start gap-3">
-                      <StatusIcon
-                        className={`w-5 h-5 mt-0.5 ${
-                          xfr.status === "posted"
-                            ? "text-arcana-success"
-                            : xfr.status === "failed"
-                              ? "text-arcana-danger"
-                              : "text-arcana-warning"
-                        }`}
-                      />
-                      <div>
-                        <p className="text-sm text-white font-medium">
-                          {xfrSenderBank?.institutionName || "Unknown"}{" "}
-                          &rarr; {xfr.receiverShareableId}
-                        </p>
-                        <p className="text-xs text-slate-400 mt-0.5">
-                          {xfr.note}
-                        </p>
-                        <p className="text-xs text-slate-500 mt-1">
-                          {new Date(xfr.createdAt).toLocaleDateString()}{" "}
-                          &middot;{" "}
-                          {TRANSFER_STATUS_LABELS[xfr.status]}
-                        </p>
+                    {/* Row summary */}
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setExpandedId(isExpanded ? null : xfr.transferId)
+                      }
+                      className="w-full flex items-start justify-between p-4 text-left hover:bg-arcana-border/30 transition-colors"
+                    >
+                      <div className="flex items-start gap-3 min-w-0 flex-1">
+                        <StatusIcon
+                          className={`w-5 h-5 mt-0.5 shrink-0 ${config.color}`}
+                        />
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm text-white font-medium truncate">
+                            {xfrSenderBank?.institutionName || "Unknown"}{" "}
+                            &rarr; {xfr.receiverShareableId}
+                          </p>
+                          <div className="flex items-center gap-2 mt-1">
+                            <StatusBadge status={xfr.status} />
+                            <span className="text-[10px] text-slate-500">
+                              {new Date(xfr.createdAt).toLocaleDateString()}
+                            </span>
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                    <p className="text-sm font-medium text-white">
-                      {formatCurrency(xfr.amount)}
-                    </p>
+                      <div className="flex items-center gap-2 ml-3 shrink-0">
+                        <p className="text-sm font-medium text-white">
+                          {formatCurrency(xfr.amount)}
+                        </p>
+                        {isExpanded ? (
+                          <ChevronUp className="w-4 h-4 text-slate-400" />
+                        ) : (
+                          <ChevronDown className="w-4 h-4 text-slate-400" />
+                        )}
+                      </div>
+                    </button>
+
+                    {/* Expanded detail */}
+                    {isExpanded && (
+                      <div className="border-t border-arcana-border px-4 py-4 space-y-4">
+                        {/* Transfer details */}
+                        <div className="space-y-2">
+                          <div className="flex justify-between text-xs">
+                            <span className="text-slate-500">Transfer ID</span>
+                            <span className="text-slate-300 font-mono">
+                              {xfr.transferId}
+                            </span>
+                          </div>
+                          <div className="flex justify-between text-xs">
+                            <span className="text-slate-500">From</span>
+                            <span className="text-slate-300">
+                              {xfrSenderBank?.institutionName || "Unknown"} (...
+                              {xfrSenderBank?.displayMask || "????"})
+                            </span>
+                          </div>
+                          <div className="flex justify-between text-xs">
+                            <span className="text-slate-500">To</span>
+                            <span className="text-slate-300 font-mono">
+                              {xfr.receiverShareableId}
+                            </span>
+                          </div>
+                          {xfr.recipientEmail && (
+                            <div className="flex justify-between text-xs">
+                              <span className="text-slate-500">Email</span>
+                              <span className="text-slate-300">
+                                {xfr.recipientEmail}
+                              </span>
+                            </div>
+                          )}
+                          {xfr.note && (
+                            <div className="flex justify-between text-xs">
+                              <span className="text-slate-500">Note</span>
+                              <span className="text-slate-300 text-right max-w-[180px]">
+                                {xfr.note}
+                              </span>
+                            </div>
+                          )}
+                          {xfr.providerReference && (
+                            <div className="flex justify-between text-xs">
+                              <span className="text-slate-500">
+                                Provider Ref
+                              </span>
+                              <span className="text-slate-300 font-mono">
+                                {xfr.providerReference}
+                              </span>
+                            </div>
+                          )}
+                          <div className="flex justify-between text-xs">
+                            <span className="text-slate-500">Updated</span>
+                            <span className="text-slate-300">
+                              {new Date(xfr.updatedAt).toLocaleString()}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Lifecycle tracker */}
+                        <LifecycleTracker status={xfr.status} />
+
+                        {/* Link to transactions */}
+                        <a
+                          href="/transactions?type=transfer"
+                          className="block text-center text-xs text-arcana-sky hover:text-blue-400 pt-1 transition-colors"
+                        >
+                          View transfer transactions &rarr;
+                        </a>
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -534,6 +705,94 @@ export default function TransferPage() {
               </button>
             </div>
           </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Sub-components ─────────────────────────────────────────────────
+
+function StatusBadge({ status }: { status: TransferStatus }) {
+  const config = STATUS_CONFIG[status];
+  return (
+    <span
+      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium border ${config.color} ${config.bg} ${config.border}`}
+    >
+      <span
+        className={`w-1.5 h-1.5 rounded-full ${
+          status === "processing" ? "animate-pulse" : ""
+        } ${config.color.replace("text-", "bg-")}`}
+      />
+      {TRANSFER_STATUS_LABELS[status]}
+    </span>
+  );
+}
+
+function LifecycleTracker({ status }: { status: TransferStatus }) {
+  const isFailed = status === "failed";
+  const isReversed = status === "reversed";
+
+  return (
+    <div className="space-y-1">
+      <p className="text-[10px] text-slate-500 uppercase tracking-wider font-medium">
+        Transfer Lifecycle
+      </p>
+      <div className="flex items-center gap-1">
+        {LIFECYCLE_STEPS.map((step, i) => {
+          const state = getStepState(step, status);
+          return (
+            <div key={step} className="flex items-center flex-1 last:flex-initial">
+              {/* Step dot + label */}
+              <div className="flex flex-col items-center">
+                <div
+                  className={`w-3 h-3 rounded-full border-2 ${
+                    state === "complete"
+                      ? "bg-green-400 border-green-400"
+                      : state === "current"
+                        ? "bg-arcana-blue border-arcana-blue"
+                        : state === "failed"
+                          ? "bg-red-400 border-red-400"
+                          : "bg-transparent border-slate-600"
+                  }`}
+                />
+                <span
+                  className={`text-[9px] mt-1 ${
+                    state === "complete" || state === "current"
+                      ? "text-slate-300"
+                      : "text-slate-600"
+                  }`}
+                >
+                  {TRANSFER_STATUS_LABELS[step]}
+                </span>
+              </div>
+              {/* Connector line */}
+              {i < LIFECYCLE_STEPS.length - 1 && (
+                <div
+                  className={`flex-1 h-0.5 mx-1 ${
+                    state === "complete" ? "bg-green-400/50" : "bg-slate-700"
+                  }`}
+                />
+              )}
+            </div>
+          );
+        })}
+      </div>
+      {/* Terminal status indicator */}
+      {(isFailed || isReversed) && (
+        <div className="flex items-center gap-1.5 mt-2">
+          <div
+            className={`w-3 h-3 rounded-full ${
+              isFailed ? "bg-red-400" : "bg-orange-400"
+            }`}
+          />
+          <span
+            className={`text-[10px] font-medium ${
+              isFailed ? "text-red-400" : "text-orange-400"
+            }`}
+          >
+            {isFailed ? "Transfer Failed" : "Transfer Reversed"}
+          </span>
         </div>
       )}
     </div>
