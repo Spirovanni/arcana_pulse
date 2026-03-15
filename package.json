@@ -26,8 +26,10 @@
   "homepage": "https://github.com/Spirovanni/arcana_pulse#readme",
   "dependencies": {
     "next": "^14.2.35",
+    "plaid": "^41.4.0",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "react-plaid-link": "^4.1.1"
   },
   "devDependencies": {
     "@types/node": "^25.5.0",

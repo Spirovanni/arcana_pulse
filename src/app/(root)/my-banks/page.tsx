@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback, useEffect } from "react";
 import {
   Landmark,
   Plus,
@@ -8,7 +8,9 @@ import {
   Check,
   ChevronDown,
   ChevronUp,
+  Loader2,
 } from "lucide-react";
+import { usePlaidLink } from "react-plaid-link";
 import {
   getBanksByWorkspace,
   DEFAULT_WORKSPACE_ID,
@@ -18,9 +20,66 @@ import { formatCurrency, formatDate } from "@/lib/utils";
 import { CATEGORY_LABELS } from "@/lib/constants";
 
 export default function MyBanksPage() {
+  const [version, setVersion] = useState(0);
+  const bump = useCallback(() => setVersion((v) => v + 1), []);
+
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const _ = version;
   const banks = getBanksByWorkspace(DEFAULT_WORKSPACE_ID);
+
   const [expandedBankId, setExpandedBankId] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [linkToken, setLinkToken] = useState<string | null>(null);
+  const [linking, setLinking] = useState(false);
+
+  // Fetch a Plaid link token on mount
+  useEffect(() => {
+    async function fetchLinkToken() {
+      try {
+        const res = await fetch("/api/plaid/create-link-token", {
+          method: "POST",
+        });
+        const data = await res.json();
+        if (data.linkToken) {
+          setLinkToken(data.linkToken);
+        }
+      } catch {
+        // Link token fetch failed — button will show disabled state
+      }
+    }
+    fetchLinkToken();
+  }, []);
+
+  // Plaid Link success handler
+  const onPlaidSuccess = useCallback(
+    async (publicToken: string) => {
+      setLinking(true);
+      try {
+        const res = await fetch("/api/plaid/exchange-public-token", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            publicToken,
+            workspaceId: DEFAULT_WORKSPACE_ID,
+          }),
+        });
+        const data = await res.json();
+        if (data.banks) {
+          bump();
+        }
+      } catch {
+        // Exchange failed
+      } finally {
+        setLinking(false);
+      }
+    },
+    [bump]
+  );
+
+  const { open: openPlaidLink, ready: plaidReady } = usePlaidLink({
+    token: linkToken,
+    onSuccess: onPlaidSuccess,
+  });
 
   function toggleExpand(bankId: string) {
     setExpandedBankId((prev) => (prev === bankId ? null : bankId));
@@ -39,6 +98,8 @@ export default function MyBanksPage() {
     );
   }
 
+  const canConnect = plaidReady && !linking;
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -50,15 +111,16 @@ export default function MyBanksPage() {
         </div>
         <button
           type="button"
-          className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-arcana-blue text-white text-sm font-medium hover:bg-blue-600 transition-colors"
-          onClick={() =>
-            alert(
-              "Plaid bank linking coming soon — sandbox credentials configured."
-            )
-          }
+          disabled={!canConnect}
+          className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-arcana-blue text-white text-sm font-medium hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          onClick={() => openPlaidLink()}
         >
-          <Plus className="w-4 h-4" />
-          Connect Bank
+          {linking ? (
+            <Loader2 className="w-4 h-4 animate-spin" />
+          ) : (
+            <Plus className="w-4 h-4" />
+          )}
+          {linking ? "Linking..." : "Connect Bank"}
         </button>
       </div>
 
@@ -73,14 +135,11 @@ export default function MyBanksPage() {
           </p>
           <button
             type="button"
-            className="px-6 py-2.5 rounded-lg bg-arcana-blue text-white text-sm font-medium hover:bg-blue-600 transition-colors"
-            onClick={() =>
-              alert(
-                "Plaid bank linking coming soon — sandbox credentials configured."
-              )
-            }
+            disabled={!canConnect}
+            className="px-6 py-2.5 rounded-lg bg-arcana-blue text-white text-sm font-medium hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            onClick={() => openPlaidLink()}
           >
-            Connect Your First Bank
+            {linking ? "Linking..." : "Connect Your First Bank"}
           </button>
         </div>
       ) : (

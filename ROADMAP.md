@@ -63,7 +63,7 @@
 | ✅ | Create bank service layer | `arcana_pulse-4km` |
 | ✅ | Wire My Banks page to bank service | `arcana_pulse-c5f` |
 | ✅ | Add bank-level transaction filtering | `arcana_pulse-6dq` |
-| ⬜ | Integrate Plaid sandbox bank linking | `arcana_pulse-agr` |
+| ✅ | Integrate Plaid sandbox bank linking | `arcana_pulse-agr` |
 | ⬜ | Add Plaid API routes for link token and token exchange | `arcana_pulse-2af` |
 | ⬜ | Build Plaid Link React component | `arcana_pulse-3t4` |
 | ⬜ | Sync Plaid sandbox transactions | `arcana_pulse-6pf` |
@@ -146,8 +146,8 @@ Responsive QA (udr) — final pass, after all features
 | Metric | Count |
 |--------|-------|
 | Total issues | 39 |
-| Closed | 15 |
-| Open | 24 |
+| Closed | 16 |
+| Open | 23 |
 | Blocked (waiting on dependency) | 16 |
 | Ready to work | 10 |
 
