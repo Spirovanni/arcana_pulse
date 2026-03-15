@@ -90,9 +90,9 @@ My Banks page (7wf)
 | ✅ | Create transfer service layer | `arcana_pulse-ban` |
 | ✅ | Wire transfer form with validation and confirmation | `arcana_pulse-2bk` |
 | ✅ | Add transfer status lifecycle display | `arcana_pulse-9jz` |
-| ⬜ | Integrate Dwolla sandbox transfer flow | `arcana_pulse-4mi` |
-| ⬜ | Add Dwolla API routes for customer and transfer | `arcana_pulse-4rf` |
-| ⬜ | Map Dwolla transfer statuses to Arcana lifecycle | `arcana_pulse-zw7` |
+| ✅ | Integrate Dwolla sandbox transfer flow | `arcana_pulse-4mi` |
+| ✅ | Add Dwolla API routes for customer and transfer | `arcana_pulse-4rf` |
+| ✅ | Map Dwolla transfer statuses to Arcana lifecycle | `arcana_pulse-zw7` |
 | ⬜ | Add Dwolla webhook handler | `arcana_pulse-2sb` |
 
 **Dependency chain:**

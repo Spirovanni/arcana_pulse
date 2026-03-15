@@ -145,12 +145,25 @@ export default function TransferPage() {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [receipt, setReceipt] = useState<Transfer | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [pollingId, setPollingId] = useState<string | null>(null);
 
   // Auto-refresh every 10s to pick up status changes
   useEffect(() => {
     const interval = setInterval(() => bump(), 10_000);
     return () => clearInterval(interval);
   }, [bump]);
+
+  async function pollDwollaStatus(transferId: string) {
+    setPollingId(transferId);
+    try {
+      await fetch(`/api/dwolla/transfer?transferId=${transferId}`);
+      bump();
+    } catch {
+      // Polling failed silently
+    } finally {
+      setPollingId(null);
+    }
+  }
 
   function updateField(field: keyof TransferFormData, value: string) {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -202,19 +215,45 @@ export default function TransferPage() {
     }
   }
 
-  function handleConfirm() {
+  async function handleConfirm() {
     setSubmitting(true);
     setSubmitError(null);
+
+    const selectedBank = banks.find((b) => b.bankId === form.senderBankId);
+    const useDwolla = !!selectedBank?.fundingSourceUrl;
+
     try {
-      const transfer = createTransfer({
-        workspaceId: DEFAULT_WORKSPACE_ID,
-        senderBankId: form.senderBankId,
-        receiverShareableId: form.receiverShareableId.trim(),
-        recipientEmail: form.recipientEmail || undefined,
-        amount: parseFloat(form.amount),
-        note: form.note,
-      });
-      setReceipt(transfer);
+      if (useDwolla) {
+        // Route through Dwolla API for Plaid-linked banks with funding sources
+        const res = await fetch("/api/dwolla/transfer", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            workspaceId: DEFAULT_WORKSPACE_ID,
+            senderBankId: form.senderBankId,
+            receiverShareableId: form.receiverShareableId.trim(),
+            recipientEmail: form.recipientEmail || undefined,
+            amount: parseFloat(form.amount),
+            note: form.note,
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.error || "Dwolla transfer failed");
+        }
+        setReceipt(data.transfer);
+      } else {
+        // Local service for mock / non-Dwolla banks
+        const transfer = createTransfer({
+          workspaceId: DEFAULT_WORKSPACE_ID,
+          senderBankId: form.senderBankId,
+          receiverShareableId: form.receiverShareableId.trim(),
+          recipientEmail: form.recipientEmail || undefined,
+          amount: parseFloat(form.amount),
+          note: form.note,
+        });
+        setReceipt(transfer);
+      }
       setForm(emptyForm);
       setConfirming(false);
       bump();
@@ -605,13 +644,32 @@ export default function TransferPage() {
                         {/* Lifecycle tracker */}
                         <LifecycleTracker status={xfr.status} />
 
-                        {/* Link to transactions */}
-                        <a
-                          href="/transactions?type=transfer"
-                          className="block text-center text-xs text-arcana-sky hover:text-blue-400 pt-1 transition-colors"
-                        >
-                          View transfer transactions &rarr;
-                        </a>
+                        {/* Poll Dwolla status + link to transactions */}
+                        <div className="flex items-center justify-between pt-1">
+                          {xfr.providerReference &&
+                            xfr.status !== "posted" &&
+                            xfr.status !== "failed" &&
+                            xfr.status !== "reversed" && (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  pollDwollaStatus(xfr.transferId)
+                                }
+                                disabled={pollingId === xfr.transferId}
+                                className="text-xs text-arcana-sky hover:text-blue-400 transition-colors disabled:opacity-50"
+                              >
+                                {pollingId === xfr.transferId
+                                  ? "Checking..."
+                                  : "Check Status"}
+                              </button>
+                            )}
+                          <a
+                            href="/transactions?type=transfer"
+                            className="text-xs text-arcana-sky hover:text-blue-400 transition-colors ml-auto"
+                          >
+                            View transactions &rarr;
+                          </a>
+                        </div>
                       </div>
                     )}
                   </div>
