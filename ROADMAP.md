@@ -129,6 +129,118 @@ Transfer page (u0f)
 
 ---
 
+## Milestone 6 — Production Data Layer
+
+> Migrate from in-memory stores to Appwrite database, production auth, email verification, MFA.
+
+| Status | Task | Bead |
+|--------|------|------|
+| | Design and apply production database schema | `arcana_pulse-dwg` |
+| | Replace in-memory stores with Appwrite database | `arcana_pulse-9kx` |
+| | Migrate auth to NextAuth.js with production-safe credentials | `arcana_pulse-ph3` |
+| | Add email verification and password reset flow | `arcana_pulse-756` |
+| | Add database connection pooling and error retry logic | `arcana_pulse-2fz` |
+| | Add multi-factor authentication (TOTP) | `arcana_pulse-qvo` |
+
+**Dependency chain:**
+```
+Schema design (dwg)
+  → Appwrite migration (9kx) → NextAuth (ph3) → Email verification (756) → MFA (qvo)
+  → Connection pooling (2fz)
+```
+
+---
+
+## Milestone 7 — AI Financial Intelligence
+
+> AI-powered categorization, spending insights, chat assistant, forecasting, budgets, and goals.
+
+| Status | Task | Bead |
+|--------|------|------|
+| | Build AI transaction categorization engine | `arcana_pulse-0r1` |
+| | Build spending insights and anomaly detection | `arcana_pulse-dm6` |
+| | Build natural language financial assistant (chat) | `arcana_pulse-ib3` |
+| | Add cash flow forecasting with recurring detection | `arcana_pulse-db2` |
+| | Add AI-generated budget recommendations | `arcana_pulse-r7x` |
+| | Add savings goal tracking with AI projections | `arcana_pulse-ynj` |
+
+**Dependency chain:**
+```
+Appwrite migration (M6: 9kx)
+  → AI categorization (0r1) → Spending insights (dm6) → Cash flow forecasting (db2)
+                             → Chat assistant (ib3)    → Budget recommendations (r7x) → Savings goals (ynj)
+```
+
+---
+
+## Milestone 8 — Investment & Portfolio
+
+> Plaid Investments, portfolio visualization, AI insights, goal-based investing, dividends, tax optimization.
+
+| Status | Task | Bead |
+|--------|------|------|
+| | Integrate Plaid Investments for brokerage account linking | `arcana_pulse-crr` |
+| | Build portfolio visualization page | `arcana_pulse-oqz` |
+| | Add AI investment insights and risk analysis | `arcana_pulse-4h4` |
+| | Add goal-based investing projections | `arcana_pulse-c5i` |
+| | Add dividend and investment income tracking | `arcana_pulse-sp1` |
+| | Add tax-loss harvesting suggestions | `arcana_pulse-bn3` |
+
+**Dependency chain:**
+```
+Appwrite migration (M6: 9kx)
+  → Plaid Investments (crr) → Portfolio page (oqz) → AI insights (4h4) → Goal-based investing (c5i)
+                             → Dividend tracking (sp1)                  → Tax-loss harvesting (bn3)
+```
+
+---
+
+## Milestone 9 — Compliance & Security
+
+> Audit logging, rate limiting, encryption, privacy, GDPR/CCPA, SOC 2, pen testing.
+
+| Status | Task | Bead |
+|--------|------|------|
+| | Add audit logging for all financial operations | `arcana_pulse-qf2` |
+| | Add rate limiting and abuse prevention | `arcana_pulse-v9q` |
+| | Add data encryption at rest for sensitive fields | `arcana_pulse-zx2` |
+| | Build privacy policy and terms of service pages | `arcana_pulse-gyq` |
+| | Implement CCPA/GDPR data handling | `arcana_pulse-gb9` |
+| | SOC 2 readiness checklist and access controls | `arcana_pulse-p3z` |
+| | Prepare for third-party penetration testing | `arcana_pulse-vr3` |
+
+**Dependency chain:**
+```
+Appwrite migration (M6: 9kx) → Audit logging (qf2) ──→ CCPA/GDPR (gb9) → SOC 2 (p3z) → Pen testing (vr3)
+                              → Encryption (zx2)       ↑
+NextAuth (M6: ph3) → Rate limiting (v9q)    Privacy/ToS (gyq) ─┘
+```
+
+---
+
+## Milestone 10 — Scale & Monetization
+
+> Stripe billing, multi-tenant workspaces, notifications, export, admin tooling, mobile app.
+
+| Status | Task | Bead |
+|--------|------|------|
+| | Integrate Stripe subscription billing | `arcana_pulse-eor` |
+| | Build multi-tenant workspace collaboration | `arcana_pulse-yrn` |
+| | Add real-time notifications system | `arcana_pulse-ikz` |
+| | Build CSV/PDF financial report export | `arcana_pulse-7yq` |
+| | Build admin dashboard and support tooling | `arcana_pulse-bvk` |
+| | Build React Native mobile app | `arcana_pulse-e5f` |
+
+**Dependency chain:**
+```
+Appwrite migration (M6: 9kx) → Stripe billing (eor) ──→ Admin dashboard (bvk) → Mobile app (e5f)
+NextAuth (M6: ph3) → Workspaces (yrn) ────────────────┘
+Spending insights (M7: dm6) → Notifications (ikz)
+Appwrite migration (M6: 9kx) → CSV/PDF export (7yq)
+```
+
+---
+
 ## Epics
 
 | Epic | Status | Phase |
@@ -137,6 +249,11 @@ Transfer page (u0f)
 | Connected banking | ✅ Complete (M3) | `arcana_pulse-58p` |
 | Finance tracker SaaS layer | ✅ Complete (M2) | `arcana_pulse-2jq` |
 | Transfers, monitoring, hardening | ✅ Complete (M4-M5) | `arcana_pulse-h8h` |
+| Production data layer | Open (M6) | `arcana_pulse-zgh` |
+| AI financial intelligence | Open (M7) | `arcana_pulse-099` |
+| Investment and portfolio | Open (M8) | `arcana_pulse-yhp` |
+| Compliance and security | Open (M9) | `arcana_pulse-hh4` |
+| Scale and monetization | Open (M10) | `arcana_pulse-e93` |
 
 ---
 
@@ -144,27 +261,8 @@ Transfer page (u0f)
 
 | Metric | Count |
 |--------|-------|
-| Total issues | 39 |
-| Closed | 20 |
-| Open | 19 |
-| Blocked (waiting on dependency) | 16 |
-| Ready to work | 10 |
-
----
-
-## Future (Post-MVP)
-
-These are not tracked as beads yet. They will be created when the MVP milestones are complete.
-
-- Budget envelopes by category
-- Recurring transaction support
-- CSV/PDF export for finance reporting
-- Savings goals with progress tracking
-- Notifications (email, in-app)
-- Recurring transfers
-- Household / team workspace collaboration
-- Advisor / client mode
-- Subscription billing (Stripe)
-- Admin and support tooling
-- Reconciliation jobs
-- Suspicious activity controls
+| Total issues | 75 |
+| Closed | 39 |
+| Open | 36 |
+| Blocked (waiting on dependency) | 29 |
+| Ready to work | 7 |
