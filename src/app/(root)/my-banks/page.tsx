@@ -9,6 +9,7 @@ import {
   ChevronDown,
   ChevronUp,
   Loader2,
+  RefreshCw,
 } from "lucide-react";
 import { usePlaidLink } from "react-plaid-link";
 import {
@@ -31,6 +32,7 @@ export default function MyBanksPage() {
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [linkToken, setLinkToken] = useState<string | null>(null);
   const [linking, setLinking] = useState(false);
+  const [syncingBankId, setSyncingBankId] = useState<string | null>(null);
 
   // Fetch a Plaid link token on mount
   useEffect(() => {
@@ -96,6 +98,22 @@ export default function MyBanksPage() {
       { workspaceId: DEFAULT_WORKSPACE_ID, bankId },
       { page: 1, pageSize: 5 }
     );
+  }
+
+  async function syncTransactions(bankId: string) {
+    setSyncingBankId(bankId);
+    try {
+      await fetch("/api/plaid/sync-transactions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ bankId }),
+      });
+      bump();
+    } catch {
+      // Sync failed silently
+    } finally {
+      setSyncingBankId(null);
+    }
   }
 
   const canConnect = plaidReady && !linking;
@@ -213,6 +231,22 @@ export default function MyBanksPage() {
                         </>
                       )}
                     </button>
+                    {bank.accessTokenRef && (
+                      <button
+                        type="button"
+                        disabled={syncingBankId === bank.bankId}
+                        onClick={() => syncTransactions(bank.bankId)}
+                        className="flex items-center justify-center gap-1 px-3 py-2 rounded-lg text-xs font-medium bg-arcana-navy text-slate-300 hover:bg-arcana-border transition-colors disabled:opacity-50"
+                        title="Sync transactions from Plaid"
+                      >
+                        <RefreshCw
+                          className={`w-3 h-3 ${
+                            syncingBankId === bank.bankId ? "animate-spin" : ""
+                          }`}
+                        />
+                        Sync
+                      </button>
+                    )}
                   </div>
                 </div>
 

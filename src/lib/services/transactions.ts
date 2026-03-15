@@ -100,6 +100,51 @@ export function createTransaction(
   return { ...txn };
 }
 
+// ─── Sync (Plaid) ───────────────────────────────────────────────────
+
+export interface SyncedTransactionInput {
+  workspaceId: string;
+  bankId: string;
+  transactionType: "income" | "expense";
+  title: string;
+  category: Category;
+  amount: number;
+  date: string;
+  externalReference: string;
+  note?: string;
+}
+
+export function insertSyncedTransaction(
+  input: SyncedTransactionInput
+): Transaction {
+  // Skip duplicates by externalReference
+  const existing = transactions.find(
+    (t) => t.externalReference === input.externalReference
+  );
+  if (existing) return { ...existing };
+
+  const now = new Date().toISOString();
+  const txn: Transaction = {
+    transactionId: generateId("txn"),
+    workspaceId: input.workspaceId,
+    bankId: input.bankId,
+    sourceType: "synced",
+    transactionType: input.transactionType,
+    title: input.title,
+    category: input.category,
+    amount: input.amount,
+    date: input.date,
+    status: "posted",
+    note: input.note ?? "",
+    externalReference: input.externalReference,
+    createdBy: "system",
+    createdAt: now,
+    updatedAt: now,
+  };
+  transactions = [txn, ...transactions];
+  return { ...txn };
+}
+
 // ─── Update ─────────────────────────────────────────────────────────
 
 export function updateTransaction(

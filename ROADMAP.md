@@ -64,9 +64,9 @@
 | ✅ | Wire My Banks page to bank service | `arcana_pulse-c5f` |
 | ✅ | Add bank-level transaction filtering | `arcana_pulse-6dq` |
 | ✅ | Integrate Plaid sandbox bank linking | `arcana_pulse-agr` |
-| ⬜ | Add Plaid API routes for link token and token exchange | `arcana_pulse-2af` |
-| ⬜ | Build Plaid Link React component | `arcana_pulse-3t4` |
-| ⬜ | Sync Plaid sandbox transactions | `arcana_pulse-6pf` |
+| ✅ | Add Plaid API routes for link token and token exchange | `arcana_pulse-2af` |
+| ✅ | Build Plaid Link React component | `arcana_pulse-3t4` |
+| ✅ | Sync Plaid sandbox transactions | `arcana_pulse-6pf` |
 | ⬜ | Create Dwolla funding source on bank link | `arcana_pulse-4dm` |
 
 **Dependency chain:**
@@ -146,8 +146,8 @@ Responsive QA (udr) — final pass, after all features
 | Metric | Count |
 |--------|-------|
 | Total issues | 39 |
-| Closed | 16 |
-| Open | 23 |
+| Closed | 19 |
+| Open | 20 |
 | Blocked (waiting on dependency) | 16 |
 | Ready to work | 10 |
 
