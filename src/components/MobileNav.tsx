@@ -11,6 +11,7 @@ import {
   TrendingUp,
   TrendingDown,
   SendHorizontal,
+  MessageCircle,
   Settings,
   LogOut,
   Menu,
@@ -26,6 +27,7 @@ const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
   TrendingUp,
   TrendingDown,
   SendHorizontal,
+  MessageCircle,
   Settings,
 };
 
