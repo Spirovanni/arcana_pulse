@@ -254,6 +254,29 @@ export interface CashFlowForecast {
   generatedAt: string;
 }
 
+// ─── Budget Recommendations ─────────────────────────────────────────
+
+export type BudgetSource = "ai" | "user";
+
+export type BudgetStatus = "on_track" | "warning" | "over_budget";
+
+export interface Budget {
+  budgetId: string;
+  workspaceId: string;
+  category: Category;
+  amount: number;
+  source: BudgetSource;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface BudgetRecommendation {
+  category: Category;
+  recommendedAmount: number;
+  rationale: string;
+  percentOfIncome: number;
+}
+
 // ─── Navigation ─────────────────────────────────────────────────────
 
 export interface NavItem {

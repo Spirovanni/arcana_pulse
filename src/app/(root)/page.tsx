@@ -13,7 +13,14 @@ import { CATEGORY_LABELS } from "@/lib/constants";
 import { formatCurrency } from "@/lib/utils";
 import InsightCards from "@/components/InsightCards";
 import CashFlowForecastWidget from "@/components/CashFlowForecast";
-import type { SpendingInsight, CashFlowForecast } from "@/lib/types";
+import BudgetRecommendations from "@/components/BudgetRecommendations";
+import type {
+  SpendingInsight,
+  CashFlowForecast,
+  BudgetRecommendation,
+  Budget,
+  Category,
+} from "@/lib/types";
 
 export default function DashboardPage() {
   const metrics = computeDashboardMetrics(DEFAULT_WORKSPACE_ID);
@@ -22,6 +29,9 @@ export default function DashboardPage() {
   const [insightsLoading, setInsightsLoading] = useState(true);
   const [forecast, setForecast] = useState<CashFlowForecast | null>(null);
   const [forecastLoading, setForecastLoading] = useState(true);
+  const [budgetRecs, setBudgetRecs] = useState<BudgetRecommendation[]>([]);
+  const [budgets, setBudgets] = useState<Budget[]>([]);
+  const [budgetsLoading, setBudgetsLoading] = useState(true);
 
   const fetchInsights = useCallback(async () => {
     setInsightsLoading(true);
@@ -57,10 +67,60 @@ export default function DashboardPage() {
     }
   }, []);
 
+  const fetchBudgets = useCallback(async () => {
+    setBudgetsLoading(true);
+    try {
+      const [recRes, budRes] = await Promise.all([
+        fetch(`/api/ai/budgets?workspaceId=${DEFAULT_WORKSPACE_ID}`),
+        fetch(`/api/budgets?workspaceId=${DEFAULT_WORKSPACE_ID}`),
+      ]);
+      if (recRes.ok) {
+        const data = await recRes.json();
+        setBudgetRecs(data.recommendations ?? []);
+      }
+      if (budRes.ok) {
+        const data = await budRes.json();
+        setBudgets(data.budgets ?? []);
+      }
+    } catch {
+      // Silently fail
+    } finally {
+      setBudgetsLoading(false);
+    }
+  }, []);
+
+  const handleAcceptBudget = useCallback(
+    async (category: Category, amount: number) => {
+      try {
+        const res = await fetch("/api/budgets", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            workspaceId: DEFAULT_WORKSPACE_ID,
+            category,
+            amount,
+            source: "ai",
+          }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setBudgets((prev) => {
+            const filtered = prev.filter((b) => b.category !== category);
+            return [...filtered, data.budget];
+          });
+        }
+      } catch {
+        // Silently fail
+      }
+    },
+    []
+  );
+
   useEffect(() => {
     fetchInsights();
     fetchForecast();
-  }, [fetchInsights, fetchForecast]);
+    fetchBudgets();
+  }, [fetchInsights, fetchForecast, fetchBudgets]);
 
   const summaryCards = [
     {
@@ -126,6 +186,16 @@ export default function DashboardPage() {
         data={forecast}
         loading={forecastLoading}
         onRefresh={fetchForecast}
+      />
+
+      {/* Budget Recommendations */}
+      <BudgetRecommendations
+        recommendations={budgetRecs}
+        budgets={budgets}
+        actualSpending={metrics.categoryBreakdown}
+        loading={budgetsLoading}
+        onRefresh={fetchBudgets}
+        onAccept={handleAcceptBudget}
       />
 
       {/* Charts row */}
