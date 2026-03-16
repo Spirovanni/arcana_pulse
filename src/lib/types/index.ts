@@ -214,6 +214,46 @@ export interface SpendingInsight {
   percentageChange?: number;
 }
 
+// ─── Cash Flow Forecasting ──────────────────────────────────────────
+
+export type RecurrenceFrequency = "weekly" | "bi-weekly" | "monthly";
+
+export interface RecurringPattern {
+  id: string;
+  title: string;
+  category: Category;
+  transactionType: "income" | "expense";
+  frequency: RecurrenceFrequency;
+  averageAmount: number;
+  lastOccurrence: string;
+  nextExpected: string;
+  occurrenceCount: number;
+  confidence: number;
+}
+
+export interface ForecastBucket {
+  month: string;
+  projectedIncome: number;
+  projectedExpense: number;
+  netCashFlow: number;
+}
+
+export interface FlaggedExpense {
+  title: string;
+  category: Category;
+  expectedAmount: number;
+  expectedDate: string;
+  percentOfAvgIncome: number;
+}
+
+export interface CashFlowForecast {
+  recurringPatterns: RecurringPattern[];
+  forecast: ForecastBucket[];
+  flaggedExpenses: FlaggedExpense[];
+  aiSummary: string | null;
+  generatedAt: string;
+}
+
 // ─── Navigation ─────────────────────────────────────────────────────
 
 export interface NavItem {

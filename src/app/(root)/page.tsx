@@ -12,13 +12,16 @@ import { DEFAULT_WORKSPACE_ID } from "@/lib/services/workspace";
 import { CATEGORY_LABELS } from "@/lib/constants";
 import { formatCurrency } from "@/lib/utils";
 import InsightCards from "@/components/InsightCards";
-import type { SpendingInsight } from "@/lib/types";
+import CashFlowForecastWidget from "@/components/CashFlowForecast";
+import type { SpendingInsight, CashFlowForecast } from "@/lib/types";
 
 export default function DashboardPage() {
   const metrics = computeDashboardMetrics(DEFAULT_WORKSPACE_ID);
 
   const [insights, setInsights] = useState<SpendingInsight[]>([]);
   const [insightsLoading, setInsightsLoading] = useState(true);
+  const [forecast, setForecast] = useState<CashFlowForecast | null>(null);
+  const [forecastLoading, setForecastLoading] = useState(true);
 
   const fetchInsights = useCallback(async () => {
     setInsightsLoading(true);
@@ -37,9 +40,27 @@ export default function DashboardPage() {
     }
   }, []);
 
+  const fetchForecast = useCallback(async () => {
+    setForecastLoading(true);
+    try {
+      const res = await fetch(
+        `/api/ai/forecast?workspaceId=${DEFAULT_WORKSPACE_ID}`
+      );
+      if (res.ok) {
+        const data = await res.json();
+        setForecast(data.forecast ?? null);
+      }
+    } catch {
+      // Silently fail — component shows empty state
+    } finally {
+      setForecastLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     fetchInsights();
-  }, [fetchInsights]);
+    fetchForecast();
+  }, [fetchInsights, fetchForecast]);
 
   const summaryCards = [
     {
@@ -98,6 +119,13 @@ export default function DashboardPage() {
         insights={insights}
         loading={insightsLoading}
         onRefresh={fetchInsights}
+      />
+
+      {/* Cash Flow Forecast */}
+      <CashFlowForecastWidget
+        data={forecast}
+        loading={forecastLoading}
+        onRefresh={fetchForecast}
       />
 
       {/* Charts row */}
