@@ -162,7 +162,7 @@ Schema design (dwg)
 | ✅ | Build natural language financial assistant (chat) | `arcana_pulse-ib3` |
 | ✅ | Add cash flow forecasting with recurring detection | `arcana_pulse-db2` |
 | ✅ | Add AI-generated budget recommendations | `arcana_pulse-r7x` |
-| | Add savings goal tracking with AI projections | `arcana_pulse-ynj` |
+| ✅ | Add savings goal tracking with AI projections | `arcana_pulse-ynj` |
 
 **Dependency chain:**
 ```
@@ -250,7 +250,7 @@ Appwrite migration (M6: 9kx) → CSV/PDF export (7yq)
 | Finance tracker SaaS layer | ✅ Complete (M2) | `arcana_pulse-2jq` |
 | Transfers, monitoring, hardening | ✅ Complete (M4-M5) | `arcana_pulse-h8h` |
 | Production data layer | Open (M6) | `arcana_pulse-zgh` |
-| AI financial intelligence | Open (M7) | `arcana_pulse-099` |
+| AI financial intelligence | ✅ Complete (M7) | `arcana_pulse-099` |
 | Investment and portfolio | Open (M8) | `arcana_pulse-yhp` |
 | Compliance and security | Open (M9) | `arcana_pulse-hh4` |
 | Scale and monetization | Open (M10) | `arcana_pulse-e93` |
@@ -262,7 +262,7 @@ Appwrite migration (M6: 9kx) → CSV/PDF export (7yq)
 | Metric | Count |
 |--------|-------|
 | Total issues | 75 |
-| Closed | 44 |
-| Open | 31 |
+| Closed | 45 |
+| Open | 30 |
 | Blocked (waiting on dependency) | 23 |
-| Ready to work | 8 |
+| Ready to work | 7 |

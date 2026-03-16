@@ -277,6 +277,34 @@ export interface BudgetRecommendation {
   percentOfIncome: number;
 }
 
+// ─── Savings Goals ──────────────────────────────────────────────────
+
+export type GoalPriority = "low" | "medium" | "high";
+
+export type GoalStatus = "active" | "completed" | "paused";
+
+export interface SavingsGoal {
+  goalId: string;
+  workspaceId: string;
+  name: string;
+  targetAmount: number;
+  currentAmount: number;
+  targetDate: string;
+  monthlyContribution: number;
+  priority: GoalPriority;
+  status: GoalStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface GoalProjection {
+  goalId: string;
+  projectedCompletionDate: string;
+  suggestedMonthlyContribution: number;
+  onTrack: boolean;
+  narrative: string;
+}
+
 // ─── Navigation ─────────────────────────────────────────────────────
 
 export interface NavItem {

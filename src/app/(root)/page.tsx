@@ -14,12 +14,15 @@ import { formatCurrency } from "@/lib/utils";
 import InsightCards from "@/components/InsightCards";
 import CashFlowForecastWidget from "@/components/CashFlowForecast";
 import BudgetRecommendations from "@/components/BudgetRecommendations";
+import SavingsGoalsWidget from "@/components/SavingsGoalsWidget";
 import type {
   SpendingInsight,
   CashFlowForecast,
   BudgetRecommendation,
   Budget,
   Category,
+  SavingsGoal,
+  GoalProjection,
 } from "@/lib/types";
 
 export default function DashboardPage() {
@@ -32,6 +35,9 @@ export default function DashboardPage() {
   const [budgetRecs, setBudgetRecs] = useState<BudgetRecommendation[]>([]);
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [budgetsLoading, setBudgetsLoading] = useState(true);
+  const [savingsGoals, setSavingsGoals] = useState<SavingsGoal[]>([]);
+  const [goalProjections, setGoalProjections] = useState<GoalProjection[]>([]);
+  const [goalsLoading, setGoalsLoading] = useState(true);
 
   const fetchInsights = useCallback(async () => {
     setInsightsLoading(true);
@@ -116,11 +122,34 @@ export default function DashboardPage() {
     []
   );
 
+  const fetchGoals = useCallback(async () => {
+    setGoalsLoading(true);
+    try {
+      const [goalsRes, projRes] = await Promise.all([
+        fetch(`/api/goals?workspaceId=${DEFAULT_WORKSPACE_ID}`),
+        fetch(`/api/ai/goals?workspaceId=${DEFAULT_WORKSPACE_ID}`),
+      ]);
+      if (goalsRes.ok) {
+        const data = await goalsRes.json();
+        setSavingsGoals(data.goals ?? []);
+      }
+      if (projRes.ok) {
+        const data = await projRes.json();
+        setGoalProjections(data.projections ?? []);
+      }
+    } catch {
+      // Silently fail
+    } finally {
+      setGoalsLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     fetchInsights();
     fetchForecast();
     fetchBudgets();
-  }, [fetchInsights, fetchForecast, fetchBudgets]);
+    fetchGoals();
+  }, [fetchInsights, fetchForecast, fetchBudgets, fetchGoals]);
 
   const summaryCards = [
     {
@@ -196,6 +225,14 @@ export default function DashboardPage() {
         loading={budgetsLoading}
         onRefresh={fetchBudgets}
         onAccept={handleAcceptBudget}
+      />
+
+      {/* Savings Goals */}
+      <SavingsGoalsWidget
+        goals={savingsGoals}
+        projections={goalProjections}
+        loading={goalsLoading}
+        onRefresh={fetchGoals}
       />
 
       {/* Charts row */}

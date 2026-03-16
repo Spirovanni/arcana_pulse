@@ -17,6 +17,7 @@ export const COLLECTIONS = {
   transfers: "transfers",
   sessions: "sessions",
   budgets: "budgets",
+  goals: "goals",
 } as const;
 
 // ---------------------------------------------------------------------------
