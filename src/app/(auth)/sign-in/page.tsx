@@ -2,6 +2,7 @@
 
 import { useState, FormEvent } from "react";
 import { useRouter } from "next/navigation";
+import { signIn } from "next-auth/react";
 import Link from "next/link";
 import { Loader2 } from "lucide-react";
 
@@ -18,20 +19,19 @@ export default function SignInPage() {
     setLoading(true);
 
     try {
-      const res = await fetch("/api/auth/sign-in", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+      const result = await signIn("credentials", {
+        email,
+        password,
+        redirect: false,
       });
 
-      const data = await res.json();
-
-      if (!res.ok) {
-        setError(data.error || "Sign in failed");
+      if (result?.error) {
+        setError("Invalid email or password");
         return;
       }
 
       router.push("/");
+      router.refresh();
     } catch {
       setError("Something went wrong. Please try again.");
     } finally {

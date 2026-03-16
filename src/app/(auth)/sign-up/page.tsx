@@ -2,6 +2,7 @@
 
 import { useState, FormEvent } from "react";
 import { useRouter } from "next/navigation";
+import { signIn } from "next-auth/react";
 import Link from "next/link";
 import { Loader2 } from "lucide-react";
 
@@ -26,6 +27,7 @@ export default function SignUpPage() {
     setLoading(true);
 
     try {
+      // Step 1: Create user in Appwrite via custom route
       const res = await fetch("/api/auth/sign-up", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -39,7 +41,20 @@ export default function SignUpPage() {
         return;
       }
 
+      // Step 2: Auto sign-in via NextAuth
+      const result = await signIn("credentials", {
+        email,
+        password,
+        redirect: false,
+      });
+
+      if (result?.error) {
+        router.push("/sign-in");
+        return;
+      }
+
       router.push("/");
+      router.refresh();
     } catch {
       setError("Something went wrong. Please try again.");
     } finally {

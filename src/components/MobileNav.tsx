@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { signOut } from "next-auth/react";
 import {
   LayoutDashboard,
   Landmark,
@@ -90,7 +91,10 @@ export default function MobileNav() {
             })}
 
             <div className="pt-4 mt-4 border-t border-arcana-border">
-              <button className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-300 hover:bg-arcana-navy hover:text-white transition-colors w-full">
+              <button
+                onClick={() => signOut({ callbackUrl: "/sign-in" })}
+                className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-300 hover:bg-arcana-navy hover:text-white transition-colors w-full"
+              >
                 <LogOut className="w-5 h-5 flex-shrink-0" />
                 Logout
               </button>
