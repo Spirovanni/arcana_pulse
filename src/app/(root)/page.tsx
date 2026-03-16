@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect, useCallback } from "react";
 import {
   TrendingUp,
   TrendingDown,
@@ -10,9 +11,35 @@ import { computeDashboardMetrics } from "@/lib/services/dashboard";
 import { DEFAULT_WORKSPACE_ID } from "@/lib/services/workspace";
 import { CATEGORY_LABELS } from "@/lib/constants";
 import { formatCurrency } from "@/lib/utils";
+import InsightCards from "@/components/InsightCards";
+import type { SpendingInsight } from "@/lib/types";
 
 export default function DashboardPage() {
   const metrics = computeDashboardMetrics(DEFAULT_WORKSPACE_ID);
+
+  const [insights, setInsights] = useState<SpendingInsight[]>([]);
+  const [insightsLoading, setInsightsLoading] = useState(true);
+
+  const fetchInsights = useCallback(async () => {
+    setInsightsLoading(true);
+    try {
+      const res = await fetch(
+        `/api/ai/insights?workspaceId=${DEFAULT_WORKSPACE_ID}`
+      );
+      if (res.ok) {
+        const data = await res.json();
+        setInsights(data.insights ?? []);
+      }
+    } catch {
+      // Silently fail — component shows empty state
+    } finally {
+      setInsightsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchInsights();
+  }, [fetchInsights]);
 
   const summaryCards = [
     {
@@ -65,6 +92,13 @@ export default function DashboardPage() {
           </div>
         ))}
       </div>
+
+      {/* AI Insights */}
+      <InsightCards
+        insights={insights}
+        loading={insightsLoading}
+        onRefresh={fetchInsights}
+      />
 
       {/* Charts row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">

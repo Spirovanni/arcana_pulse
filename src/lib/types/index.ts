@@ -192,6 +192,28 @@ export interface DashboardMetrics {
   monthlyFlow: MonthlyFlow[];
 }
 
+// ─── Spending Insights ──────────────────────────────────────────────
+
+export type InsightType =
+  | "spending_spike"
+  | "savings_trend"
+  | "recurring_charge"
+  | "anomaly"
+  | "tip";
+
+export type InsightSeverity = "info" | "warning" | "success";
+
+export interface SpendingInsight {
+  id: string;
+  type: InsightType;
+  severity: InsightSeverity;
+  title: string;
+  description: string;
+  category?: Category;
+  amount?: number;
+  percentageChange?: number;
+}
+
 // ─── Navigation ─────────────────────────────────────────────────────
 
 export interface NavItem {
