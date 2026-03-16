@@ -86,6 +86,8 @@ export interface Transaction {
   status: TransactionStatus;
   note: string;
   externalReference?: string;
+  aiCategory?: Category;
+  aiConfidence?: number;
   createdBy: string;
   createdAt: string;
   updatedAt: string;

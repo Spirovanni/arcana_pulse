@@ -36,6 +36,8 @@ function toTransaction(doc: Models.Document & Record<string, any>): Transaction 
     status: doc.status,
     note: doc.note ?? "",
     externalReference: doc.externalReference ?? undefined,
+    aiCategory: doc.aiCategory ?? undefined,
+    aiConfidence: doc.aiConfidence ?? undefined,
     createdBy: doc.createdBy,
     createdAt: doc.$createdAt,
     updatedAt: doc.$updatedAt,
@@ -179,6 +181,8 @@ export interface SyncedTransactionInput {
   date: string;
   externalReference: string;
   note?: string;
+  aiCategory?: Category;
+  aiConfidence?: number;
 }
 
 export async function insertSyncedTransaction(
@@ -210,6 +214,8 @@ export async function insertSyncedTransaction(
       status: "posted",
       note: input.note ?? "",
       externalReference: input.externalReference,
+      ...(input.aiCategory ? { aiCategory: input.aiCategory } : {}),
+      ...(input.aiConfidence != null ? { aiConfidence: input.aiConfidence } : {}),
       createdBy: "system",
     }
   );
@@ -256,6 +262,34 @@ export async function deleteTransaction(
     COLLECTIONS.transactions,
     transactionId
   );
+}
+
+// ---------------------------------------------------------------------------
+// Override category (synced transactions)
+// ---------------------------------------------------------------------------
+
+/**
+ * Allows overriding the category on a synced transaction.
+ * This is a narrow exception to the "synced = read-only" rule.
+ * The original AI suggestion is preserved in `aiCategory`.
+ */
+export async function overrideCategory(
+  transactionId: string,
+  newCategory: Category
+): Promise<Transaction> {
+  const existing = await getTransaction(transactionId);
+  if (!existing) throw new Error(`Transaction ${transactionId} not found`);
+  if (existing.sourceType !== "synced") {
+    throw new Error("Category override is only for synced transactions");
+  }
+
+  const doc = await getDatabase().updateDocument(
+    DATABASE_ID,
+    COLLECTIONS.transactions,
+    transactionId,
+    { category: newCategory }
+  );
+  return toTransaction(doc);
 }
 
 // ---------------------------------------------------------------------------

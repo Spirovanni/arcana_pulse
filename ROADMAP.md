@@ -157,7 +157,7 @@ Schema design (dwg)
 
 | Status | Task | Bead |
 |--------|------|------|
-| | Build AI transaction categorization engine | `arcana_pulse-0r1` |
+| ✅ | Build AI transaction categorization engine | `arcana_pulse-0r1` |
 | | Build spending insights and anomaly detection | `arcana_pulse-dm6` |
 | | Build natural language financial assistant (chat) | `arcana_pulse-ib3` |
 | | Add cash flow forecasting with recurring detection | `arcana_pulse-db2` |
@@ -262,7 +262,7 @@ Appwrite migration (M6: 9kx) → CSV/PDF export (7yq)
 | Metric | Count |
 |--------|-------|
 | Total issues | 75 |
-| Closed | 39 |
-| Open | 36 |
-| Blocked (waiting on dependency) | 29 |
+| Closed | 40 |
+| Open | 35 |
+| Blocked (waiting on dependency) | 28 |
 | Ready to work | 7 |

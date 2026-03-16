@@ -25,6 +25,7 @@
   },
   "homepage": "https://github.com/Spirovanni/arcana_pulse#readme",
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.78.0",
     "@sentry/nextjs": "^10.43.0",
     "bcryptjs": "^3.0.3",
     "dwolla-v2": "^3.4.0",

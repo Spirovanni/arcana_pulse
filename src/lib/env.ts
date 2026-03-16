@@ -16,6 +16,9 @@ interface EnvConfig {
   // Dwolla webhook
   DWOLLA_WEBHOOK_SECRET: string | undefined;
 
+  // Anthropic AI
+  ANTHROPIC_API_KEY: string | undefined;
+
   // Sentry
   NEXT_PUBLIC_SENTRY_DSN: string | undefined;
 }
@@ -30,6 +33,8 @@ export const env: EnvConfig = {
   DWOLLA_ENV: process.env.DWOLLA_ENV || "sandbox",
 
   DWOLLA_WEBHOOK_SECRET: process.env.DWOLLA_WEBHOOK_SECRET,
+
+  ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
 
   NEXT_PUBLIC_SENTRY_DSN: process.env.NEXT_PUBLIC_SENTRY_DSN,
 };

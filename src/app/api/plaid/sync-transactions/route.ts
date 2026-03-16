@@ -1,62 +1,33 @@
 import { NextRequest, NextResponse } from "next/server";
 import { plaidClient } from "@/lib/plaid";
-import { getBankById } from "@/lib/services/banks";
-import { insertSyncedTransaction } from "@/lib/services/transactions";
-import type { Category } from "@/lib/types";
+import { getBankById } from "@/lib/services/db/banks";
+import { insertSyncedTransaction } from "@/lib/services/db/transactions";
+import { categorizeBatch } from "@/lib/services/ai/categorize";
+import type { CategorizationInput } from "@/lib/services/ai/categorize";
 
-// Map Plaid personal_finance_category to our Category enum
-function mapPlaidCategory(
-  plaidCategory: string | undefined
-): { category: Category; txnType: "income" | "expense" } {
+// Determine income vs expense from Plaid's category + amount sign
+function inferTransactionType(
+  plaidCategory: string | undefined,
+  plaidAmount: number
+): "income" | "expense" {
   const cat = (plaidCategory ?? "").toUpperCase();
 
-  // Income categories
-  if (cat.includes("INCOME") || cat.includes("PAYROLL")) {
-    return { category: "salary", txnType: "income" };
-  }
-  if (cat.includes("DIVIDEND") || cat.includes("INTEREST")) {
-    return { category: "investment", txnType: "income" };
-  }
-  if (cat.includes("TRANSFER_IN") || cat.includes("DEPOSIT")) {
-    return { category: "other_income", txnType: "income" };
+  // Plaid: negative amount = credit/income
+  if (plaidAmount < 0) return "income";
+
+  // Check Plaid category hints for income
+  if (
+    cat.includes("INCOME") ||
+    cat.includes("PAYROLL") ||
+    cat.includes("DIVIDEND") ||
+    cat.includes("INTEREST") ||
+    cat.includes("TRANSFER_IN") ||
+    cat.includes("DEPOSIT")
+  ) {
+    return "income";
   }
 
-  // Expense categories
-  if (cat.includes("RENT") || cat.includes("MORTGAGE")) {
-    return { category: "housing", txnType: "expense" };
-  }
-  if (cat.includes("TRANSPORTATION") || cat.includes("GAS") || cat.includes("TAXI")) {
-    return { category: "transportation", txnType: "expense" };
-  }
-  if (cat.includes("FOOD") || cat.includes("RESTAURANT") || cat.includes("GROCERY")) {
-    return { category: "food", txnType: "expense" };
-  }
-  if (cat.includes("UTILITIES") || cat.includes("ELECTRIC") || cat.includes("WATER")) {
-    return { category: "utilities", txnType: "expense" };
-  }
-  if (cat.includes("MEDICAL") || cat.includes("HEALTH") || cat.includes("PHARMACY")) {
-    return { category: "healthcare", txnType: "expense" };
-  }
-  if (cat.includes("ENTERTAINMENT") || cat.includes("RECREATION")) {
-    return { category: "entertainment", txnType: "expense" };
-  }
-  if (cat.includes("SHOPPING") || cat.includes("MERCHANDISE")) {
-    return { category: "shopping", txnType: "expense" };
-  }
-  if (cat.includes("EDUCATION")) {
-    return { category: "education", txnType: "expense" };
-  }
-  if (cat.includes("SUBSCRIPTION")) {
-    return { category: "subscriptions", txnType: "expense" };
-  }
-  if (cat.includes("TRAVEL") || cat.includes("AIRLINE") || cat.includes("HOTEL")) {
-    return { category: "travel", txnType: "expense" };
-  }
-  if (cat.includes("TRANSFER_OUT")) {
-    return { category: "transfer", txnType: "expense" };
-  }
-
-  return { category: "other", txnType: "expense" };
+  return "expense";
 }
 
 export async function POST(request: NextRequest) {
@@ -71,7 +42,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const bank = getBankById(bankId);
+    const bank = await getBankById(bankId);
     if (!bank) {
       return NextResponse.json({ error: "Bank not found" }, { status: 404 });
     }
@@ -97,31 +68,46 @@ export async function POST(request: NextRequest) {
 
     const plaidTransactions = response.data.transactions;
 
-    // Map and insert each transaction
-    const synced = plaidTransactions.map((pt) => {
+    // Prepare categorization inputs
+    const catInputs: CategorizationInput[] = plaidTransactions.map((pt) => {
       const primaryCategory =
         pt.personal_finance_category?.primary ?? pt.category?.[0] ?? "";
-      const { category, txnType } = mapPlaidCategory(primaryCategory);
+      const txnType = inferTransactionType(primaryCategory, pt.amount);
 
-      // Plaid uses positive amounts for debits (expenses)
-      const amount = Math.abs(pt.amount);
-      const type = pt.amount < 0 ? "income" : txnType;
+      return {
+        title: pt.name ?? pt.merchant_name ?? "Unknown",
+        amount: Math.abs(pt.amount),
+        transactionType: txnType,
+      };
+    });
+
+    // Batch AI categorization
+    const aiResults = await categorizeBatch(catInputs, bank.workspaceId);
+
+    // Insert each transaction with AI-assigned category
+    const insertions = plaidTransactions.map((pt, i) => {
+      const input = catInputs[i];
+      const aiResult = aiResults[i];
 
       return insertSyncedTransaction({
         workspaceId: bank.workspaceId,
         bankId: bank.bankId,
-        transactionType: type,
-        title: pt.name ?? pt.merchant_name ?? "Unknown",
-        category: type === "income" && category === "other" ? "other_income" : category,
-        amount,
+        transactionType: input.transactionType,
+        title: input.title,
+        category: aiResult.category,
+        amount: input.amount,
         date: new Date(pt.date).toISOString(),
         externalReference: pt.transaction_id,
         note: pt.merchant_name ?? "",
+        aiCategory: aiResult.category,
+        aiConfidence: aiResult.confidence,
       });
     });
 
+    const results = await Promise.all(insertions);
+
     return NextResponse.json({
-      synced: synced.length,
+      synced: results.length,
       total: plaidTransactions.length,
     });
   } catch (error: unknown) {
