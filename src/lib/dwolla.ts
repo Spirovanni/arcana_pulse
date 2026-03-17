@@ -1,14 +1,54 @@
 import { Client } from "dwolla-v2";
+import { withRetry } from "./resilience/retry";
+import { dwollaCircuit } from "./resilience/circuit-breaker";
+import * as Sentry from "@sentry/nextjs";
 
 const dwollaEnv = (process.env.DWOLLA_ENV ?? "sandbox") as
   | "production"
   | "sandbox";
 
-export const dwollaClient = new Client({
+const rawDwollaClient = new Client({
   key: process.env.DWOLLA_KEY ?? "",
   secret: process.env.DWOLLA_SECRET ?? "",
   environment: dwollaEnv,
 });
+
+export const dwollaClient = new Proxy(rawDwollaClient, {
+  get(target, prop, receiver) {
+    const original = Reflect.get(target, prop, receiver);
+
+    // Only wrap get/post — the two HTTP methods used by helpers below
+    if (prop !== "get" && prop !== "post") return original;
+    if (typeof original !== "function") return original;
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return function (this: unknown, ...args: any[]) {
+      return dwollaCircuit
+        .execute(() =>
+          withRetry(() => (original as Function).apply(target, args), {
+            maxRetries: 3,
+            baseDelayMs: 300,
+            maxDelayMs: 5000,
+            onRetry: (attempt, error) => {
+              Sentry.captureMessage(
+                `Dwolla retry ${attempt} for ${String(prop)}`,
+                {
+                  level: "warning",
+                  extra: { error: error.message, method: String(prop) },
+                },
+              );
+            },
+          }),
+        )
+        .catch((error: unknown) => {
+          Sentry.captureException(error, {
+            tags: { service: "dwolla", method: String(prop) },
+          });
+          throw error;
+        });
+    };
+  },
+}) as Client;
 
 // ─── Helpers ────────────────────────────────────────────────────────
 

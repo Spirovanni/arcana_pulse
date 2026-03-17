@@ -3,9 +3,16 @@
  *
  * Used exclusively in API routes — never import this from
  * "use client" components (it depends on node-appwrite).
+ *
+ * The Databases instance returned by getDatabase() is wrapped in a
+ * resilient Proxy that adds exponential-backoff retry and circuit
+ * breaker protection transparently — service layer code is unchanged.
  */
 
 import { Client, Databases, Query } from "node-appwrite";
+import { withRetry } from "./resilience/retry";
+import { appwriteCircuit } from "./resilience/circuit-breaker";
+import * as Sentry from "@sentry/nextjs";
 
 export const DATABASE_ID = "arcana_pulse";
 
@@ -52,6 +59,47 @@ function getClient(): Client {
 }
 
 // ---------------------------------------------------------------------------
+// Resilient database proxy
+// ---------------------------------------------------------------------------
+
+function createResilientDatabase(db: Databases): Databases {
+  return new Proxy(db, {
+    get(target, prop, receiver) {
+      const original = Reflect.get(target, prop, receiver);
+
+      if (typeof original !== "function") return original;
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return function (this: unknown, ...args: any[]) {
+        return appwriteCircuit
+          .execute(() =>
+            withRetry(() => (original as Function).apply(target, args), {
+              maxRetries: 3,
+              baseDelayMs: 200,
+              maxDelayMs: 5000,
+              onRetry: (attempt, error) => {
+                Sentry.captureMessage(
+                  `Appwrite retry ${attempt} for ${String(prop)}`,
+                  {
+                    level: "warning",
+                    extra: { error: error.message, method: String(prop) },
+                  },
+                );
+              },
+            }),
+          )
+          .catch((error: unknown) => {
+            Sentry.captureException(error, {
+              tags: { service: "appwrite", method: String(prop) },
+            });
+            throw error;
+          });
+      };
+    },
+  }) as Databases;
+}
+
+// ---------------------------------------------------------------------------
 // Database helper
 // ---------------------------------------------------------------------------
 
@@ -59,7 +107,7 @@ let _db: Databases | null = null;
 
 export function getDatabase(): Databases {
   if (_db) return _db;
-  _db = new Databases(getClient());
+  _db = createResilientDatabase(new Databases(getClient()));
   return _db;
 }
 
