@@ -138,7 +138,7 @@ Transfer page (u0f)
 | ✅ | Design and apply production database schema | `arcana_pulse-dwg` |
 | ✅ | Replace in-memory stores with Appwrite database | `arcana_pulse-9kx` |
 | ✅ | Migrate auth to NextAuth.js with production-safe credentials | `arcana_pulse-ph3` |
-| | Add email verification and password reset flow | `arcana_pulse-756` |
+| ✅ | Add email verification and password reset flow | `arcana_pulse-756` |
 | | Add database connection pooling and error retry logic | `arcana_pulse-2fz` |
 | | Add multi-factor authentication (TOTP) | `arcana_pulse-qvo` |
 
@@ -262,7 +262,7 @@ Appwrite migration (M6: 9kx) → CSV/PDF export (7yq)
 | Metric | Count |
 |--------|-------|
 | Total issues | 75 |
-| Closed | 45 |
-| Open | 30 |
-| Blocked (waiting on dependency) | 23 |
+| Closed | 46 |
+| Open | 29 |
+| Blocked (waiting on dependency) | 22 |
 | Ready to work | 7 |

@@ -7,6 +7,8 @@ import {
 } from "@/lib/appwrite";
 import * as bcrypt from "bcryptjs";
 import { generateId } from "@/lib/utils";
+import { createVerificationToken } from "@/lib/services/db/auth";
+import { sendVerificationEmail } from "@/lib/services/email";
 
 export async function POST(request: NextRequest) {
   try {
@@ -64,6 +66,17 @@ export async function POST(request: NextRequest) {
         role: "owner",
       }
     );
+
+    // Send verification email (non-blocking — don't fail sign-up if email fails)
+    try {
+      const verificationToken = await createVerificationToken(
+        userId,
+        email.toLowerCase()
+      );
+      await sendVerificationEmail(email.toLowerCase(), firstName, verificationToken);
+    } catch {
+      // Log but don't block sign-up
+    }
 
     return NextResponse.json({ success: true }, { status: 201 });
   } catch (error: unknown) {

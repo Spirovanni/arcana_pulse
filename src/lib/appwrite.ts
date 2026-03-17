@@ -18,6 +18,8 @@ export const COLLECTIONS = {
   sessions: "sessions",
   budgets: "budgets",
   goals: "goals",
+  verificationTokens: "verificationTokens",
+  resetTokens: "resetTokens",
 } as const;
 
 // ---------------------------------------------------------------------------

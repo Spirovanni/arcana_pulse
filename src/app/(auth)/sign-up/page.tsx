@@ -4,7 +4,7 @@ import { useState, FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
 import Link from "next/link";
-import { Loader2 } from "lucide-react";
+import { Loader2, Mail } from "lucide-react";
 
 export default function SignUpPage() {
   const router = useRouter();
@@ -14,6 +14,7 @@ export default function SignUpPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [created, setCreated] = useState(false);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -49,17 +50,47 @@ export default function SignUpPage() {
       });
 
       if (result?.error) {
-        router.push("/sign-in");
+        // Sign-in failed but account was created — show verification message
+        setCreated(true);
         return;
       }
 
-      router.push("/");
-      router.refresh();
+      // Show verification message briefly then redirect
+      setCreated(true);
+      setTimeout(() => {
+        router.push("/");
+        router.refresh();
+      }, 3000);
     } catch {
       setError("Something went wrong. Please try again.");
     } finally {
       setLoading(false);
     }
+  }
+
+  if (created) {
+    return (
+      <div className="rounded-xl bg-arcana-surface border border-arcana-border p-8 text-center">
+        <Mail className="h-8 w-8 text-arcana-sky mx-auto mb-4" />
+        <h2 className="text-lg font-semibold text-white mb-2">
+          Check your email
+        </h2>
+        <p className="text-sm text-slate-400 mb-6">
+          We&apos;ve sent a verification link to{" "}
+          <span className="text-white">{email}</span>. Please check your inbox
+          to verify your account.
+        </p>
+        <div className="rounded-lg bg-green-500/10 border border-green-500/20 px-4 py-3 text-sm text-green-400 mb-4">
+          Account created successfully! Redirecting...
+        </div>
+        <Link
+          href="/"
+          className="text-sm text-arcana-sky hover:underline"
+        >
+          Continue to dashboard
+        </Link>
+      </div>
+    );
   }
 
   return (

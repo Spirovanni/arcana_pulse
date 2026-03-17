@@ -8,6 +8,7 @@ import type { User } from "@/lib/types";
 import type { Models } from "node-appwrite";
 import { generateId } from "@/lib/utils";
 import * as bcrypt from "bcryptjs";
+import { randomUUID } from "crypto";
 
 // ---------------------------------------------------------------------------
 // Document → entity mapper
@@ -179,4 +180,150 @@ export async function getSessionUser(token: string): Promise<User | null> {
   const result = await validateSession(token);
   if (!result.valid) return null;
   return getUserById(result.userId);
+}
+
+// ---------------------------------------------------------------------------
+// Email verification tokens
+// ---------------------------------------------------------------------------
+
+const VERIFICATION_TTL = 24 * 60 * 60 * 1000; // 24 hours
+
+export async function createVerificationToken(
+  userId: string,
+  email: string
+): Promise<string> {
+  const token = randomUUID();
+  const expiresAt = new Date(Date.now() + VERIFICATION_TTL).toISOString();
+
+  await getDatabase().createDocument(
+    DATABASE_ID,
+    COLLECTIONS.verificationTokens,
+    generateId("vtk"),
+    { token, userId, email: email.toLowerCase(), expiresAt }
+  );
+
+  return token;
+}
+
+export async function verifyEmailToken(
+  token: string
+): Promise<{ userId: string; email: string }> {
+  const result = await getDatabase().listDocuments(
+    DATABASE_ID,
+    COLLECTIONS.verificationTokens,
+    [Query.equal("token", token), Query.limit(1)]
+  );
+
+  if (result.documents.length === 0) {
+    throw new Error("Invalid or expired verification token");
+  }
+
+  const doc = result.documents[0];
+
+  if (new Date(doc.expiresAt).getTime() < Date.now()) {
+    await getDatabase().deleteDocument(
+      DATABASE_ID,
+      COLLECTIONS.verificationTokens,
+      doc.$id
+    );
+    throw new Error("Verification token has expired");
+  }
+
+  // Delete the used token
+  await getDatabase().deleteDocument(
+    DATABASE_ID,
+    COLLECTIONS.verificationTokens,
+    doc.$id
+  );
+
+  return { userId: doc.userId, email: doc.email };
+}
+
+export async function markEmailVerified(userId: string): Promise<void> {
+  await getDatabase().updateDocument(
+    DATABASE_ID,
+    COLLECTIONS.users,
+    userId,
+    { emailVerified: true }
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Password reset tokens
+// ---------------------------------------------------------------------------
+
+const RESET_TTL = 60 * 60 * 1000; // 1 hour
+
+export async function createPasswordResetToken(
+  email: string
+): Promise<{ token: string; userId: string; firstName: string } | null> {
+  const result = await getDatabase().listDocuments(
+    DATABASE_ID,
+    COLLECTIONS.users,
+    [Query.equal("email", email.toLowerCase()), Query.limit(1)]
+  );
+
+  if (result.documents.length === 0) {
+    return null; // Don't reveal whether email exists
+  }
+
+  const user = result.documents[0];
+  const token = randomUUID();
+  const expiresAt = new Date(Date.now() + RESET_TTL).toISOString();
+
+  await getDatabase().createDocument(
+    DATABASE_ID,
+    COLLECTIONS.resetTokens,
+    generateId("rtk"),
+    { token, userId: user.$id, expiresAt }
+  );
+
+  return { token, userId: user.$id, firstName: user.firstName };
+}
+
+export async function verifyResetToken(
+  token: string
+): Promise<{ userId: string }> {
+  const result = await getDatabase().listDocuments(
+    DATABASE_ID,
+    COLLECTIONS.resetTokens,
+    [Query.equal("token", token), Query.limit(1)]
+  );
+
+  if (result.documents.length === 0) {
+    throw new Error("Invalid or expired reset token");
+  }
+
+  const doc = result.documents[0];
+
+  if (new Date(doc.expiresAt).getTime() < Date.now()) {
+    await getDatabase().deleteDocument(
+      DATABASE_ID,
+      COLLECTIONS.resetTokens,
+      doc.$id
+    );
+    throw new Error("Reset token has expired");
+  }
+
+  // Delete the used token
+  await getDatabase().deleteDocument(
+    DATABASE_ID,
+    COLLECTIONS.resetTokens,
+    doc.$id
+  );
+
+  return { userId: doc.userId };
+}
+
+export async function updatePassword(
+  userId: string,
+  newPassword: string
+): Promise<void> {
+  const passwordHash = await bcrypt.hash(newPassword, 12);
+  await getDatabase().updateDocument(
+    DATABASE_ID,
+    COLLECTIONS.users,
+    userId,
+    { passwordHash }
+  );
 }
