@@ -17,9 +17,9 @@ interface BudgetRecommendationsProps {
 
 function getStatus(actual: number, limit: number): { label: string; color: string; barColor: string } {
   const pct = limit > 0 ? (actual / limit) * 100 : 0;
-  if (pct >= 100) return { label: "Over", color: "text-arcana-danger", barColor: "bg-arcana-danger" };
-  if (pct >= 75) return { label: "Warning", color: "text-arcana-warning", barColor: "bg-arcana-warning" };
-  return { label: "On track", color: "text-arcana-success", barColor: "bg-arcana-success" };
+  if (pct >= 100) return { label: "Over", color: "text-arcana-danger", barColor: "bg-gradient-to-r from-arcana-danger/80 to-arcana-danger drop-shadow-[0_0_8px_rgba(239,68,68,0.4)]" };
+  if (pct >= 75) return { label: "Warning", color: "text-arcana-warning", barColor: "bg-gradient-to-r from-arcana-warning/80 to-arcana-warning drop-shadow-[0_0_8px_rgba(245,158,11,0.4)]" };
+  return { label: "On track", color: "text-arcana-success", barColor: "bg-gradient-to-r from-arcana-success/80 to-arcana-success drop-shadow-[0_0_8px_rgba(16,185,129,0.4)]" };
 }
 
 export default function BudgetRecommendations({

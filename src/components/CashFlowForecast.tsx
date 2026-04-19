@@ -73,16 +73,16 @@ export default function CashFlowForecast({ data, loading, onRefresh }: CashFlowF
                     <div key={bucket.month} className="flex items-center gap-4">
                       <span className="w-16 text-secondary font-mono text-[10px]">{bucket.month}</span>
                       <div className="flex-1 flex gap-2 items-center">
-                        <div className="flex-1 h-px bg-outline overflow-hidden relative">
-                          <ProgressFill value={(bucket.projectedIncome / maxVal) * 100} colorClass="bg-arcana-success" />
+                        <div className="flex-1 h-1.5 bg-outline/30 rounded-full overflow-hidden relative">
+                          <ProgressFill value={(bucket.projectedIncome / maxVal) * 100} colorClass="bg-gradient-to-r from-arcana-success/80 to-arcana-success drop-shadow-[0_0_8px_rgba(16,185,129,0.4)]" />
                         </div>
-                        <span className="text-[10px] text-arcana-success w-20 text-right font-mono">
+                        <span className="text-[10px] text-arcana-success w-20 text-right font-mono font-medium">
                           +{formatCurrency(bucket.projectedIncome)}
                         </span>
                       </div>
                       <div className="flex-1 flex gap-2 items-center">
-                        <div className="flex-1 h-px bg-outline overflow-hidden relative">
-                          <ProgressFill value={(bucket.projectedExpense / maxVal) * 100} colorClass="bg-arcana-danger" />
+                        <div className="flex-1 h-1.5 bg-outline/30 rounded-full overflow-hidden relative">
+                          <ProgressFill value={(bucket.projectedExpense / maxVal) * 100} colorClass="bg-gradient-to-r from-arcana-danger/80 to-arcana-danger drop-shadow-[0_0_8px_rgba(239,68,68,0.4)]" />
                         </div>
                         <span className="text-[10px] text-arcana-danger w-20 text-right font-mono">
                           -{formatCurrency(bucket.projectedExpense)}

@@ -16,7 +16,10 @@ import {
   BarChart,
   ResponsiveContainer,
   Cell,
-  Tooltip
+  Tooltip,
+  XAxis,
+  YAxis,
+  CartesianGrid
 } from "recharts";
 import { computeDashboardMetrics } from "@/lib/services/dashboard";
 import { DEFAULT_WORKSPACE_ID } from "@/lib/services/workspace";
@@ -130,19 +133,54 @@ export default function DashboardPage() {
             </button>
           </div>
 
-          <div className="h-40 w-full relative z-10">
+          <div className="h-56 w-full relative z-10 -ml-4">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={visualChartData}>
-                <Tooltip 
-                  cursor={{fill: '#1A1A1A'}} 
-                  contentStyle={{ backgroundColor: '#121212', border: '1px solid #222222', color: '#fff' }} 
+              <BarChart data={visualChartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="goldGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="var(--color-primary)" stopOpacity={1} />
+                    <stop offset="100%" stopColor="var(--color-primary-container)" stopOpacity={0.6} />
+                  </linearGradient>
+                  <linearGradient id="mutedGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#2A2A2A" stopOpacity={1} />
+                    <stop offset="100%" stopColor="#1A1A1A" stopOpacity={0.6} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-outline-variant)" opacity={0.3} />
+                <XAxis 
+                  dataKey="month" 
+                  axisLine={false} 
+                  tickLine={false} 
+                  tick={{ fill: 'var(--color-secondary)', fontSize: 10, fontWeight: 500, letterSpacing: '1px' }} 
+                  dy={10} 
                 />
-                <Bar dataKey="val" radius={[2, 2, 0, 0]}>
+                <YAxis 
+                  axisLine={false} 
+                  tickLine={false} 
+                  tick={{ fill: 'var(--color-secondary)', fontSize: 10, fontWeight: 500 }} 
+                  tickFormatter={(val) => `$${val}`}
+                  dx={-10}
+                />
+                <Tooltip 
+                  cursor={{fill: 'var(--color-surface-container-highest)', opacity: 0.4}} 
+                  contentStyle={{ 
+                    backgroundColor: 'rgba(18, 18, 18, 0.85)', 
+                    backdropFilter: 'blur(10px)',
+                    border: '1px solid var(--color-outline-variant)', 
+                    borderRadius: '4px',
+                    color: 'var(--color-on-surface)',
+                    boxShadow: '0 8px 32px rgba(0, 0, 0, 0.5)'
+                  }} 
+                  itemStyle={{ color: 'var(--color-primary)', fontWeight: 600 }}
+                  formatter={(value) => [`$${value}`, 'Net Velocity']}
+                />
+                <Bar dataKey="val" radius={[4, 4, 0, 0]} maxBarSize={40}>
                   {visualChartData.map((entry, index) => (
                     <Cell 
                       key={`cell-${index}`} 
-                      fill={index === visualChartData.length - 1 ? '#C5A059' : '#1A1A1A'} 
-                      className="hover:fill-primary/70 transition-colors"
+                      fill={index === visualChartData.length - 1 ? 'url(#goldGradient)' : 'url(#mutedGradient)'} 
+                      className="transition-all duration-500 hover:opacity-80"
+                      style={{ filter: index === visualChartData.length - 1 ? 'drop-shadow(0 0 8px rgba(197,160,89,0.3))' : 'none' }}
                     />
                   ))}
                 </Bar>
@@ -160,14 +198,22 @@ export default function DashboardPage() {
                 <svg className="size-full -rotate-90" viewBox="0 0 100 100">
                   <circle cx="50" cy="50" r="45" fill="none" stroke="#1A1A1A" strokeWidth="2" />
                   <circle 
-                    cx="50" cy="50" r="45" fill="none" stroke="#C5A059" strokeWidth="2" 
+                    cx="50" cy="50" r="45" fill="none" stroke="url(#goldStroke)" strokeWidth="2.5" 
                     strokeDasharray="282.6" 
                     strokeDashoffset={282.6 - (282.6 * Math.max(savingsRateDisplay, 0) / 100)} 
-                    strokeLinecap="square"
-                    className="transition-all duration-1000"
+                    strokeLinecap="round"
+                    className="transition-all duration-1000 origin-center"
+                    style={{ filter: 'drop-shadow(0 0 12px rgba(197,160,89,0.3))' }}
                   />
+                  <defs>
+                    <linearGradient id="goldStroke" x1="0%" y1="0%" x2="100%" y2="100%">
+                      <stop offset="0%" stopColor="var(--color-primary)" />
+                      <stop offset="100%" stopColor="var(--color-tertiary)" />
+                    </linearGradient>
+                  </defs>
                 </svg>
-                <span className="absolute font-headline text-3xl font-light text-on-surface">{savingsRateDisplay}</span>
+                <div className="absolute inset-0 bg-primary/5 rounded-full filter blur-xl" />
+                <span className="absolute font-headline text-3xl font-light text-transparent bg-clip-text bg-gradient-to-br from-primary to-primary-container drop-shadow-md">{savingsRateDisplay}</span>
               </div>
               <p className="text-xs text-secondary font-light leading-relaxed tracking-wide">Strategic alignment with core intelligence parameters.</p>
             </div>

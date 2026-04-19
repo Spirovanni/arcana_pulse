@@ -93,7 +93,7 @@ export default function SavingsGoalsWidget({ goals, projections, loading, onRefr
 
                 <ProgressBar
                   value={pct}
-                  colorClass={isOnTrack ? "bg-arcana-success" : "bg-arcana-warning"}
+                  colorClass={isOnTrack ? "bg-gradient-to-r from-primary-container to-primary drop-shadow-[0_0_8px_rgba(197,160,89,0.5)]" : "bg-gradient-to-r from-arcana-warning/80 to-arcana-warning drop-shadow-[0_0_8px_rgba(245,158,11,0.4)]"}
                   className="mb-2"
                 />
 
