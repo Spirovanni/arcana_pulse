@@ -187,7 +187,7 @@ export default function LandingPage() {
             {["Intelligence", "Career", "Ledger", "Pulse"].map((item) => (
               <span
                 key={item}
-                className="text-[11px] uppercase tracking-[2px] text-secondary font-medium hover:text-primary transition-colors duration-300 cursor-pointer"
+                className="text-sm uppercase tracking-[2px] text-secondary font-medium hover:text-primary transition-colors duration-300 cursor-pointer"
               >
                 {item}
               </span>
@@ -197,14 +197,14 @@ export default function LandingPage() {
             <button
               type="button"
               onClick={() => router.push("/sign-in")}
-              className="text-[11px] uppercase tracking-[2px] text-secondary font-medium hover:text-primary transition-colors hidden md:block"
+              className="text-sm uppercase tracking-[2px] text-secondary font-medium hover:text-primary transition-colors hidden md:block"
             >
               Login
             </button>
             <button
               type="button"
               onClick={() => router.push("/sign-up")}
-              className="btn-metallic px-6 py-2 text-[11px] uppercase tracking-[2px] font-bold hover:opacity-90 active:scale-95 transition-all"
+              className="btn-metallic px-6 py-2.5 text-xs uppercase tracking-[2px] font-bold hover:opacity-90 active:scale-95 transition-all"
             >
               Begin
             </button>
@@ -222,12 +222,12 @@ export default function LandingPage() {
             transition={{ duration: 0.8 }}
             className="lg:col-span-6 space-y-8"
           >
-            <span className="text-primary uppercase tracking-[4px] text-[10px] font-bold flex items-center gap-2">
+            <span className="text-primary uppercase tracking-[4px] text-xs font-bold flex items-center gap-2">
               <Brain className="size-4" />
               Sovereign Intelligence Engine
             </span>
 
-            <h1 className="font-headline text-5xl lg:text-6xl font-light tracking-tight leading-[1.1] text-on-surface">
+            <h1 className="font-headline text-6xl lg:text-7xl font-light tracking-tight leading-[1.05] text-on-surface">
               Take full control of your{" "}
               <span className="text-primary">money</span>,{" "}
               <span className="text-secondary italic">career</span>, and{" "}
@@ -235,7 +235,7 @@ export default function LandingPage() {
               <span className="text-on-surface/60">from one place.</span>
             </h1>
 
-            <p className="text-secondary text-base lg:text-lg leading-relaxed max-w-xl tracking-wide">
+            <p className="text-secondary text-lg lg:text-xl leading-relaxed max-w-xl tracking-wide">
               Arcana Pulse fuses deep financial intelligence with career trajectory
               mapping, powered by AI that has{" "}
               <span className="text-on-surface">no agenda but yours</span>.
@@ -260,9 +260,9 @@ export default function LandingPage() {
             </div>
 
             {/* Trust signals */}
-            <div className="flex items-center gap-6 pt-2">
+            <div className="flex flex-wrap items-center gap-6 pt-2">
               {["No credit card", "Private by design", "Cancel anytime"].map((t) => (
-                <span key={t} className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-secondary/60">
+                <span key={t} className="flex items-center gap-1.5 text-xs uppercase tracking-wider text-secondary/60">
                   <CheckCircle className="size-3 text-primary/60" />
                   {t}
                 </span>
@@ -290,8 +290,8 @@ export default function LandingPage() {
                   <TrendingUp className="text-primary size-4" />
                 </div>
                 <div>
-                  <div className="text-[9px] text-secondary uppercase tracking-widest font-bold">Net velocity</div>
-                  <div className="text-base font-bold text-on-surface">+24% this quarter</div>
+                  <div className="text-xs text-secondary uppercase tracking-widest font-bold">Net velocity</div>
+                  <div className="text-lg font-bold text-on-surface">+24% this quarter</div>
                 </div>
               </motion.div>
               {/* Second floating stat */}
@@ -302,7 +302,7 @@ export default function LandingPage() {
                 className="absolute -top-4 -right-4 glass-panel px-3 py-2 rounded-lg border border-outline/20 shadow-xl flex items-center gap-2"
               >
                 <div className="size-2 rounded-full bg-primary animate-pulse" />
-                <span className="text-[10px] text-secondary uppercase tracking-widest font-bold">AI active</span>
+                <span className="text-xs text-secondary uppercase tracking-widest font-bold">AI active</span>
               </motion.div>
             </div>
           </motion.div>
@@ -319,9 +319,9 @@ export default function LandingPage() {
           className="max-w-7xl mx-auto px-8 py-10 grid grid-cols-2 lg:grid-cols-4 gap-8"
         >
           {STATS.map(({ value, label }) => (
-            <motion.div key={label} variants={fadeUp} className="text-center space-y-1">
-              <div className="font-headline text-3xl font-light text-primary">{value}</div>
-              <div className="text-[9px] uppercase tracking-[2px] text-secondary font-bold">{label}</div>
+            <motion.div key={label} variants={fadeUp} className="text-center space-y-2">
+              <div className="font-headline text-5xl font-light text-primary">{value}</div>
+              <div className="text-xs uppercase tracking-[2px] text-secondary font-bold">{label}</div>
             </motion.div>
           ))}
         </motion.div>
@@ -336,13 +336,13 @@ export default function LandingPage() {
           viewport={{ once: true }}
           className="mb-16 space-y-3"
         >
-          <span className="text-[9px] uppercase tracking-[3px] text-primary font-bold">
+          <span className="text-xs uppercase tracking-[3px] text-primary font-bold">
             Core Capabilities
           </span>
-          <h2 className="font-headline text-4xl lg:text-5xl font-light text-on-surface max-w-2xl">
+          <h2 className="font-headline text-5xl lg:text-6xl font-light text-on-surface max-w-2xl">
             Three systems. One sovereign view.
           </h2>
-          <p className="text-secondary text-base max-w-xl leading-relaxed">
+          <p className="text-secondary text-lg lg:text-xl max-w-xl leading-relaxed">
             Most tools give you data. Arcana gives you command.
           </p>
         </motion.div>
@@ -364,15 +364,15 @@ export default function LandingPage() {
                 <div className="p-2.5 bg-primary/10 border border-primary/20">
                   <Icon className="size-5 text-primary" />
                 </div>
-                <span className="text-[9px] uppercase tracking-[2px] text-primary font-bold">{tag}</span>
+                <span className="text-xs uppercase tracking-[2px] text-primary font-bold">{tag}</span>
               </div>
               <div className="space-y-3">
-                <h3 className="font-headline text-xl font-light text-on-surface leading-snug">{title}</h3>
-                <p className="text-sm text-secondary leading-relaxed">{body}</p>
+                <h3 className="font-headline text-2xl font-light text-on-surface leading-snug">{title}</h3>
+                <p className="text-base text-secondary leading-relaxed">{body}</p>
               </div>
-              <ul className="space-y-2">
+              <ul className="space-y-2.5">
                 {points.map((p) => (
-                  <li key={p} className="flex items-start gap-2 text-xs text-secondary/80">
+                  <li key={p} className="flex items-start gap-2 text-sm text-secondary/80">
                     <span className="text-primary mt-px">—</span>
                     {p}
                   </li>
@@ -396,18 +396,18 @@ export default function LandingPage() {
             viewport={{ once: true }}
             className="space-y-6"
           >
-            <span className="text-[9px] uppercase tracking-[3px] text-secondary font-bold">The Problem</span>
-            <h2 className="font-headline text-4xl font-light text-on-surface leading-snug">
+            <span className="text-xs uppercase tracking-[3px] text-secondary font-bold">The Problem</span>
+            <h2 className="font-headline text-5xl font-light text-on-surface leading-snug">
               Your money, career, and goals are{" "}
               <span className="text-secondary italic">completely disconnected.</span>
             </h2>
-            <p className="text-secondary leading-relaxed">
+            <p className="text-secondary text-lg leading-relaxed">
               You have a budgeting app. A job. Some vague financial goals. But no
               system connects them. Every tool works in a silo — none of them know
               how your income relates to your debt, or how your next promotion
               unlocks your next milestone.
             </p>
-            <p className="text-secondary leading-relaxed">
+            <p className="text-secondary text-lg leading-relaxed">
               Arcana is the first platform that treats your{" "}
               <span className="text-on-surface">financial life and career as a single system</span> — and
               builds an AI that operates across both.
@@ -433,9 +433,9 @@ export default function LandingPage() {
                 variants={fadeUp}
                 className="flex items-center gap-4 py-3 border-b border-outline/40 last:border-0"
               >
-                <span className="flex-1 text-sm text-secondary/50 line-through text-right">{before}</span>
+                <span className="flex-1 text-base text-secondary/50 line-through text-right">{before}</span>
                 <ArrowRight className="size-4 text-primary/60 flex-shrink-0" />
-                <span className="flex-1 text-sm text-on-surface">{after}</span>
+                <span className="flex-1 text-base text-on-surface">{after}</span>
               </motion.div>
             ))}
           </motion.div>
@@ -452,8 +452,8 @@ export default function LandingPage() {
           viewport={{ once: true }}
           className="mb-16 space-y-3"
         >
-          <span className="text-[9px] uppercase tracking-[3px] text-primary font-bold">How It Works</span>
-          <h2 className="font-headline text-4xl lg:text-5xl font-light text-on-surface">
+          <span className="text-xs uppercase tracking-[3px] text-primary font-bold">How It Works</span>
+          <h2 className="font-headline text-5xl lg:text-6xl font-light text-on-surface">
             From reactive to commanding — in three steps.
           </h2>
         </motion.div>
@@ -472,14 +472,14 @@ export default function LandingPage() {
                 <div className="hidden lg:block absolute top-6 left-[calc(100%+1.5rem)] right-0 h-px bg-gradient-to-r from-primary/30 to-transparent w-12" />
               )}
               <div className="flex items-center gap-4">
-                <span className="font-headline text-4xl font-light text-primary/30">{number}</span>
+                <span className="font-headline text-5xl font-light text-primary/30">{number}</span>
                 <div className="p-2 border border-outline bg-surface-container">
                   <Icon className="size-4 text-primary" />
                 </div>
               </div>
               <div className="space-y-2">
-                <h3 className="font-headline text-lg font-light text-on-surface">{title}</h3>
-                <p className="text-sm text-secondary leading-relaxed">{body}</p>
+                <h3 className="font-headline text-2xl font-light text-on-surface">{title}</h3>
+                <p className="text-base text-secondary leading-relaxed">{body}</p>
               </div>
             </motion.div>
           ))}
@@ -500,13 +500,13 @@ export default function LandingPage() {
           <div className="absolute -top-32 -right-32 size-96 bg-primary/5 rounded-full blur-3xl pointer-events-none" />
 
           <div className="relative z-10 max-w-2xl space-y-8">
-            <span className="text-[9px] uppercase tracking-[3px] text-primary font-bold">
+            <span className="text-xs uppercase tracking-[3px] text-primary font-bold">
               Start Today
             </span>
-            <h2 className="font-headline text-4xl lg:text-5xl font-light text-on-surface leading-tight">
+            <h2 className="font-headline text-5xl lg:text-6xl font-light text-on-surface leading-tight">
               Five minutes to your first sovereign insight.
             </h2>
-            <p className="text-secondary text-lg leading-relaxed">
+            <p className="text-secondary text-xl leading-relaxed">
               The AI interview takes less than 5 minutes. By the end, you'll have
               your first financial intelligence briefing — built exclusively for you.
             </p>
@@ -535,10 +535,10 @@ export default function LandingPage() {
       <footer className="relative z-10 w-full py-12 px-8 bg-[#060606] border-t border-outline/40">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-start gap-10">
           <div className="space-y-2">
-            <div className="text-lg font-black text-primary font-headline uppercase tracking-tighter">
+            <div className="text-xl font-black text-primary font-headline uppercase tracking-tighter">
               Arcana
             </div>
-            <p className="text-[10px] text-secondary uppercase tracking-[2px] max-w-[200px] leading-relaxed">
+            <p className="text-sm text-secondary uppercase tracking-[2px] max-w-[200px] leading-relaxed">
               Sovereign financial intelligence for ambitious careers.
             </p>
           </div>
@@ -552,7 +552,7 @@ export default function LandingPage() {
                 {col.map((item) => (
                   <div
                     key={item}
-                    className="text-[10px] uppercase tracking-widest text-secondary/50 hover:text-primary transition-colors cursor-pointer"
+                    className="text-xs uppercase tracking-widest text-secondary/50 hover:text-primary transition-colors cursor-pointer"
                   >
                     {item}
                   </div>
@@ -562,10 +562,10 @@ export default function LandingPage() {
           </div>
 
           <div className="space-y-2 text-right">
-            <div className="text-[10px] uppercase tracking-widest text-secondary/40">
+            <div className="text-xs uppercase tracking-widest text-secondary/40">
               © 2026 Arcana Sovereign Ledger
             </div>
-            <div className="text-[10px] uppercase tracking-widest text-secondary/30">
+            <div className="text-xs uppercase tracking-widest text-secondary/30">
               All rights reserved.
             </div>
           </div>
