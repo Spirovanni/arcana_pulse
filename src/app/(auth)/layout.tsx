@@ -6,13 +6,13 @@ export default function AuthLayout({
   children: React.ReactNode;
 }) {
   return (
-    <main className="flex min-h-screen items-center justify-center bg-arcana-navy">
-      <div className="w-full max-w-md px-6">
-        <div className="flex items-center justify-center gap-3 mb-8">
-          <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-arcana-blue">
-            <Zap className="w-6 h-6 text-white" />
-          </div>
-          <h1 className="text-xl font-bold text-white">Arcana Pulse</h1>
+    <main className="flex min-h-screen items-center justify-center bg-background text-on-surface">
+      <div className="absolute inset-0 z-0 opacity-20 pointer-events-none" 
+           style={{ background: 'radial-gradient(circle at top, #d4af37 0%, transparent 40%)' }} />
+      <div className="w-full max-w-md px-6 z-10">
+        <div className="flex items-center justify-center gap-3 mb-10 text-primary font-headline font-bold text-2xl tracking-[4px] uppercase">
+          <Zap className="size-8" />
+          <span>Arcana</span>
         </div>
         {children}
       </div>

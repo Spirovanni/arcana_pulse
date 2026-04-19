@@ -16,6 +16,7 @@ import {
   Zap,
 } from "lucide-react";
 import { NAV_ITEMS } from "@/lib/constants";
+import { cn } from "@/lib/utils";
 
 const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
   LayoutDashboard,
@@ -32,53 +33,56 @@ export default function Sidebar() {
   const pathname = usePathname();
 
   return (
-    <aside className="hidden lg:flex flex-col w-64 bg-arcana-surface border-r border-arcana-border h-screen sticky top-0">
+    <aside className="hidden lg:flex w-[260px] flex-col bg-background border-r border-outline py-12 px-8 z-40 h-screen sticky top-0">
       {/* Brand */}
-      <div className="flex items-center gap-3 px-6 py-5 border-b border-arcana-border">
-        <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-arcana-blue">
-          <Zap className="w-5 h-5 text-white" />
-        </div>
-        <div>
-          <p className="text-sm font-bold text-white tracking-wide">
-            Arcana Pulse
-          </p>
-          <p className="text-xs text-slate-400">Arcana Credit Union</p>
-        </div>
+      <div className="mb-12">
+        <h2 className="text-primary font-headline font-bold text-lg tracking-[4px] uppercase flex items-center gap-2">
+          <Zap className="size-5" />
+          Arcana
+        </h2>
+        <p className="text-[9px] uppercase tracking-widest text-secondary mt-1 ml-7">
+          Pulse Environment
+        </p>
       </div>
 
       {/* Nav links */}
-      <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+      <nav className="flex-1 space-y-4">
         {NAV_ITEMS.map((item) => {
           const Icon = ICON_MAP[item.icon];
           const isActive =
             pathname === item.href ||
             (item.href !== "/" && pathname.startsWith(item.href));
+            
           return (
             <Link
               key={item.href}
               href={item.href}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+              className={cn(
+                "w-full flex items-center gap-4 text-[11px] uppercase tracking-[2px] transition-all duration-300 group text-left",
                 isActive
-                  ? "bg-arcana-blue text-white"
-                  : "text-slate-300 hover:bg-arcana-navy hover:text-white"
-              }`}
+                  ? "text-on-surface border-l-2 border-primary pl-4 -ml-[34px]"
+                  : "text-secondary hover:text-on-surface pl-0"
+              )}
             >
-              {Icon && <Icon className="w-5 h-5 flex-shrink-0" />}
-              {item.label}
+              {Icon && <Icon className="w-4 h-4 text-secondary opacity-70 group-hover:opacity-100 group-hover:text-primary transition-colors" />}
+              <span className="font-medium whitespace-nowrap">{item.label}</span>
             </Link>
           );
         })}
       </nav>
 
       {/* Footer / Logout */}
-      <div className="px-3 py-4 border-t border-arcana-border">
+      <div className="mt-auto pt-8 border-t border-outline/50 space-y-6">
         <button
           onClick={() => signOut({ callbackUrl: "/sign-in" })}
-          className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-300 hover:bg-arcana-navy hover:text-white transition-colors w-full"
+          className="flex items-center gap-4 text-[11px] uppercase tracking-[2px] transition-all duration-300 group text-left text-secondary hover:text-danger w-full"
         >
-          <LogOut className="w-5 h-5 flex-shrink-0" />
-          Logout
+          <LogOut className="w-4 h-4 opacity-70 group-hover:opacity-100 transition-colors text-red-500" />
+          <span className="font-medium">Logout</span>
         </button>
+        <div className="text-[10px] text-secondary/60 leading-relaxed tracking-wider">
+          © 2026 Arcana Sovereign<br />Intelligence Group
+        </div>
       </div>
     </aside>
   );

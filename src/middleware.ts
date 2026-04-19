@@ -28,7 +28,7 @@ export async function middleware(request: NextRequest) {
   // Cryptographically validate the JWT session token
   const token = await getToken({ req: request });
 
-  const isPublicPath = PUBLIC_PATHS.some((p) => pathname.startsWith(p));
+  const isPublicPath = PUBLIC_PATHS.some((p) => pathname.startsWith(p)) || pathname === "/";
 
   // Unauthenticated user trying to access protected route → redirect to sign-in
   if (!token && !isPublicPath) {
@@ -36,10 +36,10 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(signInUrl);
   }
 
-  // Authenticated user trying to access auth pages → redirect to home
+  // Authenticated user trying to access public pages (like / or /sign-in) → redirect to dashboard
   if (token && isPublicPath) {
-    const homeUrl = new URL("/", request.url);
-    return NextResponse.redirect(homeUrl);
+    const dashboardUrl = new URL("/dashboard", request.url);
+    return NextResponse.redirect(dashboardUrl);
   }
 
   return NextResponse.next();

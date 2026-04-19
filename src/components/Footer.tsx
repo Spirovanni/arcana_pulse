@@ -1,7 +1,8 @@
 export default function Footer() {
   return (
-    <footer className="py-4 px-6 text-center text-xs text-slate-500 border-t border-arcana-border">
-      Arcana Pulse &mdash; Arcana Credit Union &middot; Sandbox Environment &middot; Not a regulated financial institution
+    <footer className="w-full py-8 text-center text-[10px] text-secondary font-sans uppercase tracking-widest border-t border-outline/50 mt-12 bg-background flex flex-col items-center gap-2">
+      <span className="opacity-60">Arcana Sovereign Intelligence Group</span>
+      <span className="opacity-40">&middot; Sandbox Environment &middot; Not a regulated entity</span>
     </footer>
   );
 }

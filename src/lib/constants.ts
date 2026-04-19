@@ -1,7 +1,7 @@
 import type { NavItem, Category } from "@/lib/types";
 
 export const NAV_ITEMS: NavItem[] = [
-  { label: "Dashboard", href: "/", icon: "LayoutDashboard" },
+  { label: "Dashboard", href: "/dashboard", icon: "LayoutDashboard" },
   { label: "My Banks", href: "/my-banks", icon: "Landmark" },
   { label: "Transactions", href: "/transactions", icon: "ArrowLeftRight" },
   { label: "Income", href: "/income", icon: "TrendingUp" },

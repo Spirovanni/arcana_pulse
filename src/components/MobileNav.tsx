@@ -19,6 +19,7 @@ import {
   Zap,
 } from "lucide-react";
 import { NAV_ITEMS } from "@/lib/constants";
+import { cn } from "@/lib/utils";
 
 const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
   LayoutDashboard,
@@ -38,68 +39,75 @@ export default function MobileNav() {
   return (
     <div className="lg:hidden">
       {/* Top bar */}
-      <div className="flex items-center justify-between px-4 py-3 bg-arcana-surface border-b border-arcana-border">
-        <div className="flex items-center gap-2">
-          <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-arcana-blue">
-            <Zap className="w-4 h-4 text-white" />
-          </div>
-          <span className="text-sm font-bold text-white">Arcana Pulse</span>
+      <div className="flex items-center justify-between px-6 py-4 bg-background border-b border-outline">
+        <div className="flex items-center gap-2 text-primary font-headline font-bold text-lg tracking-[4px] uppercase">
+          <Zap className="size-5" />
+          <span>Arcana</span>
         </div>
         <button
           onClick={() => setOpen(!open)}
-          className="p-2 text-slate-300 hover:text-white"
+          className="p-2 text-secondary hover:text-on-surface transition-colors"
         >
-          {open ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+          {open ? <X className="size-6" /> : <Menu className="size-6" />}
         </button>
       </div>
 
       {/* Drawer */}
       {open && (
-        <div className="fixed inset-0 z-50 bg-black/60" onClick={() => setOpen(false)}>
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm" onClick={() => setOpen(false)}>
           <nav
-            className="absolute left-0 top-0 h-full w-72 bg-arcana-surface border-r border-arcana-border p-4 space-y-1"
+            className="absolute left-0 top-0 h-full w-[280px] bg-background border-r border-outline py-10 px-8 flex flex-col shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center gap-3 px-3 py-4 mb-2">
-              <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-arcana-blue">
-                <Zap className="w-5 h-5 text-white" />
+            <div className="mb-10 flex items-center justify-between">
+              <div className="text-primary font-headline font-bold text-lg tracking-[4px] uppercase flex items-center gap-2">
+                <Zap className="size-5" />
+                Arcana
               </div>
-              <div>
-                <p className="text-sm font-bold text-white">Arcana Pulse</p>
-                <p className="text-xs text-slate-400">Arcana Credit Union</p>
-              </div>
+              <button
+                onClick={() => setOpen(false)}
+                className="p-1 text-secondary hover:text-on-surface transition-colors"
+              >
+                <X className="size-5" />
+              </button>
             </div>
 
-            {NAV_ITEMS.map((item) => {
-              const Icon = ICON_MAP[item.icon];
-              const isActive =
-                pathname === item.href ||
-                (item.href !== "/" && pathname.startsWith(item.href));
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  onClick={() => setOpen(false)}
-                  className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                    isActive
-                      ? "bg-arcana-blue text-white"
-                      : "text-slate-300 hover:bg-arcana-navy hover:text-white"
-                  }`}
-                >
-                  {Icon && <Icon className="w-5 h-5 flex-shrink-0" />}
-                  {item.label}
-                </Link>
-              );
-            })}
+            <div className="flex-1 space-y-4">
+              {NAV_ITEMS.map((item) => {
+                const Icon = ICON_MAP[item.icon];
+                const isActive =
+                  pathname === item.href ||
+                  (item.href !== "/" && pathname.startsWith(item.href));
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    onClick={() => setOpen(false)}
+                    className={cn(
+                      "w-full flex items-center gap-4 text-[11px] uppercase tracking-[2px] transition-all duration-300 group",
+                      isActive
+                        ? "text-on-surface border-l-2 border-primary pl-4 -ml-4"
+                        : "text-secondary hover:text-on-surface pl-0"
+                    )}
+                  >
+                    {Icon && <Icon className="w-4 h-4 text-secondary opacity-70 group-hover:opacity-100 group-hover:text-primary transition-colors" />}
+                    <span className="font-medium">{item.label}</span>
+                  </Link>
+                );
+              })}
+            </div>
 
-            <div className="pt-4 mt-4 border-t border-arcana-border">
+            <div className="mt-8 pt-8 border-t border-outline/50 space-y-6">
               <button
                 onClick={() => signOut({ callbackUrl: "/sign-in" })}
-                className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-300 hover:bg-arcana-navy hover:text-white transition-colors w-full"
+                className="flex items-center gap-4 text-[11px] uppercase tracking-[2px] transition-all duration-300 group text-secondary hover:text-danger w-full"
               >
-                <LogOut className="w-5 h-5 flex-shrink-0" />
-                Logout
+                <LogOut className="w-4 h-4 opacity-70 group-hover:opacity-100 text-red-500 transition-colors" />
+                <span className="font-medium">Logout</span>
               </button>
+              <div className="text-[10px] text-secondary/60 leading-relaxed tracking-wider">
+                © 2026 Arcana Sovereign
+              </div>
             </div>
           </nav>
         </div>

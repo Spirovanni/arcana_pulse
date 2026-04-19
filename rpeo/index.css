@@ -1,10 +1,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap');
+@import "tailwindcss";
 
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
-:root {
+@theme {
   --font-sans: "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif;
   --font-headline: "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif;
 
@@ -61,6 +58,8 @@
   color: var(--color-primary);
 }
 
+/* Elegant spacing pattern */
 .section-padding {
   @apply py-20 px-10 md:px-16;
 }
+
