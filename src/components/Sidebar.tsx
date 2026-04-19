@@ -11,12 +11,15 @@ import {
   TrendingDown,
   SendHorizontal,
   MessageCircle,
+  Bell,
   Settings,
   LogOut,
   Zap,
 } from "lucide-react";
 import { NAV_ITEMS } from "@/lib/constants";
 import { cn } from "@/lib/utils";
+import NotificationBell from "@/components/NotificationBell";
+import { DEFAULT_WORKSPACE_ID } from "@/lib/services/workspace";
 
 const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
   LayoutDashboard,
@@ -26,6 +29,7 @@ const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
   TrendingDown,
   SendHorizontal,
   MessageCircle,
+  Bell,
   Settings,
 };
 
@@ -71,8 +75,14 @@ export default function Sidebar() {
         })}
       </nav>
 
+      {/* Notification bell */}
+      <div className="mt-6 pt-6 border-t border-outline/50 flex items-center justify-between">
+        <span className="text-[9px] uppercase tracking-[2px] text-secondary/50 font-bold">Alerts</span>
+        <NotificationBell workspaceId={DEFAULT_WORKSPACE_ID} />
+      </div>
+
       {/* Footer / Logout */}
-      <div className="mt-auto pt-8 border-t border-outline/50 space-y-6">
+      <div className="mt-6 pt-6 border-t border-outline/50 space-y-6">
         <button
           onClick={() => signOut({ callbackUrl: "/sign-in" })}
           className="flex items-center gap-4 text-[11px] uppercase tracking-[2px] transition-all duration-300 group text-left text-secondary hover:text-danger w-full"

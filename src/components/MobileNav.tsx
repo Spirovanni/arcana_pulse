@@ -12,6 +12,7 @@ import {
   TrendingDown,
   SendHorizontal,
   MessageCircle,
+  Bell,
   Settings,
   LogOut,
   Menu,
@@ -20,6 +21,8 @@ import {
 } from "lucide-react";
 import { NAV_ITEMS } from "@/lib/constants";
 import { cn } from "@/lib/utils";
+import NotificationBell from "@/components/NotificationBell";
+import { DEFAULT_WORKSPACE_ID } from "@/lib/services/workspace";
 
 const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
   LayoutDashboard,
@@ -29,6 +32,7 @@ const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
   TrendingDown,
   SendHorizontal,
   MessageCircle,
+  Bell,
   Settings,
 };
 
@@ -44,12 +48,16 @@ export default function MobileNav() {
           <Zap className="size-5" />
           <span>Arcana</span>
         </Link>
-        <button
-          onClick={() => setOpen(!open)}
-          className="p-2 text-secondary hover:text-on-surface transition-colors"
-        >
-          {open ? <X className="size-6" /> : <Menu className="size-6" />}
-        </button>
+        <div className="flex items-center gap-1">
+          <NotificationBell workspaceId={DEFAULT_WORKSPACE_ID} />
+          <button
+            type="button"
+            onClick={() => setOpen(!open)}
+            className="p-2 text-secondary hover:text-on-surface transition-colors"
+          >
+            {open ? <X className="size-6" /> : <Menu className="size-6" />}
+          </button>
+        </div>
       </div>
 
       {/* Drawer */}

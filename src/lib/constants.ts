@@ -8,6 +8,7 @@ export const NAV_ITEMS: NavItem[] = [
   { label: "Expense", href: "/expense", icon: "TrendingDown" },
   { label: "Transfer Funds", href: "/transfer", icon: "SendHorizontal" },
   { label: "Assistant", href: "/assistant", icon: "MessageCircle" },
+  { label: "Notifications", href: "/notifications", icon: "Bell" },
   { label: "Settings", href: "/settings", icon: "Settings" },
 ];
 
