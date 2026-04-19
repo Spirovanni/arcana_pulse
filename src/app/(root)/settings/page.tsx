@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import { getWorkspace, getCurrentUser, DEFAULT_WORKSPACE_ID } from "@/lib/services/workspace";
 import { ShieldCheck, ShieldOff, Copy, Check, Clock, Activity, Download, Trash2, AlertTriangle } from "lucide-react";
 import { signOut } from "next-auth/react";
 import TeamSettings from "@/components/TeamSettings";
+import BillingSettings from "@/components/BillingSettings";
 import Image from "next/image";
 import type { AuditLogEntry } from "@/lib/services/db/auditLog";
 
@@ -495,6 +496,11 @@ export default function SettingsPage() {
           )}
         </div>
       </div>
+
+      {/* Subscription & Billing */}
+      <Suspense fallback={<div className="rounded-sm bg-surface-container-high border border-outline p-6 animate-pulse h-40" />}>
+        <BillingSettings currentPlan={workspace.plan} />
+      </Suspense>
 
       {/* Sandbox Notice */}
       <div className="rounded-sm bg-amber-500/5 border border-amber-500/20 p-5">
