@@ -15,7 +15,8 @@
 
 import { Client, Databases, IndexType, OrderBy } from "node-appwrite";
 
-const DATABASE_ID = "arcana_pulse";
+const DATABASE_ID =
+  process.env.APPWRITE_DATABASE_ID ?? "arcana_pulse";
 const DATABASE_NAME = "Arcana Pulse";
 
 // ---------------------------------------------------------------------------
@@ -23,8 +24,12 @@ const DATABASE_NAME = "Arcana Pulse";
 // ---------------------------------------------------------------------------
 
 const endpoint =
-  process.env.APPWRITE_ENDPOINT ?? "https://cloud.appwrite.io/v1";
-const projectId = process.env.APPWRITE_PROJECT_ID;
+  process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT ??
+  process.env.APPWRITE_ENDPOINT ??
+  "https://cloud.appwrite.io/v1";
+const projectId =
+  process.env.APPWRITE_PROJECT_ID ??
+  process.env.NEXT_PUBLIC_APPWRITE_PROJECT;
 const apiKey = process.env.APPWRITE_API_KEY;
 
 if (!projectId || !apiKey) {

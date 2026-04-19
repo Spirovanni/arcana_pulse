@@ -14,7 +14,8 @@ import { withRetry } from "./resilience/retry";
 import { appwriteCircuit } from "./resilience/circuit-breaker";
 import * as Sentry from "@sentry/nextjs";
 
-export const DATABASE_ID = "arcana_pulse";
+export const DATABASE_ID =
+  process.env.APPWRITE_DATABASE_ID ?? "arcana_pulse";
 
 export const COLLECTIONS = {
   workspaces: "workspaces",
