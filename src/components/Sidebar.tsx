@@ -35,15 +35,15 @@ export default function Sidebar() {
   return (
     <aside className="hidden lg:flex w-[260px] flex-col bg-background border-r border-outline py-12 px-8 z-40 h-screen sticky top-0">
       {/* Brand */}
-      <div className="mb-12">
-        <h2 className="text-primary font-headline font-bold text-lg tracking-[4px] uppercase flex items-center gap-2">
+      <Link href="/" className="mb-12 block group">
+        <h2 className="text-primary font-headline font-bold text-lg tracking-[4px] uppercase flex items-center gap-2 group-hover:opacity-80 transition-opacity">
           <Zap className="size-5" />
           Arcana
         </h2>
         <p className="text-[9px] uppercase tracking-widest text-secondary mt-1 ml-7">
           Pulse Environment
         </p>
-      </div>
+      </Link>
 
       {/* Nav links */}
       <nav className="flex-1 space-y-4">

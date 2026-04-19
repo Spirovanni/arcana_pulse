@@ -1,24 +1,9 @@
 "use client";
 
-import {
-  PieChart,
-  AlertTriangle,
-  CheckCircle2,
-  RefreshCw,
-  Target,
-} from "lucide-react";
+import { PieChart, CheckCircle2, RefreshCw } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { CATEGORY_LABELS } from "@/lib/constants";
-import type {
-  BudgetRecommendation,
-  Budget,
-  CategoryBreakdown,
-  Category,
-} from "@/lib/types";
-
-// ---------------------------------------------------------------------------
-// Props
-// ---------------------------------------------------------------------------
+import type { BudgetRecommendation, Budget, CategoryBreakdown, Category } from "@/lib/types";
 
 interface BudgetRecommendationsProps {
   recommendations: BudgetRecommendation[];
@@ -29,39 +14,12 @@ interface BudgetRecommendationsProps {
   onAccept: (category: Category, amount: number) => void;
 }
 
-// ---------------------------------------------------------------------------
-// Status helpers
-// ---------------------------------------------------------------------------
-
-function getStatus(
-  actual: number,
-  limit: number
-): { label: string; color: string; bgColor: string } {
+function getStatus(actual: number, limit: number): { label: string; color: string; barColor: string } {
   const pct = limit > 0 ? (actual / limit) * 100 : 0;
-  if (pct >= 100) {
-    return {
-      label: "Over budget",
-      color: "text-arcana-danger",
-      bgColor: "bg-arcana-danger",
-    };
-  }
-  if (pct >= 75) {
-    return {
-      label: "Warning",
-      color: "text-arcana-warning",
-      bgColor: "bg-arcana-warning",
-    };
-  }
-  return {
-    label: "On track",
-    color: "text-arcana-success",
-    bgColor: "bg-arcana-success",
-  };
+  if (pct >= 100) return { label: "Over", color: "text-arcana-danger", barColor: "bg-arcana-danger" };
+  if (pct >= 75) return { label: "Warning", color: "text-arcana-warning", barColor: "bg-arcana-warning" };
+  return { label: "On track", color: "text-arcana-success", barColor: "bg-arcana-success" };
 }
-
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
 
 export default function BudgetRecommendations({
   recommendations,
@@ -71,11 +29,9 @@ export default function BudgetRecommendations({
   onRefresh,
   onAccept,
 }: BudgetRecommendationsProps) {
-  // Build lookup maps
   const budgetMap = new Map(budgets.map((b) => [b.category, b]));
   const spendingMap = new Map(actualSpending.map((s) => [s.category, s]));
 
-  // Merge: categories with either a stored budget or an AI recommendation
   const categories = new Set<string>();
   budgets.forEach((b) => categories.add(b.category));
   recommendations.forEach((r) => categories.add(r.category));
@@ -88,129 +44,101 @@ export default function BudgetRecommendations({
 
   return (
     <div>
-      {/* Header */}
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
-          <h3 className="text-sm font-semibold text-white">
-            Budget Recommendations
-          </h3>
-          <a
-            href="/budgets"
-            className="text-xs text-arcana-sky hover:underline"
-          >
-            See all
+      <div className="flex items-center justify-between mb-5">
+        <div className="flex items-center gap-3">
+          <span className="text-[9px] uppercase tracking-[2px] text-secondary font-bold">Budget Vectors</span>
+          <a href="/budgets" className="text-[9px] uppercase tracking-[1px] text-primary/60 hover:text-primary transition-colors">
+            All →
           </a>
         </div>
         <button
+          type="button"
           onClick={onRefresh}
           disabled={loading}
-          className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium text-arcana-sky hover:bg-arcana-navy transition-colors disabled:opacity-50"
+          className="flex items-center gap-2 text-[10px] uppercase tracking-[1px] text-secondary hover:text-primary transition-colors disabled:opacity-40"
         >
-          <RefreshCw
-            className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`}
-          />
+          <RefreshCw className={`w-3 h-3 ${loading ? "animate-spin" : ""}`} />
           Refresh
         </button>
       </div>
 
-      {/* Loading */}
       {loading && sortedCategories.length === 0 && (
-        <div className="rounded-xl bg-arcana-surface border border-arcana-border p-8 flex items-center justify-center">
+        <div className="rounded-sm bg-surface-container-high border border-outline p-8 flex items-center justify-center">
           <div className="flex items-center gap-3">
-            <RefreshCw className="w-5 h-5 text-arcana-sky animate-spin" />
-            <span className="text-sm text-slate-400">
-              Generating budget recommendations...
-            </span>
+            <RefreshCw className="w-4 h-4 text-primary animate-spin" />
+            <span className="text-xs text-secondary uppercase tracking-wider">Computing recommendations...</span>
           </div>
         </div>
       )}
 
-      {/* Empty */}
       {!loading && sortedCategories.length === 0 && (
-        <div className="rounded-xl bg-arcana-surface border border-arcana-border p-8 text-center">
-          <PieChart className="w-6 h-6 text-slate-500 mx-auto mb-2" />
-          <p className="text-sm text-slate-400">
-            No budget data available. Add transactions to get personalized
-            recommendations.
-          </p>
+        <div className="rounded-sm bg-surface-container-high border border-outline p-8 text-center">
+          <PieChart className="w-5 h-5 text-secondary mx-auto mb-2" />
+          <p className="text-xs text-secondary uppercase tracking-wider">No budget data yet</p>
         </div>
       )}
 
-      {/* Budget cards */}
       {sortedCategories.length > 0 && (
-        <div className="rounded-xl bg-arcana-surface border border-arcana-border p-5">
-          <div className="space-y-4">
-            {sortedCategories.slice(0, 8).map((cat) => {
-              const category = cat as Category;
-              const budget = budgetMap.get(category);
-              const recommendation = recommendations.find(
-                (r) => r.category === category
-              );
-              const spending = spendingMap.get(category);
-              const actual = spending?.amount ?? 0;
-              const limit = budget?.amount ?? recommendation?.recommendedAmount ?? 0;
-              const pct = limit > 0 ? Math.min((actual / limit) * 100, 100) : 0;
-              const status = getStatus(actual, limit);
-              const hasBudget = !!budget;
+        <div className="space-y-5">
+          {sortedCategories.slice(0, 8).map((cat) => {
+            const category = cat as Category;
+            const budget = budgetMap.get(category);
+            const recommendation = recommendations.find((r) => r.category === category);
+            const spending = spendingMap.get(category);
+            const actual = spending?.amount ?? 0;
+            const limit = budget?.amount ?? recommendation?.recommendedAmount ?? 0;
+            const pct = limit > 0 ? Math.min((actual / limit) * 100, 100) : 0;
+            const status = getStatus(actual, limit);
+            const hasBudget = !!budget;
 
-              return (
-                <div key={cat}>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm text-white">
-                        {CATEGORY_LABELS[category] ?? cat}
-                      </span>
-                      {hasBudget ? (
-                        <CheckCircle2 className="w-3.5 h-3.5 text-arcana-success" />
-                      ) : (
-                        <span className="text-xs text-slate-500 italic">
-                          AI suggested
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <span className={`text-xs font-medium ${status.color}`}>
-                        {status.label}
-                      </span>
-                      {!hasBudget && recommendation && (
-                        <button
-                          onClick={() =>
-                            onAccept(category, recommendation.recommendedAmount)
-                          }
-                          className="text-xs px-2 py-0.5 rounded bg-arcana-blue/20 text-arcana-blue hover:bg-arcana-blue/30 transition-colors"
-                        >
-                          Accept
-                        </button>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Progress bar */}
-                  <div className="h-2 rounded-full bg-arcana-navy overflow-hidden mb-1.5">
-                    <div
-                      className={`h-full rounded-full ${status.bgColor} transition-all`}
-                      style={{ width: `${pct}%` }}
-                    />
-                  </div>
-
-                  {/* Values */}
-                  <div className="flex justify-between text-xs text-slate-400">
-                    <span>
-                      {formatCurrency(actual)} spent
+            return (
+              <div key={cat}>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-on-surface font-medium">
+                      {CATEGORY_LABELS[category] ?? cat}
                     </span>
-                    <span>
-                      {formatCurrency(limit)} budget
-                      {recommendation && !hasBudget && (
-                        <span className="ml-1 text-slate-500">
-                          ({recommendation.percentOfIncome}% of income)
-                        </span>
-                      )}
+                    {hasBudget ? (
+                      <CheckCircle2 className="w-3 h-3 text-arcana-success" />
+                    ) : (
+                      <span className="text-[9px] text-secondary uppercase tracking-wider">AI</span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className={`text-[9px] uppercase tracking-wider font-bold ${status.color}`}>
+                      {status.label}
                     </span>
+                    {!hasBudget && recommendation && (
+                      <button
+                        type="button"
+                        onClick={() => onAccept(category, recommendation.recommendedAmount)}
+                        className="text-[9px] uppercase tracking-wider px-2 py-0.5 border border-primary/30 text-primary hover:bg-primary hover:text-background transition-all"
+                      >
+                        Accept
+                      </button>
+                    )}
                   </div>
                 </div>
-              );
-            })}
-          </div>
+
+                <div className="w-full bg-outline/30 h-px relative mb-2">
+                  <div
+                    className={`absolute inset-y-0 left-0 ${status.barColor} h-[2px] -top-px transition-all`}
+                    style={{ width: `${pct}%` }}
+                  />
+                </div>
+
+                <div className="flex justify-between text-[9px] text-secondary font-mono uppercase tracking-wider">
+                  <span>{formatCurrency(actual)} spent</span>
+                  <span>
+                    {formatCurrency(limit)} limit
+                    {recommendation && !hasBudget && (
+                      <span className="ml-1 opacity-60">({recommendation.percentOfIncome}% income)</span>
+                    )}
+                  </span>
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
     </div>

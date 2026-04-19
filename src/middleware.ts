@@ -29,6 +29,8 @@ export async function middleware(request: NextRequest) {
   const token = await getToken({ req: request });
 
   const isPublicPath = PUBLIC_PATHS.some((p) => pathname.startsWith(p)) || pathname === "/";
+  // Auth-only pages that authenticated users should be bounced away from
+  const isAuthPage = PUBLIC_PATHS.some((p) => pathname.startsWith(p));
 
   // Unauthenticated user trying to access protected route → redirect to sign-in
   if (!token && !isPublicPath) {
@@ -36,8 +38,9 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(signInUrl);
   }
 
-  // Authenticated user trying to access public pages (like / or /sign-in) → redirect to dashboard
-  if (token && isPublicPath) {
+  // Authenticated user on /sign-in, /sign-up etc. → redirect to dashboard
+  // (but allow authenticated users to visit / landing page via logo click)
+  if (token && isAuthPage) {
     const dashboardUrl = new URL("/dashboard", request.url);
     return NextResponse.redirect(dashboardUrl);
   }

@@ -199,7 +199,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Vectors & Budgets Row */}
-        <div className="lg:col-span-6 bg-surface-container rounded-sm border border-outline overflow-hidden">
+        <div className="lg:col-span-6 bg-surface-container rounded-sm border border-outline p-8">
           <BudgetRecommendations
             recommendations={budgetRecs}
             budgets={budgets}
@@ -210,7 +210,7 @@ export default function DashboardPage() {
           />
         </div>
 
-        <div className="lg:col-span-6 bg-surface-container rounded-sm border border-outline overflow-hidden">
+        <div className="lg:col-span-6 bg-surface-container rounded-sm border border-outline p-8">
           <SavingsGoalsWidget
             goals={savingsGoals}
             projections={goalProjections}

@@ -40,10 +40,10 @@ export default function MobileNav() {
     <div className="lg:hidden">
       {/* Top bar */}
       <div className="flex items-center justify-between px-6 py-4 bg-background border-b border-outline">
-        <div className="flex items-center gap-2 text-primary font-headline font-bold text-lg tracking-[4px] uppercase">
+        <Link href="/" className="flex items-center gap-2 text-primary font-headline font-bold text-lg tracking-[4px] uppercase hover:opacity-80 transition-opacity">
           <Zap className="size-5" />
           <span>Arcana</span>
-        </div>
+        </Link>
         <button
           onClick={() => setOpen(!open)}
           className="p-2 text-secondary hover:text-on-surface transition-colors"
@@ -60,10 +60,10 @@ export default function MobileNav() {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mb-10 flex items-center justify-between">
-              <div className="text-primary font-headline font-bold text-lg tracking-[4px] uppercase flex items-center gap-2">
+              <Link href="/" onClick={() => setOpen(false)} className="text-primary font-headline font-bold text-lg tracking-[4px] uppercase flex items-center gap-2 hover:opacity-80 transition-opacity">
                 <Zap className="size-5" />
                 Arcana
-              </div>
+              </Link>
               <button
                 onClick={() => setOpen(false)}
                 className="p-1 text-secondary hover:text-on-surface transition-colors"
