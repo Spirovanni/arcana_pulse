@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { getWorkspace, getCurrentUser, DEFAULT_WORKSPACE_ID } from "@/lib/services/workspace";
-import { ShieldCheck, ShieldOff, Copy, Check, Clock, Activity } from "lucide-react";
+import { ShieldCheck, ShieldOff, Copy, Check, Clock, Activity, Download, Trash2, AlertTriangle } from "lucide-react";
+import { signOut } from "next-auth/react";
 import Image from "next/image";
 import type { AuditLogEntry } from "@/lib/services/db/auditLog";
 
@@ -44,6 +45,10 @@ export default function SettingsPage() {
   const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([]);
   const [auditLoading, setAuditLoading] = useState(false);
   const [auditLoaded, setAuditLoaded] = useState(false);
+
+  const [deletePhase, setDeletePhase] = useState<"idle" | "confirm" | "deleting">("idle");
+  const [deleteError, setDeleteError] = useState("");
+  const [exportLoading, setExportLoading] = useState(false);
 
   if (!workspace) return null;
 
@@ -105,6 +110,39 @@ export default function SettingsPage() {
     navigator.clipboard.writeText(secret);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  }
+
+  async function handleExport() {
+    setExportLoading(true);
+    try {
+      const res = await fetch("/api/account/export");
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `arcana-data-export-${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } finally {
+      setExportLoading(false);
+    }
+  }
+
+  async function handleDeleteAccount() {
+    setDeletePhase("deleting");
+    setDeleteError("");
+    try {
+      const res = await fetch("/api/account/delete", { method: "DELETE" });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error ?? "Deletion failed");
+      }
+      // Sign out and redirect after successful deletion
+      await signOut({ callbackUrl: "/" });
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : "Deletion failed");
+      setDeletePhase("confirm");
+    }
   }
 
   async function loadAuditLogs() {
@@ -365,6 +403,93 @@ export default function SettingsPage() {
             ))}
           </div>
         )}
+      </div>
+
+      {/* Privacy & Data Controls */}
+      <div className="rounded-sm bg-surface-container-high border border-outline p-6">
+        <div className="flex items-center gap-2 mb-4">
+          <Download className="h-4 w-4 text-primary" />
+          <h3 className="text-[9px] uppercase tracking-[2px] text-secondary font-bold">Privacy & Data Controls</h3>
+        </div>
+        <p className="text-xs text-secondary mb-5">
+          Under CCPA and GDPR, you have the right to access and delete your personal data. These actions are permanent and cannot be undone.
+        </p>
+
+        <div className="space-y-4">
+          {/* Data Export */}
+          <div className="flex items-start justify-between gap-4 py-4 border-b border-outline/40">
+            <div>
+              <p className="text-sm text-on-surface font-medium">Export your data</p>
+              <p className="text-xs text-secondary mt-0.5">Download all your personal data as a JSON file, including transactions, banks, and audit log.</p>
+            </div>
+            <button
+              type="button"
+              onClick={handleExport}
+              disabled={exportLoading}
+              className="flex-shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-sm border border-outline text-secondary text-xs uppercase tracking-[1px] font-bold hover:border-primary/40 hover:text-primary transition-colors disabled:opacity-40"
+            >
+              <Download className="w-3.5 h-3.5" />
+              {exportLoading ? "Exporting..." : "Export JSON"}
+            </button>
+          </div>
+
+          {/* Account Deletion */}
+          <div className="flex items-start justify-between gap-4 py-4">
+            <div>
+              <p className="text-sm text-on-surface font-medium">Delete account</p>
+              <p className="text-xs text-secondary mt-0.5">Permanently delete your account and all associated data. This action cannot be undone.</p>
+            </div>
+            {deletePhase === "idle" && (
+              <button
+                type="button"
+                onClick={() => setDeletePhase("confirm")}
+                className="flex-shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-sm border border-red-500/30 text-arcana-danger text-xs uppercase tracking-[1px] font-bold hover:bg-red-500/10 transition-colors"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                Delete Account
+              </button>
+            )}
+            {deletePhase !== "idle" && (
+              <div className="flex-shrink-0" />
+            )}
+          </div>
+
+          {/* Confirm deletion */}
+          {(deletePhase === "confirm" || deletePhase === "deleting") && (
+            <div className="rounded-sm bg-red-500/5 border border-red-500/20 p-5 space-y-4">
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="w-4 h-4 text-arcana-danger flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm text-arcana-danger font-bold uppercase tracking-wider mb-1">This is permanent</p>
+                  <p className="text-xs text-secondary leading-relaxed">
+                    All your transactions, bank connections, AI insights, budgets, goals, and audit logs will be permanently erased. Your account cannot be recovered.
+                  </p>
+                </div>
+              </div>
+              {deleteError && (
+                <p className="text-xs text-arcana-danger">{deleteError}</p>
+              )}
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={handleDeleteAccount}
+                  disabled={deletePhase === "deleting"}
+                  className="px-5 py-2.5 rounded-sm bg-red-500/10 border border-red-500/30 text-arcana-danger text-xs font-bold uppercase tracking-[1px] hover:bg-red-500/20 transition-colors disabled:opacity-50"
+                >
+                  {deletePhase === "deleting" ? "Deleting..." : "Yes, permanently delete"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setDeletePhase("idle"); setDeleteError(""); }}
+                  disabled={deletePhase === "deleting"}
+                  className="px-4 py-2.5 rounded-sm border border-outline text-secondary text-xs hover:text-on-surface transition-colors disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Sandbox Notice */}

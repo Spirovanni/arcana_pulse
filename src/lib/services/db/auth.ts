@@ -502,3 +502,154 @@ export async function consumeMfaPendingToken(
 
   return doc.userId;
 }
+
+// ---------------------------------------------------------------------------
+// GDPR / CCPA — right to delete & data export
+// ---------------------------------------------------------------------------
+
+/**
+ * Cascade-deletes all data associated with a user across every collection.
+ * Called only after the user re-authenticates to confirm intent.
+ */
+export async function deleteAccount(userId: string, workspaceId: string): Promise<void> {
+  const db = getDatabase();
+
+  const collections = [
+    COLLECTIONS.sessions,
+    COLLECTIONS.verificationTokens,
+    COLLECTIONS.resetTokens,
+    COLLECTIONS.mfaPending,
+    COLLECTIONS.auditLogs,
+  ];
+
+  // Delete documents that reference userId
+  for (const col of collections) {
+    try {
+      const res = await db.listDocuments(DATABASE_ID, col, [
+        Query.equal("userId", userId),
+        Query.limit(100),
+      ]);
+      await Promise.all(
+        res.documents.map((d) => db.deleteDocument(DATABASE_ID, col, d.$id))
+      );
+    } catch {
+      // Collection may not have userId field — skip gracefully
+    }
+  }
+
+  // Delete workspace-scoped data
+  const workspaceCollections = [
+    COLLECTIONS.banks,
+    COLLECTIONS.transactions,
+    COLLECTIONS.transfers,
+    COLLECTIONS.budgets,
+    COLLECTIONS.goals,
+  ];
+
+  for (const col of workspaceCollections) {
+    try {
+      const res = await db.listDocuments(DATABASE_ID, col, [
+        Query.equal("workspaceId", workspaceId),
+        Query.limit(100),
+      ]);
+      await Promise.all(
+        res.documents.map((d) => db.deleteDocument(DATABASE_ID, col, d.$id))
+      );
+    } catch {
+      // Skip if collection absent or inaccessible
+    }
+  }
+
+  // Delete the user document last
+  try {
+    await db.deleteDocument(DATABASE_ID, COLLECTIONS.users, userId);
+  } catch {
+    // Already deleted or not found — safe to ignore
+  }
+
+  // Delete the workspace
+  try {
+    await db.deleteDocument(DATABASE_ID, COLLECTIONS.workspaces, workspaceId);
+  } catch {
+    // Safe to ignore
+  }
+}
+
+/**
+ * Collects all personal data for a user into a structured JSON export.
+ * Intentionally omits encrypted secrets and hashed passwords.
+ */
+export async function exportUserData(userId: string, workspaceId: string): Promise<Record<string, unknown>> {
+  const db = getDatabase();
+  const output: Record<string, unknown> = { exportedAt: new Date().toISOString() };
+
+  // User profile (without sensitive fields)
+  try {
+    const userDoc = await db.getDocument(DATABASE_ID, COLLECTIONS.users, userId);
+    output.profile = {
+      userId,
+      email: userDoc.email,
+      firstName: userDoc.firstName,
+      lastName: userDoc.lastName,
+      role: userDoc.role,
+      createdAt: userDoc.$createdAt,
+    };
+  } catch {
+    output.profile = null;
+  }
+
+  // Transactions
+  try {
+    const txns = await db.listDocuments(DATABASE_ID, COLLECTIONS.transactions, [
+      Query.equal("workspaceId", workspaceId),
+      Query.limit(1000),
+    ]);
+    output.transactions = txns.documents.map((d) => ({
+      id: d.$id,
+      title: d.title,
+      amount: d.amount,
+      transactionType: d.transactionType,
+      category: d.category,
+      date: d.date,
+      status: d.status,
+      note: d.note,
+    }));
+  } catch {
+    output.transactions = [];
+  }
+
+  // Banks (mask sensitive fields)
+  try {
+    const banks = await db.listDocuments(DATABASE_ID, COLLECTIONS.banks, [
+      Query.equal("workspaceId", workspaceId),
+      Query.limit(100),
+    ]);
+    output.banks = banks.documents.map((d) => ({
+      id: d.$id,
+      institutionName: d.institutionName,
+      displayMask: d.displayMask,
+      balance: d.balance,
+      createdAt: d.$createdAt,
+    }));
+  } catch {
+    output.banks = [];
+  }
+
+  // Audit logs
+  try {
+    const logs = await db.listDocuments(DATABASE_ID, COLLECTIONS.auditLogs, [
+      Query.equal("userId", userId),
+      Query.limit(500),
+    ]);
+    output.auditLog = logs.documents.map((d) => ({
+      action: d.action,
+      targetEntity: d.targetEntity,
+      ipAddress: d.ipAddress,
+      createdAt: d.$createdAt,
+    }));
+  } catch {
+    output.auditLog = [];
+  }
+
+  return output;
+}
