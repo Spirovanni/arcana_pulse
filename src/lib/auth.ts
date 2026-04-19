@@ -7,7 +7,7 @@ import {
   Query,
 } from "@/lib/appwrite";
 import * as bcrypt from "bcryptjs";
-import { authenticator } from "otplib";
+import { verifySync } from "otplib";
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -50,10 +50,8 @@ export const authOptions: NextAuthOptions = {
           }
 
           // Validate TOTP
-          const totpValid = authenticator.verify({
-            token: mfaCode,
-            secret: doc.mfaSecret,
-          });
+          const result = verifySync({ token: mfaCode, secret: doc.mfaSecret, strategy: "totp" });
+          const totpValid = typeof result === "object" ? result.valid : result;
 
           if (!totpValid) {
             // Also check recovery codes

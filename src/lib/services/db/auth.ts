@@ -332,9 +332,14 @@ export async function updatePassword(
 // MFA / TOTP
 // ---------------------------------------------------------------------------
 
-import { authenticator } from "otplib";
+import { generateSecret as otpGenerateSecret, generateURI, verifySync } from "otplib";
 
 const MFA_PENDING_TTL = 10 * 60 * 1000; // 10 minutes
+
+function totpVerify(token: string, secret: string): boolean {
+  const result = verifySync({ token, secret, strategy: "totp" });
+  return typeof result === "object" ? result.valid : !!result;
+}
 
 function generateRecoveryCodes(): string[] {
   return Array.from({ length: 8 }, () =>
@@ -349,8 +354,13 @@ export async function generateMfaSetup(
   userId: string,
   email: string
 ): Promise<{ secret: string; otpauthUrl: string }> {
-  const secret = authenticator.generateSecret();
-  const otpauthUrl = authenticator.keyuri(email, "Arcana Pulse", secret);
+  const secret = otpGenerateSecret();
+  const otpauthUrl = generateURI({
+    label: email,
+    issuer: "Arcana Pulse",
+    secret,
+    strategy: "totp",
+  });
 
   // Store temporarily on user doc so we can verify before enabling
   await getDatabase().updateDocument(
@@ -377,8 +387,7 @@ export async function enableMfa(
   const pending = (doc as any).mfaSecretPending;
   if (!pending) throw new Error("No pending MFA setup found");
 
-  const valid = authenticator.verify({ token: code, secret: pending });
-  if (!valid) throw new Error("Invalid verification code");
+  if (!totpVerify(code, pending)) throw new Error("Invalid verification code");
 
   const recoveryCodes = generateRecoveryCodes();
 
@@ -416,7 +425,7 @@ export async function verifyMfaCode(
   if (!secret) throw new Error("MFA not configured");
 
   // Check TOTP first
-  if (authenticator.verify({ token: code, secret })) return;
+  if (totpVerify(code, secret)) return;
 
   // Check recovery codes
   const stored: string[] = JSON.parse((doc as any).mfaRecoveryCodes ?? "[]");
