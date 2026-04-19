@@ -7,6 +7,7 @@ import {
 import type { Bank } from "@/lib/types";
 import type { Models } from "node-appwrite";
 import { generateId } from "@/lib/utils";
+import { encryptSafe, decryptSafe } from "@/lib/crypto";
 
 // ---------------------------------------------------------------------------
 // Document → entity mapper
@@ -19,8 +20,9 @@ function toBank(doc: Models.Document & Record<string, any>): Bank {
     institutionName: doc.institutionName,
     accountId: doc.accountId,
     displayMask: doc.displayMask,
-    accessTokenRef: doc.accessTokenRef ?? undefined,
-    fundingSourceUrl: doc.fundingSourceUrl ?? undefined,
+    // Decrypt sensitive fields transparently — handles legacy plaintext values
+    accessTokenRef: doc.accessTokenRef ? decryptSafe(doc.accessTokenRef) : undefined,
+    fundingSourceUrl: doc.fundingSourceUrl ? decryptSafe(doc.fundingSourceUrl) : undefined,
     shareableId: doc.shareableId,
     balance: doc.balance,
     createdAt: doc.$createdAt,
@@ -88,8 +90,9 @@ export async function addBank(input: AddBankInput): Promise<Bank> {
       displayMask: input.displayMask,
       shareableId: input.shareableId,
       balance: input.balance,
-      accessTokenRef: input.accessTokenRef ?? null,
-      fundingSourceUrl: input.fundingSourceUrl ?? null,
+      // Encrypt sensitive credentials before persisting
+      accessTokenRef: input.accessTokenRef ? encryptSafe(input.accessTokenRef) : null,
+      fundingSourceUrl: input.fundingSourceUrl ? encryptSafe(input.fundingSourceUrl) : null,
     }
   );
   return toBank(doc);
@@ -103,11 +106,17 @@ export async function updateBank(
   bankId: string,
   updates: { fundingSourceUrl?: string; balance?: number }
 ): Promise<Bank> {
+  const encryptedUpdates = {
+    ...updates,
+    ...(updates.fundingSourceUrl !== undefined
+      ? { fundingSourceUrl: encryptSafe(updates.fundingSourceUrl) }
+      : {}),
+  };
   const doc = await getDatabase().updateDocument(
     DATABASE_ID,
     COLLECTIONS.banks,
     bankId,
-    updates
+    encryptedUpdates
   );
   return toBank(doc);
 }

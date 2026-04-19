@@ -8,6 +8,7 @@ import {
 } from "@/lib/appwrite";
 import * as bcrypt from "bcryptjs";
 import { verifySync } from "otplib";
+import { decryptSafe } from "@/lib/crypto";
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -49,8 +50,9 @@ export const authOptions: NextAuthOptions = {
             throw new Error("MFA_REQUIRED");
           }
 
-          // Validate TOTP
-          const result = verifySync({ token: mfaCode, secret: doc.mfaSecret, strategy: "totp" });
+          // Validate TOTP (decrypt the stored secret first)
+          const mfaSecret = decryptSafe(doc.mfaSecret as string);
+          const result = verifySync({ token: mfaCode, secret: mfaSecret, strategy: "totp" });
           const totpValid = typeof result === "object" ? result.valid : result;
 
           if (!totpValid) {

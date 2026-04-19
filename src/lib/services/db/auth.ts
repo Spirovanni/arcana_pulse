@@ -9,6 +9,7 @@ import type { Models } from "node-appwrite";
 import { generateId } from "@/lib/utils";
 import * as bcrypt from "bcryptjs";
 import { randomUUID } from "crypto";
+import { encryptSafe, decryptSafe } from "@/lib/crypto";
 
 // ---------------------------------------------------------------------------
 // Document → entity mapper
@@ -362,12 +363,12 @@ export async function generateMfaSetup(
     strategy: "totp",
   });
 
-  // Store temporarily on user doc so we can verify before enabling
+  // Encrypt before storing so the raw TOTP secret never lives in plaintext in DB
   await getDatabase().updateDocument(
     DATABASE_ID,
     COLLECTIONS.users,
     userId,
-    { mfaSecretPending: secret }
+    { mfaSecretPending: encryptSafe(secret) }
   );
 
   return { secret, otpauthUrl };
@@ -384,16 +385,17 @@ export async function enableMfa(
     userId
   );
 
-  const pending = (doc as any).mfaSecretPending;
-  if (!pending) throw new Error("No pending MFA setup found");
+  const pendingEncrypted = (doc as any).mfaSecretPending;
+  if (!pendingEncrypted) throw new Error("No pending MFA setup found");
 
+  const pending = decryptSafe(pendingEncrypted);
   if (!totpVerify(code, pending)) throw new Error("Invalid verification code");
 
   const recoveryCodes = generateRecoveryCodes();
 
   await getDatabase().updateDocument(DATABASE_ID, COLLECTIONS.users, userId, {
     mfaEnabled: true,
-    mfaSecret: pending,
+    mfaSecret: encryptSafe(pending),
     mfaSecretPending: null,
     mfaRecoveryCodes: JSON.stringify(recoveryCodes),
   });
@@ -421,8 +423,10 @@ export async function verifyMfaCode(
     userId
   );
 
-  const secret = (doc as any).mfaSecret;
-  if (!secret) throw new Error("MFA not configured");
+  const secretEncrypted = (doc as any).mfaSecret;
+  if (!secretEncrypted) throw new Error("MFA not configured");
+
+  const secret = decryptSafe(secretEncrypted);
 
   // Check TOTP first
   if (totpVerify(code, secret)) return;
