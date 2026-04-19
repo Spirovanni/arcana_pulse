@@ -30,6 +30,8 @@ export const COLLECTIONS = {
   resetTokens: "resetTokens",
   mfaPending: "mfaPending",
   auditLogs: "auditLogs",
+  workspaceMembers: "workspaceMembers",
+  workspaceInvites: "workspaceInvites",
 } as const;
 
 // ---------------------------------------------------------------------------

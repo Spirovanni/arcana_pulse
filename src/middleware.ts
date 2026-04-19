@@ -10,6 +10,7 @@ const PUBLIC_PATHS = [
   "/reset-password",
   "/privacy",
   "/terms",
+  "/accept-invite",
 ];
 
 // Per-route rate limit configs: [maxRequests, windowMs]

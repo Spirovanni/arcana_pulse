@@ -4,6 +4,7 @@ import { useState } from "react";
 import { getWorkspace, getCurrentUser, DEFAULT_WORKSPACE_ID } from "@/lib/services/workspace";
 import { ShieldCheck, ShieldOff, Copy, Check, Clock, Activity, Download, Trash2, AlertTriangle } from "lucide-react";
 import { signOut } from "next-auth/react";
+import TeamSettings from "@/components/TeamSettings";
 import Image from "next/image";
 import type { AuditLogEntry } from "@/lib/services/db/auditLog";
 
@@ -404,6 +405,9 @@ export default function SettingsPage() {
           </div>
         )}
       </div>
+
+      {/* Team Members */}
+      <TeamSettings />
 
       {/* Privacy & Data Controls */}
       <div className="rounded-sm bg-surface-container-high border border-outline p-6">

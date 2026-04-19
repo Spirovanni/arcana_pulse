@@ -24,6 +24,19 @@ function getResendClient(): Resend {
 
 const APP_NAME = "Arcana Pulse";
 
+// ---------------------------------------------------------------------------
+// Generic send
+// ---------------------------------------------------------------------------
+
+export async function sendEmail({ to, subject, html }: { to: string; subject: string; html: string }): Promise<void> {
+  await getResendClient().emails.send({
+    from: getSenderAddress(),
+    to,
+    subject,
+    html,
+  });
+}
+
 function getAppUrl(): string {
   return process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 }

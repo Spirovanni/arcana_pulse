@@ -12,7 +12,34 @@ export type TransferStatus =
 export type TransactionStatus = "pending" | "posted" | "failed" | "cancelled";
 export type WorkspacePlan = "starter" | "pro" | "team";
 export type WorkspaceStatus = "active" | "suspended";
-export type UserRole = "owner" | "admin" | "member";
+export type UserRole = "owner" | "admin" | "member" | "viewer";
+
+export type InviteStatus = "pending" | "accepted" | "expired" | "revoked";
+
+// ─── Workspace Collaboration ─────────────────────────────────────────
+
+export interface WorkspaceMember {
+  memberId: string;
+  workspaceId: string;
+  userId: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  role: UserRole;
+  joinedAt: string;
+}
+
+export interface WorkspaceInvite {
+  inviteId: string;
+  workspaceId: string;
+  invitedByUserId: string;
+  email: string;
+  role: UserRole;
+  token: string;
+  status: InviteStatus;
+  expiresAt: string;
+  createdAt: string;
+}
 
 // ─── Category ───────────────────────────────────────────────────────
 
