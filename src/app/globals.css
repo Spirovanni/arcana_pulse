@@ -64,3 +64,12 @@
 .section-padding {
   @apply py-20 px-10 md:px-16;
 }
+
+.landing-bg-gradient {
+  background: radial-gradient(circle at 80% 10%, #d4af3730 0%, transparent 45%),
+              radial-gradient(circle at 10% 90%, #72dcff18 0%, transparent 35%);
+}
+
+.landing-divider {
+  @apply w-full h-px bg-gradient-to-r from-transparent via-outline to-transparent;
+}
