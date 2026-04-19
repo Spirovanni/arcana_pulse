@@ -10,10 +10,8 @@ const storage = new Storage(client);
 
 async function testStorage() {
   try {
-    console.log('Listing buckets...');
-    const result = await storage.listBuckets();
-    console.log(`Found ${result.total} buckets.`);
-    result.buckets.forEach(b => console.log(' - ' + b.$id + ' : ' + b.name));
+    const bucket = await storage.updateBucket('69b6148a000ce565e917', 'Arcana_bucket_01', ['read("any")']);
+    console.log('Bucket permissions updated to:', bucket.$permissions);
   } catch (err) {
     console.error('API error:', err.message);
   }

@@ -9,6 +9,11 @@ export default function ProfilePage() {
   const { data: session, status, update } = useSession();
   const router = useRouter();
 
+  const [localAvatar, setLocalAvatar] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadError, setUploadError] = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   if (status === "loading") {
     return (
       <div className="space-y-6 animate-pulse">
@@ -26,11 +31,6 @@ export default function ProfilePage() {
   const user = session.user as any;
   const originalImageUrl = user.image || user.imageUrl;
   const fullName = user.name || (user.firstName ? `${user.firstName} ${user.lastName}` : "Sovereign User");
-
-  const [localAvatar, setLocalAvatar] = useState<string | null>(null);
-  const [isUploading, setIsUploading] = useState(false);
-  const [uploadError, setUploadError] = useState("");
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
