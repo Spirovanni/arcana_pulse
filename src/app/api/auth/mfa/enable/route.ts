@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { isAppwriteConfigured } from "@/lib/appwrite";
 import { enableMfa } from "@/lib/services/db/auth";
+import { logAuditEvent } from "@/lib/services/db/auditLog";
 
 export async function POST(request: NextRequest) {
   if (!isAppwriteConfigured()) {
@@ -21,6 +22,17 @@ export async function POST(request: NextRequest) {
     }
 
     const { recoveryCodes } = await enableMfa(session.user.userId, code.trim());
+
+    void logAuditEvent({
+      workspaceId: session.user.workspaceId ?? "ws-001",
+      userId: session.user.userId,
+      userEmail: session.user.email ?? "",
+      action: "mfa_enable",
+      targetEntity: "settings",
+      ipAddress: request.headers.get("x-forwarded-for")?.split(",")[0].trim() ?? "",
+      userAgent: request.headers.get("user-agent") ?? "",
+    });
+
     return NextResponse.json({ recoveryCodes });
   } catch (err) {
     return NextResponse.json(

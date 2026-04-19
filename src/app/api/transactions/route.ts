@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 import { isAppwriteConfigured } from "@/lib/appwrite";
 import * as dbTransactions from "@/lib/services/db/transactions";
+import { logAuditEvent } from "@/lib/services/db/auditLog";
 import type { TransactionFilter } from "@/lib/types";
 
 export async function GET(request: NextRequest) {
@@ -53,6 +56,20 @@ export async function POST(request: NextRequest) {
 
   try {
     const txn = await dbTransactions.createTransaction(input, userId);
+
+    const session = await getServerSession(authOptions);
+    void logAuditEvent({
+      workspaceId: input.workspaceId ?? "ws-001",
+      userId: session?.user?.userId ?? userId,
+      userEmail: session?.user?.email ?? "",
+      action: "transaction_create",
+      targetEntity: "transaction",
+      targetId: txn.transactionId,
+      ipAddress: request.headers.get("x-forwarded-for")?.split(",")[0].trim() ?? "",
+      userAgent: request.headers.get("user-agent") ?? "",
+      metadata: { amount: input.amount, transactionType: input.transactionType },
+    });
+
     return NextResponse.json(txn, { status: 201 });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Create failed";

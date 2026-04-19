@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 import { isAppwriteConfigured } from "@/lib/appwrite";
 import * as dbTransactions from "@/lib/services/db/transactions";
+import { logAuditEvent } from "@/lib/services/db/auditLog";
 
 interface RouteParams {
   params: Promise<{ transactionId: string }>;
@@ -41,6 +44,19 @@ export async function PATCH(
 
   try {
     const txn = await dbTransactions.updateTransaction(transactionId, body);
+
+    const session = await getServerSession(authOptions);
+    void logAuditEvent({
+      workspaceId: body.workspaceId ?? "ws-001",
+      userId: session?.user?.userId ?? "unknown",
+      userEmail: session?.user?.email ?? "",
+      action: "transaction_update",
+      targetEntity: "transaction",
+      targetId: transactionId,
+      ipAddress: request.headers.get("x-forwarded-for")?.split(",")[0].trim() ?? "",
+      userAgent: request.headers.get("user-agent") ?? "",
+    });
+
     return NextResponse.json(txn);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Update failed";
@@ -49,7 +65,7 @@ export async function PATCH(
 }
 
 export async function DELETE(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: RouteParams
 ) {
   if (!isAppwriteConfigured()) {
@@ -62,6 +78,19 @@ export async function DELETE(
   const { transactionId } = await params;
   try {
     await dbTransactions.deleteTransaction(transactionId);
+
+    const session = await getServerSession(authOptions);
+    void logAuditEvent({
+      workspaceId: "ws-001",
+      userId: session?.user?.userId ?? "unknown",
+      userEmail: session?.user?.email ?? "",
+      action: "transaction_delete",
+      targetEntity: "transaction",
+      targetId: transactionId,
+      ipAddress: request.headers.get("x-forwarded-for")?.split(",")[0].trim() ?? "",
+      userAgent: request.headers.get("user-agent") ?? "",
+    });
+
     return NextResponse.json({ success: true });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Delete failed";

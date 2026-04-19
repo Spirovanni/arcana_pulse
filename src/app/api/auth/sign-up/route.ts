@@ -9,6 +9,7 @@ import * as bcrypt from "bcryptjs";
 import { generateId } from "@/lib/utils";
 import { createVerificationToken } from "@/lib/services/db/auth";
 import { sendVerificationEmail } from "@/lib/services/email";
+import { logAuditEvent } from "@/lib/services/db/auditLog";
 
 export async function POST(request: NextRequest) {
   try {
@@ -66,6 +67,18 @@ export async function POST(request: NextRequest) {
         role: "owner",
       }
     );
+
+    // Audit log (fire-and-forget)
+    void logAuditEvent({
+      workspaceId: "ws-001",
+      userId,
+      userEmail: email.toLowerCase(),
+      action: "sign_up",
+      targetEntity: "user",
+      targetId: userId,
+      ipAddress: request.headers.get("x-forwarded-for")?.split(",")[0].trim() ?? "",
+      userAgent: request.headers.get("user-agent") ?? "",
+    });
 
     // Send verification email (non-blocking — don't fail sign-up if email fails)
     try {

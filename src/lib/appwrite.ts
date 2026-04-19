@@ -29,6 +29,7 @@ export const COLLECTIONS = {
   verificationTokens: "verificationTokens",
   resetTokens: "resetTokens",
   mfaPending: "mfaPending",
+  auditLogs: "auditLogs",
 } as const;
 
 // ---------------------------------------------------------------------------
