@@ -4,6 +4,7 @@ import { PieChart, CheckCircle2, RefreshCw } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { CATEGORY_LABELS } from "@/lib/constants";
 import type { BudgetRecommendation, Budget, CategoryBreakdown, Category } from "@/lib/types";
+import ProgressBar from "@/components/ProgressBar";
 
 interface BudgetRecommendationsProps {
   recommendations: BudgetRecommendation[];
@@ -120,12 +121,7 @@ export default function BudgetRecommendations({
                   </div>
                 </div>
 
-                <div className="w-full bg-outline/30 h-px relative mb-2">
-                  <div
-                    className={`absolute inset-y-0 left-0 ${status.barColor} h-[2px] -top-px transition-all`}
-                    style={{ width: `${pct}%` }}
-                  />
-                </div>
+                <ProgressBar value={pct} colorClass={status.barColor} className="mb-2" />
 
                 <div className="flex justify-between text-[9px] text-secondary font-mono uppercase tracking-wider">
                   <span>{formatCurrency(actual)} spent</span>

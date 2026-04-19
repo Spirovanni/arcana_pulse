@@ -1,6 +1,7 @@
 "use client";
 
 import { AlertTriangle, Repeat, RefreshCw, BarChart3 } from "lucide-react";
+import { ProgressFill } from "@/components/ProgressBar";
 import { formatCurrency } from "@/lib/utils";
 import { CATEGORY_LABELS } from "@/lib/constants";
 import type { CashFlowForecast as CashFlowForecastType, Category } from "@/lib/types";
@@ -73,10 +74,7 @@ export default function CashFlowForecast({ data, loading, onRefresh }: CashFlowF
                       <span className="w-16 text-secondary font-mono text-[10px]">{bucket.month}</span>
                       <div className="flex-1 flex gap-2 items-center">
                         <div className="flex-1 h-px bg-outline overflow-hidden relative">
-                          <div
-                            className="absolute inset-y-0 left-0 bg-arcana-success"
-                            style={{ width: `${(bucket.projectedIncome / maxVal) * 100}%` }}
-                          />
+                          <ProgressFill value={(bucket.projectedIncome / maxVal) * 100} colorClass="bg-arcana-success" />
                         </div>
                         <span className="text-[10px] text-arcana-success w-20 text-right font-mono">
                           +{formatCurrency(bucket.projectedIncome)}
@@ -84,10 +82,7 @@ export default function CashFlowForecast({ data, loading, onRefresh }: CashFlowF
                       </div>
                       <div className="flex-1 flex gap-2 items-center">
                         <div className="flex-1 h-px bg-outline overflow-hidden relative">
-                          <div
-                            className="absolute inset-y-0 left-0 bg-arcana-danger"
-                            style={{ width: `${(bucket.projectedExpense / maxVal) * 100}%` }}
-                          />
+                          <ProgressFill value={(bucket.projectedExpense / maxVal) * 100} colorClass="bg-arcana-danger" />
                         </div>
                         <span className="text-[10px] text-arcana-danger w-20 text-right font-mono">
                           -{formatCurrency(bucket.projectedExpense)}
