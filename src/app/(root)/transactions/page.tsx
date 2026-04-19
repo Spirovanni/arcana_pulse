@@ -3,6 +3,7 @@
 import { useState, useCallback, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { Plus, Pencil, Trash2, Landmark, X, ArrowLeftRight } from "lucide-react";
+import ExportButton from "@/components/ExportButton";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import EmptyState from "@/components/EmptyState";
 import {
@@ -103,14 +104,20 @@ function TransactionsContent() {
             View and manage all financial activity
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => setShowForm(true)}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-arcana-blue text-white text-sm font-medium hover:bg-blue-600 transition-colors self-start sm:self-auto"
-        >
-          <Plus className="w-4 h-4" />
-          Add Transaction
-        </button>
+        <div className="flex gap-2 self-start sm:self-auto">
+          <ExportButton
+            baseFilter={{ workspaceId: DEFAULT_WORKSPACE_ID, ...(bankFilter ? { bankId: bankFilter } : {}), ...(typeFilter ? { transactionType: typeFilter as import("@/lib/types").TransactionType } : {}) }}
+            reportTitle="Transaction Report"
+          />
+          <button
+            type="button"
+            onClick={() => setShowForm(true)}
+            className="flex items-center gap-2 px-4 py-2.5 btn-metallic text-xs font-bold uppercase tracking-[1px]"
+          >
+            <Plus className="w-4 h-4" />
+            Add Transaction
+          </button>
+        </div>
       </div>
 
       {/* Filters */}

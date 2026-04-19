@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from "react";
 import { TrendingDown, Plus, Pencil, Trash2 } from "lucide-react";
+import ExportButton from "@/components/ExportButton";
 import EmptyState from "@/components/EmptyState";
 import {
   listTransactions,
@@ -71,14 +72,20 @@ export default function ExpensePage() {
             Track and manage all expense activity
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => setShowForm(true)}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-arcana-danger text-white text-sm font-medium hover:bg-red-600 transition-colors self-start sm:self-auto"
-        >
-          <Plus className="w-4 h-4" />
-          Add Expense
-        </button>
+        <div className="flex gap-2 self-start sm:self-auto">
+          <ExportButton
+            baseFilter={{ workspaceId: DEFAULT_WORKSPACE_ID, transactionType: "expense" }}
+            reportTitle="Expense Report"
+          />
+          <button
+            type="button"
+            onClick={() => setShowForm(true)}
+            className="flex items-center gap-2 px-4 py-2.5 btn-metallic text-xs font-bold uppercase tracking-[1px]"
+          >
+            <Plus className="w-4 h-4" />
+            Add Expense
+          </button>
+        </div>
       </div>
 
       {/* Summary */}
