@@ -8,6 +8,8 @@ const PUBLIC_PATHS = [
   "/verify-email",
   "/forgot-password",
   "/reset-password",
+  "/privacy",
+  "/terms",
 ];
 
 // Per-route rate limit configs: [maxRequests, windowMs]

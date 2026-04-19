@@ -546,19 +546,35 @@ export default function LandingPage() {
           <div className="grid grid-cols-2 gap-x-16 gap-y-3">
             {[
               ["Intelligence", "Career Mapping", "Ledger", "AI Interview"],
-              ["Privacy Protocol", "Terms", "Data Encryption", "API"],
-            ].map((col, ci) => (
-              <div key={ci} className="space-y-3">
-                {col.map((item) => (
-                  <div
-                    key={item}
-                    className="text-xs uppercase tracking-widest text-secondary/50 hover:text-primary transition-colors cursor-pointer"
-                  >
-                    {item}
-                  </div>
-                ))}
-              </div>
-            ))}
+              ["Privacy Policy", "Terms of Service", "Data Encryption", "API"],
+            ].map((col, ci) => {
+              const hrefs: Record<string, string> = {
+                "Privacy Policy": "/privacy",
+                "Terms of Service": "/terms",
+              };
+              return (
+                <div key={ci} className="space-y-3">
+                  {col.map((item) => (
+                    hrefs[item] ? (
+                      <a
+                        key={item}
+                        href={hrefs[item]}
+                        className="block text-xs uppercase tracking-widest text-secondary/50 hover:text-primary transition-colors"
+                      >
+                        {item}
+                      </a>
+                    ) : (
+                      <div
+                        key={item}
+                        className="text-xs uppercase tracking-widest text-secondary/50 hover:text-primary transition-colors cursor-pointer"
+                      >
+                        {item}
+                      </div>
+                    )
+                  ))}
+                </div>
+              );
+            })}
           </div>
 
           <div className="space-y-2 text-right">
