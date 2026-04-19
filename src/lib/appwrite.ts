@@ -28,6 +28,7 @@ export const COLLECTIONS = {
   goals: "goals",
   verificationTokens: "verificationTokens",
   resetTokens: "resetTokens",
+  mfaPending: "mfaPending",
 } as const;
 
 // ---------------------------------------------------------------------------

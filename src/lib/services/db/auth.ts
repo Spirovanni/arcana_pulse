@@ -327,3 +327,165 @@ export async function updatePassword(
     { passwordHash }
   );
 }
+
+// ---------------------------------------------------------------------------
+// MFA / TOTP
+// ---------------------------------------------------------------------------
+
+import { authenticator } from "otplib";
+
+const MFA_PENDING_TTL = 10 * 60 * 1000; // 10 minutes
+
+function generateRecoveryCodes(): string[] {
+  return Array.from({ length: 8 }, () =>
+    Array.from({ length: 3 }, () =>
+      Math.random().toString(36).substring(2, 6).toUpperCase()
+    ).join("-")
+  );
+}
+
+/** Generate a new TOTP secret and OTPAuth URI for QR code display. */
+export async function generateMfaSetup(
+  userId: string,
+  email: string
+): Promise<{ secret: string; otpauthUrl: string }> {
+  const secret = authenticator.generateSecret();
+  const otpauthUrl = authenticator.keyuri(email, "Arcana Pulse", secret);
+
+  // Store temporarily on user doc so we can verify before enabling
+  await getDatabase().updateDocument(
+    DATABASE_ID,
+    COLLECTIONS.users,
+    userId,
+    { mfaSecretPending: secret }
+  );
+
+  return { secret, otpauthUrl };
+}
+
+/** Verify pending TOTP code and enable MFA, storing secret + recovery codes. */
+export async function enableMfa(
+  userId: string,
+  code: string
+): Promise<{ recoveryCodes: string[] }> {
+  const doc = await getDatabase().getDocument(
+    DATABASE_ID,
+    COLLECTIONS.users,
+    userId
+  );
+
+  const pending = (doc as any).mfaSecretPending;
+  if (!pending) throw new Error("No pending MFA setup found");
+
+  const valid = authenticator.verify({ token: code, secret: pending });
+  if (!valid) throw new Error("Invalid verification code");
+
+  const recoveryCodes = generateRecoveryCodes();
+
+  await getDatabase().updateDocument(DATABASE_ID, COLLECTIONS.users, userId, {
+    mfaEnabled: true,
+    mfaSecret: pending,
+    mfaSecretPending: null,
+    mfaRecoveryCodes: JSON.stringify(recoveryCodes),
+  });
+
+  return { recoveryCodes };
+}
+
+/** Disable MFA for the user. */
+export async function disableMfa(userId: string): Promise<void> {
+  await getDatabase().updateDocument(DATABASE_ID, COLLECTIONS.users, userId, {
+    mfaEnabled: false,
+    mfaSecret: null,
+    mfaRecoveryCodes: null,
+  });
+}
+
+/** Verify a TOTP code (or recovery code) during sign-in. */
+export async function verifyMfaCode(
+  userId: string,
+  code: string
+): Promise<void> {
+  const doc = await getDatabase().getDocument(
+    DATABASE_ID,
+    COLLECTIONS.users,
+    userId
+  );
+
+  const secret = (doc as any).mfaSecret;
+  if (!secret) throw new Error("MFA not configured");
+
+  // Check TOTP first
+  if (authenticator.verify({ token: code, secret })) return;
+
+  // Check recovery codes
+  const stored: string[] = JSON.parse((doc as any).mfaRecoveryCodes ?? "[]");
+  const normalized = code.toUpperCase().replace(/\s/g, "");
+  const idx = stored.indexOf(normalized);
+  if (idx === -1) throw new Error("Invalid MFA code");
+
+  // Burn the used recovery code
+  stored.splice(idx, 1);
+  await getDatabase().updateDocument(DATABASE_ID, COLLECTIONS.users, userId, {
+    mfaRecoveryCodes: JSON.stringify(stored),
+  });
+}
+
+/** Check if a user has MFA enabled (used in authorize). */
+export async function getUserMfaStatus(
+  userId: string
+): Promise<{ mfaEnabled: boolean }> {
+  const doc = await getDatabase().getDocument(
+    DATABASE_ID,
+    COLLECTIONS.users,
+    userId
+  );
+  return { mfaEnabled: !!(doc as any).mfaEnabled };
+}
+
+/** Create a short-lived pending MFA token after password verification. */
+export async function createMfaPendingToken(userId: string): Promise<string> {
+  const token = `mfa_${generateId("p")}_${Date.now().toString(36)}`;
+  const expiresAt = new Date(Date.now() + MFA_PENDING_TTL).toISOString();
+
+  await getDatabase().createDocument(
+    DATABASE_ID,
+    COLLECTIONS.mfaPending,
+    generateId("mfap"),
+    { userId, token, expiresAt }
+  );
+
+  return token;
+}
+
+/** Validate and consume a pending MFA token, returning the userId. */
+export async function consumeMfaPendingToken(
+  token: string
+): Promise<string> {
+  const result = await getDatabase().listDocuments(
+    DATABASE_ID,
+    COLLECTIONS.mfaPending,
+    [Query.equal("token", token), Query.limit(1)]
+  );
+
+  if (result.documents.length === 0) throw new Error("Invalid MFA session");
+
+  const doc = result.documents[0];
+
+  if (new Date(doc.expiresAt).getTime() < Date.now()) {
+    await getDatabase().deleteDocument(
+      DATABASE_ID,
+      COLLECTIONS.mfaPending,
+      doc.$id
+    );
+    throw new Error("MFA session expired");
+  }
+
+  await getDatabase().deleteDocument(
+    DATABASE_ID,
+    COLLECTIONS.mfaPending,
+    doc.$id
+  );
+
+  return doc.userId;
+}
