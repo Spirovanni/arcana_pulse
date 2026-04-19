@@ -212,13 +212,40 @@ export default function LandingPage() {
             Arcana
           </div>
           <div className="hidden md:flex space-x-10 items-center">
-            {["Intelligence", "Career", "Ledger", "Pulse"].map((item) => (
-              <span
-                key={item}
-                className="text-sm uppercase tracking-[2px] text-secondary font-medium hover:text-primary transition-colors duration-300 cursor-pointer"
-              >
-                {item}
-              </span>
+            {[
+              {
+                name: "Intelligence",
+                options: [
+                  { label: "Financial Analytics", href: "/intelligence/analytics" },
+                  { label: "Career Trajectory", href: "/intelligence/career" },
+                  { label: "Predictive Forecasting", href: "/intelligence/forecasting" },
+                ]
+              },
+              { name: "Career" },
+              { name: "Ledger" },
+              { name: "Pulse" },
+            ].map((item) => (
+              <div key={item.name} className="relative group cursor-pointer py-4">
+                <span className="text-sm uppercase tracking-[2px] text-secondary font-medium group-hover:text-primary transition-colors duration-300">
+                  {item.name}
+                </span>
+                
+                {item.options && (
+                  <div className="absolute top-full left-0 mt-0 w-56 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-50">
+                    <div className="bg-surface-container-high border border-outline rounded-sm shadow-2xl p-2 flex flex-col gap-1 backdrop-blur-md">
+                      {item.options.map((opt) => (
+                        <button
+                          key={opt.label}
+                          onClick={() => router.push(opt.href)}
+                          className="w-full text-left px-4 py-3 text-[11px] uppercase tracking-widest text-on-surface hover:bg-white/5 hover:text-primary transition-colors rounded-sm flex items-center justify-between"
+                        >
+                          {opt.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
             ))}
           </div>
           <div className="flex gap-4 items-center relative" ref={dropdownRef}>
