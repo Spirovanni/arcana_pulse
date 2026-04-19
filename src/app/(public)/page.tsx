@@ -2,6 +2,7 @@
 
 import {
   ArrowRight,
+  ArrowUp,
   Brain,
   TrendingUp,
   BarChart3,
@@ -10,8 +11,10 @@ import {
   Zap,
   CheckCircle,
 } from "lucide-react";
-import { motion } from "motion/react";
+import { motion, AnimatePresence } from "motion/react";
 import { useRouter } from "next/navigation";
+import { useSession, signOut } from "next-auth/react";
+import { useState, useRef, useEffect } from "react";
 
 // ─── Data ────────────────────────────────────────────────────────────────────
 
@@ -171,6 +174,31 @@ function MockDashboard() {
 
 export default function LandingPage() {
   const router = useRouter();
+  const { data: session, status } = useSession();
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [showScrollTop, setShowScrollTop] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setDropdownOpen(false);
+      }
+    }
+    
+    function handleScroll() {
+      setShowScrollTop(window.scrollY > 400);
+    }
+
+    document.addEventListener("mousedown", handleClickOutside);
+    window.addEventListener("scroll", handleScroll);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      window.removeEventListener("scroll", handleScroll);
+    };
+  }, []);
+
+  const scrollToTop = () => window.scrollTo({ top: 0, behavior: "smooth" });
 
   return (
     <div className="relative bg-background overflow-hidden flex flex-col">
@@ -179,7 +207,7 @@ export default function LandingPage() {
 
       {/* ── Nav ── */}
       <nav className="fixed top-0 w-full z-50 glass-panel border-b border-outline/20 shadow-xl">
-        <div className="flex justify-between items-center w-full px-8 py-4 max-w-screen-2xl mx-auto">
+        <div className="flex justify-between items-center w-full px-8 lg:px-16 py-4 max-w-screen-2xl mx-auto">
           <div className="text-2xl font-black tracking-tighter text-primary uppercase font-headline">
             Arcana
           </div>
@@ -193,41 +221,125 @@ export default function LandingPage() {
               </span>
             ))}
           </div>
-          <div className="flex gap-4 items-center">
-            <button
-              type="button"
-              onClick={() => router.push("/sign-in")}
-              className="text-sm uppercase tracking-[2px] text-secondary font-medium hover:text-primary transition-colors hidden md:block"
-            >
-              Login
-            </button>
-            <button
-              type="button"
-              onClick={() => router.push("/sign-up")}
-              className="btn-metallic px-6 py-2.5 text-xs uppercase tracking-[2px] font-bold hover:opacity-90 active:scale-95 transition-all"
-            >
-              Begin
-            </button>
+          <div className="flex gap-4 items-center relative" ref={dropdownRef}>
+            {status === "loading" ? (
+              <div className="w-20 h-8 rounded animate-pulse bg-outline/20"></div>
+            ) : session ? (
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setDropdownOpen(!dropdownOpen)}
+                  className="flex items-center gap-2 group"
+                >
+                  <div className="size-9 rounded bg-primary/10 border border-primary/20 flex flex-col items-center justify-center relative overflow-hidden group-hover:border-primary/50 transition-colors">
+                    {(session.user as any)?.image || session.user?.imageUrl ? (
+                      <img 
+                        src={(session.user as any)?.image || session.user?.imageUrl} 
+                        alt="Profile" 
+                        className="size-full object-cover"
+                        referrerPolicy="no-referrer"
+                      />
+                    ) : (
+                      <span className="text-primary font-headline font-bold text-sm">
+                        {session.user?.firstName?.charAt(0).toUpperCase() || session.user?.email?.charAt(0).toUpperCase() || "A"}
+                      </span>
+                    )}
+                  </div>
+                </button>
+                <AnimatePresence>
+                  {dropdownOpen && (
+                    <motion.div 
+                      initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                      transition={{ duration: 0.2 }}
+                      className="absolute right-0 mt-4 w-56 glass-panel border border-outline/30 rounded-sm shadow-2xl py-2 flex flex-col z-[100]"
+                    >
+                      <div className="px-4 py-3 border-b border-outline/30 mb-1 flex items-center gap-3">
+                        {((session.user as any)?.image || session.user?.imageUrl) && (
+                          <img 
+                            src={(session.user as any)?.image || session.user?.imageUrl} 
+                            alt="Profile" 
+                            className="size-8 rounded-full border border-primary/30 object-cover"
+                            referrerPolicy="no-referrer"
+                          />
+                        )}
+                        <div className="overflow-hidden">
+                          <p className="text-sm font-headline text-on-surface truncate">
+                            {session.user?.firstName ? `${session.user.firstName} ${session.user.lastName}` : (session.user as any)?.name || "Sovereign User"}
+                          </p>
+                          <p className="text-[10px] text-secondary truncate mt-0.5">{session.user?.email}</p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => router.push("/profile")}
+                        className="w-full text-left px-4 py-2 text-xs uppercase tracking-widest text-on-surface hover:bg-white/5 hover:text-primary transition-colors flex items-center justify-between group"
+                      >
+                        Profile
+                        <ArrowRight className="size-3 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all text-primary" />
+                      </button>
+                      <button
+                        onClick={() => router.push("/dashboard")}
+                        className="w-full text-left px-4 py-2 text-xs uppercase tracking-widest text-on-surface hover:bg-white/5 hover:text-primary transition-colors flex items-center justify-between group"
+                      >
+                        Dashboard
+                        <ArrowRight className="size-3 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all text-primary" />
+                      </button>
+                      <button
+                        onClick={() => router.push("/settings")}
+                        className="w-full text-left px-4 py-2 text-xs uppercase tracking-widest text-on-surface hover:bg-white/5 hover:text-primary transition-colors"
+                      >
+                        Manage Subscription
+                      </button>
+                      <div className="h-px w-full bg-outline/30 my-1"></div>
+                      <button
+                        onClick={() => signOut({ callbackUrl: "/" })}
+                        className="w-full text-left px-4 py-2 text-xs uppercase tracking-widest text-secondary hover:bg-white/5 hover:text-red-400 transition-colors"
+                      >
+                        Log Out
+                      </button>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  onClick={() => router.push("/sign-in")}
+                  className="text-sm uppercase tracking-[2px] text-secondary font-medium hover:text-primary transition-colors hidden md:block"
+                >
+                  Login
+                </button>
+                <button
+                  type="button"
+                  onClick={() => router.push("/sign-up")}
+                  className="btn-metallic px-6 py-2.5 text-xs uppercase tracking-[2px] font-bold hover:opacity-90 active:scale-95 transition-all"
+                >
+                  Begin
+                </button>
+              </>
+            )}
           </div>
         </div>
       </nav>
 
       {/* ── Hero ── */}
-      <section className="relative pt-40 pb-28 px-6 lg:px-8 max-w-7xl mx-auto min-h-screen flex flex-col justify-center z-10 w-full">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-16 items-center">
+      <section className="relative pt-28 lg:pt-36 pb-16 px-8 lg:px-16 max-w-7xl mx-auto z-10 w-full">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-14 items-center">
           {/* Copy */}
           <motion.div
             initial={{ opacity: 0, x: -24 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.8 }}
-            className="lg:col-span-6 space-y-8"
+            className="lg:col-span-6 space-y-6"
           >
             <span className="text-primary uppercase tracking-[4px] text-xs font-bold flex items-center gap-2">
               <Brain className="size-4" />
               Sovereign Intelligence Engine
             </span>
 
-            <h1 className="font-headline text-6xl lg:text-7xl font-light tracking-tight leading-[1.05] text-on-surface">
+            <h1 className="font-headline text-5xl lg:text-[3.5rem] font-light tracking-tight leading-[1.05] text-on-surface">
               Take full control of your{" "}
               <span className="text-primary">money</span>,{" "}
               <span className="text-secondary italic">career</span>, and{" "}
@@ -235,28 +347,41 @@ export default function LandingPage() {
               <span className="text-on-surface/60">from one place.</span>
             </h1>
 
-            <p className="text-secondary text-lg lg:text-xl leading-relaxed max-w-xl tracking-wide">
+            <p className="text-secondary text-base lg:text-lg leading-relaxed max-w-xl tracking-wide">
               Arcana Pulse fuses deep financial intelligence with career trajectory
               mapping, powered by AI that has{" "}
               <span className="text-on-surface">no agenda but yours</span>.
             </p>
 
             <div className="flex flex-col sm:flex-row gap-4 pt-2">
-              <button
-                type="button"
-                onClick={() => router.push("/sign-up")}
-                className="btn-metallic px-8 py-4 font-bold text-sm uppercase tracking-[2px] hover:opacity-90 active:scale-95 transition-all flex items-center justify-center gap-3 ai-glow"
-              >
-                Start AI Interview
-                <ArrowRight className="size-5" />
-              </button>
-              <button
-                type="button"
-                onClick={() => router.push("/sign-in")}
-                className="px-8 py-4 font-bold text-sm uppercase tracking-[2px] text-secondary border border-outline hover:border-primary/40 hover:text-on-surface transition-all flex items-center justify-center"
-              >
-                Sign In
-              </button>
+              {status === "authenticated" ? (
+                <button
+                  type="button"
+                  onClick={() => router.push("/dashboard")}
+                  className="btn-metallic px-8 py-4 font-bold text-sm uppercase tracking-[2px] hover:opacity-90 active:scale-95 transition-all flex items-center justify-center gap-3 ai-glow"
+                >
+                  Enter Dashboard
+                  <ArrowRight className="size-5" />
+                </button>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => router.push("/sign-up")}
+                    className="btn-metallic px-8 py-4 font-bold text-sm uppercase tracking-[2px] hover:opacity-90 active:scale-95 transition-all flex items-center justify-center gap-3 ai-glow"
+                  >
+                    Start AI Interview
+                    <ArrowRight className="size-5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => router.push("/sign-in")}
+                    className="px-8 py-4 font-bold text-sm uppercase tracking-[2px] text-secondary border border-outline hover:border-primary/40 hover:text-on-surface transition-all flex items-center justify-center"
+                  >
+                    Sign In
+                  </button>
+                </>
+              )}
             </div>
 
             {/* Trust signals */}
@@ -275,7 +400,7 @@ export default function LandingPage() {
             initial={{ opacity: 0, scale: 0.92, rotate: -3 }}
             animate={{ opacity: 1, scale: 1, rotate: -1.5 }}
             transition={{ duration: 1.2, delay: 0.3 }}
-            className="lg:col-span-6 relative"
+            className="lg:col-span-6 relative w-full max-w-[540px] mx-auto mt-8 lg:mt-0"
           >
             <div className="glass-panel rounded-xl p-2 border border-outline/20 shadow-2xl ai-glow relative">
               <MockDashboard />
@@ -316,11 +441,11 @@ export default function LandingPage() {
           initial="hidden"
           whileInView="show"
           viewport={{ once: true }}
-          className="max-w-7xl mx-auto px-8 py-10 grid grid-cols-2 lg:grid-cols-4 gap-8"
+          className="max-w-7xl mx-auto px-10 lg:px-16 py-10 grid grid-cols-2 lg:grid-cols-4 gap-8"
         >
           {STATS.map(({ value, label }) => (
             <motion.div key={label} variants={fadeUp} className="text-center space-y-2">
-              <div className="font-headline text-5xl font-light text-primary">{value}</div>
+              <div className="font-headline text-4xl lg:text-5xl font-light text-primary">{value}</div>
               <div className="text-xs uppercase tracking-[2px] text-secondary font-bold">{label}</div>
             </motion.div>
           ))}
@@ -328,7 +453,7 @@ export default function LandingPage() {
       </div>
 
       {/* ── Three Pillars ── */}
-      <section className="relative z-10 max-w-7xl mx-auto px-8 py-28 w-full">
+      <section className="relative z-10 max-w-7xl mx-auto px-10 lg:px-16 py-24 w-full">
         <motion.div
           variants={fadeUp}
           initial="hidden"
@@ -384,10 +509,10 @@ export default function LandingPage() {
       </section>
 
       {/* ── Divider ── */}
-      <div className="landing-divider mx-8" />
+      <div className="landing-divider mx-10 lg:mx-16" />
 
       {/* ── Problem / Contrast ── */}
-      <section className="relative z-10 max-w-7xl mx-auto px-8 py-28 w-full">
+      <section className="relative z-10 max-w-7xl mx-auto px-10 lg:px-16 py-24 w-full">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-20 items-center">
           <motion.div
             variants={fadeUp}
@@ -443,8 +568,8 @@ export default function LandingPage() {
       </section>
 
       {/* ── How It Works ── */}
-      <div className="landing-divider mx-8" />
-      <section className="relative z-10 max-w-7xl mx-auto px-8 py-28 w-full">
+      <div className="landing-divider mx-10 lg:mx-16" />
+      <section className="relative z-10 max-w-7xl mx-auto px-10 lg:px-16 py-24 w-full">
         <motion.div
           variants={fadeUp}
           initial="hidden"
@@ -487,8 +612,8 @@ export default function LandingPage() {
       </section>
 
       {/* ── Final CTA ── */}
-      <div className="landing-divider mx-8" />
-      <section className="relative z-10 max-w-7xl mx-auto px-8 py-28 w-full">
+      <div className="landing-divider mx-10 lg:mx-16" />
+      <section className="relative z-10 max-w-7xl mx-auto px-10 lg:px-16 py-24 w-full">
         <motion.div
           initial={{ opacity: 0, y: 32 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -510,29 +635,49 @@ export default function LandingPage() {
               The AI interview takes less than 5 minutes. By the end, you'll have
               your first financial intelligence briefing — built exclusively for you.
             </p>
-            <div className="flex flex-col sm:flex-row gap-4">
-              <button
-                type="button"
-                onClick={() => router.push("/sign-up")}
-                className="btn-metallic px-10 py-4 font-bold text-sm uppercase tracking-[2px] hover:opacity-90 active:scale-95 transition-all flex items-center gap-3 ai-glow"
-              >
-                Start AI Interview
-                <ArrowRight className="size-5" />
-              </button>
-              <button
-                type="button"
-                onClick={() => router.push("/sign-in")}
-                className="px-10 py-4 font-bold text-sm uppercase tracking-[2px] text-secondary border border-outline hover:text-on-surface hover:border-outline-variant transition-all"
-              >
-                Already a member
-              </button>
-            </div>
+            {status === "authenticated" ? (
+              <div className="flex flex-col sm:flex-row gap-4">
+                <button
+                  type="button"
+                  onClick={() => router.push("/dashboard")}
+                  className="btn-metallic px-10 py-4 font-bold text-sm uppercase tracking-[2px] hover:opacity-90 active:scale-95 transition-all flex items-center gap-3 justify-center ai-glow"
+                >
+                  Enter Dashboard
+                  <ArrowRight className="size-5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => signOut({ callbackUrl: "/" })}
+                  className="px-10 py-4 font-bold text-sm uppercase tracking-[2px] text-secondary border border-outline hover:text-red-400 hover:border-red-900 transition-all text-center"
+                >
+                  Log out
+                </button>
+              </div>
+            ) : (
+              <div className="flex flex-col sm:flex-row gap-4">
+                <button
+                  type="button"
+                  onClick={() => router.push("/sign-up")}
+                  className="btn-metallic px-10 py-4 font-bold text-sm uppercase tracking-[2px] hover:opacity-90 active:scale-95 transition-all flex items-center justify-center gap-3 ai-glow"
+                >
+                  Start AI Interview
+                  <ArrowRight className="size-5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => router.push("/sign-in")}
+                  className="px-10 py-4 font-bold text-sm uppercase tracking-[2px] text-secondary border border-outline hover:text-on-surface hover:border-outline-variant transition-all text-center"
+                >
+                  Already a member
+                </button>
+              </div>
+            )}
           </div>
         </motion.div>
       </section>
 
       {/* ── Footer ── */}
-      <footer className="relative z-10 w-full py-12 px-8 bg-[#060606] border-t border-outline/40">
+      <footer className="relative z-10 w-full py-12 px-10 lg:px-16 bg-[#060606] border-t border-outline/40">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-start gap-10">
           <div className="space-y-2">
             <div className="text-xl font-black text-primary font-headline uppercase tracking-tighter">
@@ -587,6 +732,27 @@ export default function LandingPage() {
           </div>
         </div>
       </footer>
+
+      {/* ── Scroll to Top Button ── */}
+      <AnimatePresence>
+        {showScrollTop && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.5, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.5, y: 20 }}
+            transition={{ duration: 0.2 }}
+            className="fixed bottom-8 right-8 lg:bottom-12 lg:right-12 z-[100]"
+          >
+            <button
+              onClick={scrollToTop}
+              className="p-3.5 bg-surface-container border border-outline hover:border-primary/50 rounded-full shadow-[0_0_20px_rgba(197,160,89,0.1)] hover:shadow-[0_0_30px_rgba(197,160,89,0.25)] group transition-all"
+              aria-label="Scroll to top"
+            >
+              <ArrowUp className="size-5 text-secondary group-hover:text-primary transition-colors" />
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

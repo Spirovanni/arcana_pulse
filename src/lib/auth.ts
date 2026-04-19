@@ -97,29 +97,42 @@ export const authOptions: NextAuthOptions = {
   },
 
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, account, profile }) {
       if (user) {
-        token.userId = user.userId;
-        token.workspaceId = user.workspaceId;
+        // Handle OAuth vs Credentials mappings
+        token.userId = (user as any).userId || user.id;
+        token.workspaceId = (user as any).workspaceId;
         token.email = user.email!;
-        token.firstName = user.firstName;
-        token.lastName = user.lastName;
-        token.role = user.role;
-        token.imageUrl = user.imageUrl;
+        
+        if (user.name) {
+          const nameParts = user.name.split(' ');
+          token.firstName = (user as any).firstName || nameParts[0] || '';
+          token.lastName = (user as any).lastName || nameParts.slice(1).join(' ') || '';
+        } else {
+          token.firstName = (user as any).firstName;
+          token.lastName = (user as any).lastName;
+        }
+        
+        token.role = (user as any).role;
+        // Map OAuth user.image to our imageUrl or let NextAuth auto-population handle token.picture
+        token.imageUrl = (user as any).imageUrl || user.image;
+        if (user.image) token.picture = user.image;
       }
       return token;
     },
 
     async session({ session, token }) {
       session.user = {
-        userId: token.userId,
-        workspaceId: token.workspaceId,
-        email: token.email,
-        firstName: token.firstName,
-        lastName: token.lastName,
-        role: token.role,
-        imageUrl: token.imageUrl,
-      };
+        userId: token.userId as string,
+        workspaceId: token.workspaceId as string,
+        email: token.email as string,
+        firstName: token.firstName as string,
+        lastName: token.lastName as string,
+        role: token.role as any,
+        imageUrl: (token.imageUrl as string) || (token.picture as string),
+        image: (token.picture as string) || (token.imageUrl as string),
+        name: token.firstName ? `${token.firstName} ${token.lastName}`.trim() : (token.name as string),
+      } as any;
       return session;
     },
   },
