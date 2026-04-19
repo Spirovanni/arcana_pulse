@@ -17,6 +17,9 @@ import * as Sentry from "@sentry/nextjs";
 export const DATABASE_ID =
   process.env.APPWRITE_DATABASE_ID ?? "arcana_pulse";
 
+export const STORAGE_BUCKET_ID =
+  process.env.APPWRITE_BUCKET_ID ?? "69b6148a000ce565e917";
+
 export const COLLECTIONS = {
   workspaces: "workspaces",
   users: "users",

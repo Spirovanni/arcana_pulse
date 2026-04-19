@@ -97,7 +97,13 @@ export const authOptions: NextAuthOptions = {
   },
 
   callbacks: {
-    async jwt({ token, user, account, profile }) {
+    async jwt({ token, user, account, profile, trigger, session }) {
+      // Support dynamic session refreshes (like swapping an avatar)
+      if (trigger === "update" && session?.image) {
+        token.picture = session.image;
+        token.imageUrl = session.image;
+      }
+
       if (user) {
         // Handle OAuth vs Credentials mappings
         token.userId = (user as any).userId || user.id;

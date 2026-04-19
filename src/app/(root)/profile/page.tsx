@@ -1,11 +1,12 @@
 "use client";
 
 import { useSession } from "next-auth/react";
-import { User, Mail, Shield, Key, AtSign, Globe, BadgeCheck, ShieldAlert } from "lucide-react";
+import { User, Mail, Shield, Key, AtSign, Globe, BadgeCheck, ShieldAlert, Upload, Loader2, ImagePlus } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useState, useRef } from "react";
 
 export default function ProfilePage() {
-  const { data: session, status } = useSession();
+  const { data: session, status, update } = useSession();
   const router = useRouter();
 
   if (status === "loading") {
@@ -23,8 +24,63 @@ export default function ProfilePage() {
   }
 
   const user = session.user as any;
-  const imageUrl = user.image || user.imageUrl;
+  const originalImageUrl = user.image || user.imageUrl;
   const fullName = user.name || (user.firstName ? `${user.firstName} ${user.lastName}` : "Sovereign User");
+
+  const [localAvatar, setLocalAvatar] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadError, setUploadError] = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadError("");
+
+    // Validate type
+    const validTypes = ["image/jpeg", "image/png", "image/webp"];
+    if (!validTypes.includes(file.type)) {
+      setUploadError("Please upload a valid image (JPEG, PNG, or WebP).");
+      return;
+    }
+
+    // Validate size (Max 5MB)
+    const MAX_SIZE = 5 * 1024 * 1024;
+    if (file.size > MAX_SIZE) {
+      setUploadError("Image must be smaller than 5MB.");
+      return;
+    }
+
+    setIsUploading(true);
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const res = await fetch("/api/user/avatar", {
+        method: "POST",
+        body: formData,
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || "Upload failed");
+      }
+
+      // Update the active authenticated JWT session natively
+      await update({ image: data.url });
+
+      // Instantly preview locally
+      setLocalAvatar(data.url);
+    } catch (err: any) {
+      setUploadError(err.message || "Failed to upload avatar.");
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const currentDisplayAvatar = localAvatar || originalImageUrl;
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto w-full">
@@ -43,9 +99,11 @@ export default function ProfilePage() {
         
         <div className="relative flex-shrink-0">
           <div className="size-24 rounded-full bg-primary/5 border border-primary/20 flex flex-col items-center justify-center relative overflow-hidden shadow-[0_0_15px_rgba(197,160,89,0.15)] group-hover:shadow-[0_0_25px_rgba(197,160,89,0.3)] transition-all duration-500">
-            {imageUrl ? (
+            {isUploading ? (
+              <Loader2 className="size-8 text-primary animate-spin" />
+            ) : currentDisplayAvatar ? (
               <img 
-                src={imageUrl} 
+                src={currentDisplayAvatar} 
                 alt="Profile Avatar" 
                 className="size-full object-cover"
                 referrerPolicy="no-referrer"
@@ -82,9 +140,41 @@ export default function ProfilePage() {
           </div>
         </div>
 
-        <button className="flex-shrink-0 mt-4 md:mt-0 w-full md:w-auto px-6 py-3 btn-metallic text-xs uppercase tracking-[2px] font-bold">
-          Edit Avatar
-        </button>
+        <div className="flex-shrink-0 mt-4 md:mt-0 w-full md:w-auto flex flex-col items-center md:items-end gap-2">
+          <input 
+            type="file" 
+            ref={fileInputRef} 
+            onChange={handleFileChange} 
+            accept="image/jpeg, image/png, image/webp" 
+            className="hidden" 
+          />
+          <button 
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isUploading}
+            className="w-full md:w-auto px-6 py-3 btn-metallic text-xs uppercase tracking-[2px] font-bold flex items-center justify-center gap-2 group disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isUploading ? (
+              <>
+                <Loader2 className="size-3.5 animate-spin" />
+                Uploading
+              </>
+            ) : (
+              <>
+                <Upload className="size-3.5 text-primary group-hover:-translate-y-0.5 transition-transform" />
+                Upload Image
+              </>
+            )}
+          </button>
+          
+          <div className="text-[10px] text-secondary/60 text-center md:text-right mt-1 w-full max-w-[200px]">
+             JPEG, PNG, or WebP. <br className="hidden md:block" />Max 5MB.
+          </div>
+          {uploadError && (
+             <p className="text-[10px] text-arcana-danger font-bold uppercase tracking-wider text-center md:text-right w-full mt-1">
+               {uploadError}
+             </p>
+          )}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 w-full">
