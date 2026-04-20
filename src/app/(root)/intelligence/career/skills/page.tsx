@@ -62,10 +62,13 @@ export default function SkillAcquisitionsPage() {
               })}
             </div>
 
-            <div className="mt-12 flex justify-center">
+            <div className="mt-12 flex flex-col sm:flex-row items-center justify-center gap-4">
                <button className="px-8 py-3 bg-teal-500/10 text-teal-400 text-xs uppercase tracking-widest font-bold hover:bg-teal-500/20 border border-teal-500/30 transition-colors rounded-sm shadow-[0_0_15px_rgba(20,184,166,0.1)]">
                  Generate Curriculum Routine
                </button>
+               <Link href="/intelligence/career/roadmap" className="px-8 py-3 bg-primary/10 text-primary text-xs uppercase tracking-widest font-bold hover:bg-primary/20 border border-primary/30 transition-colors rounded-sm shadow-[0_0_15px_rgba(197,160,89,0.1)]">
+                 View Full Roadmap &rarr;
+               </Link>
             </div>
          </div>
       </div>

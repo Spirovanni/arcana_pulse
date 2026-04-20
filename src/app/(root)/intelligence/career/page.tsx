@@ -1,6 +1,6 @@
 "use client";
 
-import { Target, Compass, Briefcase, Award, GraduationCap, Bot } from "lucide-react";
+import { Target, Compass, Briefcase, Award, GraduationCap, Bot, BookOpen } from "lucide-react";
 import CareerTrajectoryWidget from "@/components/CareerTrajectoryWidget";
 import ActivePathwayWidget from "@/components/ActivePathwayWidget";
 import Link from "next/link";
@@ -77,7 +77,7 @@ export default function CareerPage() {
             </Link>
          </div>
 
-         {/* Node 2 */}
+         {/* Node 2 — Skill Acquisitions */}
          <div className="bg-surface-container-high border border-outline rounded-sm p-6 relative overflow-hidden group">
             <div className="absolute top-0 right-0 w-32 h-32 bg-teal-500/5 blur-3xl -mr-10 -mt-10 rounded-full transition-all group-hover:bg-teal-500/10" />
             <div className="size-10 bg-teal-500/10 border border-teal-500/20 rounded flex items-center justify-center mb-6">
@@ -87,9 +87,14 @@ export default function CareerPage() {
             <p className="text-secondary text-xs leading-relaxed mb-4">
                Acquiring your FINRA Series 7 directly unlocks fiduciary architectural positioning, scaling your total advisory equity ceiling by a factor of 1.8x.
             </p>
-            <Link href="/intelligence/career/skills" className="inline-block text-[10px] uppercase font-bold tracking-widest text-teal-400 hover:text-teal-300 transition-colors">
-               View Curriculum &rarr;
-            </Link>
+            <div className="flex flex-col gap-2">
+               <Link href="/intelligence/career/skills" className="inline-block text-[10px] uppercase font-bold tracking-widest text-teal-400 hover:text-teal-300 transition-colors">
+                  View Tech-Tree &rarr;
+               </Link>
+               <Link href="/intelligence/career/roadmap" className="inline-block text-[10px] uppercase font-bold tracking-widest text-primary hover:text-primary-container transition-colors">
+                  Full Roadmap &rarr;
+               </Link>
+            </div>
          </div>
 
          {/* Node 3 */}
