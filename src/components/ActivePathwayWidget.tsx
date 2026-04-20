@@ -1,6 +1,7 @@
 "use client";
 
 import { CheckCircle2, Circle, Clock, Zap, TrendingUp } from "lucide-react";
+import Link from "next/link";
 import { ProgressFill } from "@/components/ProgressBar";
 
 const PATHWAY = {
@@ -74,7 +75,12 @@ export default function ActivePathwayWidget() {
 
         {/* Right — Proximal goal checklist */}
         <div className="space-y-3">
-          <div className="text-[9px] uppercase tracking-[2px] text-secondary font-bold mb-1">Immediate Proximate Goals</div>
+          <div className="flex items-center justify-between mb-1">
+            <div className="text-[9px] uppercase tracking-[2px] text-secondary font-bold">Immediate Proximate Goals</div>
+            <Link href="/intelligence/career/licensing" className="text-[9px] uppercase tracking-widest text-primary hover:text-primary-container font-bold transition-colors">
+              View Credentials →
+            </Link>
+          </div>
           {PATHWAY.proximalGoals.map((goal) => (
             <div key={goal.label} className="flex items-center gap-3">
               {goal.done ? (

@@ -61,7 +61,7 @@ export default function CareerPage() {
       </div>
 
       {/* Secondary Nodes */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 pt-6">
          {/* Node 1 */}
          <div className="bg-surface-container-high border border-outline rounded-sm p-6 relative overflow-hidden group">
             <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 blur-3xl -mr-10 -mt-10 rounded-full transition-all group-hover:bg-primary/10" />
@@ -104,6 +104,21 @@ export default function CareerPage() {
             </p>
             <Link href="/intelligence/career/sovereign-pivot" className="inline-block text-[10px] uppercase font-bold tracking-widest text-purple-400 hover:text-purple-300 transition-colors">
                View Scenarios &rarr;
+            </Link>
+         </div>
+
+         {/* Node 4 — Licensing Readiness */}
+         <div className="bg-surface-container-high border border-primary/20 rounded-sm p-6 relative overflow-hidden group">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 blur-3xl -mr-10 -mt-10 rounded-full transition-all group-hover:bg-primary/10" />
+            <div className="size-10 bg-primary/10 border border-primary/20 rounded flex items-center justify-center mb-6">
+               <Award className="size-5 text-primary" />
+            </div>
+            <h4 className="text-on-surface font-headline font-medium text-lg mb-2">Licensing Readiness</h4>
+            <p className="text-secondary text-xs leading-relaxed mb-4">
+               SIE passed. Series 63 at 58% readiness. Track your full FINRA / NASAA credential stack and unlock a +61% cumulative compensation ceiling.
+            </p>
+            <Link href="/intelligence/career/licensing" className="inline-block text-[10px] uppercase font-bold tracking-widest text-primary hover:text-primary-container transition-colors">
+               View Credentials &rarr;
             </Link>
          </div>
       </div>
