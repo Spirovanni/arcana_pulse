@@ -13,20 +13,29 @@ import {
   CartesianGrid
 } from "recharts";
 
-const TRAJECTORY_DATA = [
-  { year: "2026", baseline: 110000, optimized: 125000, milestone: "Senior IC" },
-  { year: "2027", baseline: 115000, optimized: 155000, milestone: "Tech Lead Pivot" },
-  { year: "2028", baseline: 121000, optimized: 180000, milestone: "System Architecture" },
-  { year: "2029", baseline: 127000, optimized: 215000, milestone: "Principal / Manager" },
-  { year: "2030", baseline: 135000, optimized: 245000, milestone: "Equity Compound" },
-  { year: "2031", baseline: 142000, optimized: 280000, milestone: "Director Alignment" },
-];
+import { generateCareerTrajectory } from "@/lib/services/forecasting/trajectory";
+
+const DEFAULT_PARAMS = {
+  currentSalary: 110000,
+  years: 6,
+  baseGrowthRate: 0.04, // 4% standard
+  aiOptimizedGrowthRate: 0.07, // 7% standard compounding
+  milestones: [
+    { yearOffset: 0, label: "Senior IC Baseline", bumpFactor: 0 },
+    { yearOffset: 1, label: "Tech Lead Pivot", bumpFactor: 0.15 }, // +15% bump
+    { yearOffset: 3, label: "Principal Architect", bumpFactor: 0.25 }, // +25% bump
+    { yearOffset: 5, label: "Director Equity", bumpFactor: 0.35 } // +35% bump
+  ]
+};
 
 export default function CareerTrajectoryWidget() {
+  const trajectoryData = useMemo(() => generateCareerTrajectory(DEFAULT_PARAMS), []);
+
   const currentDelta = useMemo(() => {
-    const last = TRAJECTORY_DATA[TRAJECTORY_DATA.length - 1];
+    if (trajectoryData.length === 0) return 0;
+    const last = trajectoryData[trajectoryData.length - 1];
     return last.optimized - last.baseline;
-  }, []);
+  }, [trajectoryData]);
 
   return (
     <div className="bg-surface-container rounded-sm border border-outline relative overflow-hidden group">
@@ -79,7 +88,7 @@ export default function CareerTrajectoryWidget() {
 
       <div className="h-72 w-full relative z-10 -ml-4 pr-4">
         <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={TRAJECTORY_DATA} margin={{ top: 20, right: 10, left: 10, bottom: 0 }}>
+          <AreaChart data={trajectoryData} margin={{ top: 20, right: 10, left: 10, bottom: 0 }}>
             <defs>
               <linearGradient id="optGradient" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="5%" stopColor="var(--color-primary)" stopOpacity={0.4} />
