@@ -2,6 +2,7 @@
 
 import { Target, Compass, Briefcase, Award, GraduationCap } from "lucide-react";
 import CareerTrajectoryWidget from "@/components/CareerTrajectoryWidget";
+import Link from "next/link";
 
 export default function CareerPage() {
   return (
@@ -50,9 +51,9 @@ export default function CareerPage() {
             <p className="text-secondary text-xs leading-relaxed mb-4">
               Your structural skills map indicates a 14% delta between your current compensation and the median market leverage for equivalent engineering scope.
             </p>
-            <div className="text-[10px] uppercase font-bold tracking-widest text-primary hover:text-primary-container cursor-pointer transition-colors">
+            <Link href="/intelligence/career/market-leverage" className="inline-block text-[10px] uppercase font-bold tracking-widest text-primary hover:text-primary-container transition-colors">
                Analyze Gap &rarr;
-            </div>
+            </Link>
          </div>
 
          {/* Node 2 */}
@@ -65,9 +66,9 @@ export default function CareerPage() {
             <p className="text-secondary text-xs leading-relaxed mb-4">
                Migrating from procedural legacy to cloud-first Distributed Architectures scales your equity ceiling by a factor of 1.8x.
             </p>
-            <div className="text-[10px] uppercase font-bold tracking-widest text-teal-400 hover:text-teal-300 cursor-pointer transition-colors">
+            <Link href="/intelligence/career/skills" className="inline-block text-[10px] uppercase font-bold tracking-widest text-teal-400 hover:text-teal-300 transition-colors">
                View Curriculum &rarr;
-            </div>
+            </Link>
          </div>
 
          {/* Node 3 */}
@@ -80,9 +81,9 @@ export default function CareerPage() {
             <p className="text-secondary text-xs leading-relaxed mb-4">
                Probability analysis flags a 60% chance you outgrow current employment dynamics within 24 months. Recommend founding parameters.
             </p>
-            <div className="text-[10px] uppercase font-bold tracking-widest text-purple-400 hover:text-purple-300 cursor-pointer transition-colors">
+            <Link href="/intelligence/career/sovereign-pivot" className="inline-block text-[10px] uppercase font-bold tracking-widest text-purple-400 hover:text-purple-300 transition-colors">
                View Scenarios &rarr;
-            </div>
+            </Link>
          </div>
       </div>
     </div>
