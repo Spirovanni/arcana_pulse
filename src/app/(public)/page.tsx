@@ -221,7 +221,19 @@ export default function LandingPage() {
                   { label: "Predictive Forecasting", href: "/intelligence/forecasting" },
                 ]
               },
-              { name: "Career" },
+              {
+                name: "Career",
+                href: "/career",
+                options: [
+                  { label: "Advisor Academy Overview", href: "/career" },
+                  { label: "Licensing Readiness", href: "/intelligence/career/licensing" },
+                  { label: "Learning Roadmap", href: "/intelligence/career/roadmap" },
+                  { label: "AI Career Coach", href: "/intelligence/career/coach" },
+                  { label: "Resume Builder", href: "/intelligence/career/resume" },
+                  { label: "Job Placement", href: "/intelligence/career/placement" },
+                  { label: "Community Network", href: "/intelligence/career/network" },
+                ],
+              },
               { name: "Ledger" },
               { name: "Pulse" },
             ].map((item) => (
@@ -231,7 +243,7 @@ export default function LandingPage() {
                 </span>
                 
                 {item.options && (
-                  <div className="absolute top-full left-0 mt-0 w-56 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-50">
+                  <div className="absolute top-full left-0 mt-0 w-64 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-50">
                     <div className="bg-surface-container-high border border-outline rounded-sm shadow-2xl p-2 flex flex-col gap-1 backdrop-blur-md">
                       {item.options.map((opt) => (
                         <button
