@@ -1,5 +1,6 @@
 import type { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
+import GoogleProvider from "next-auth/providers/google";
 import {
   getDatabase,
   DATABASE_ID,
@@ -9,6 +10,7 @@ import {
 import * as bcrypt from "bcryptjs";
 import { verifySync } from "otplib";
 import { decryptSafe } from "@/lib/crypto";
+
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -86,6 +88,10 @@ export const authOptions: NextAuthOptions = {
         };
       },
     }),
+    GoogleProvider({
+      clientId: process.env.GOOGLE_CLIENT_ID!,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+    }),
   ],
 
   session: {
@@ -110,7 +116,7 @@ export const authOptions: NextAuthOptions = {
         token.userId = (user as any).userId || user.id;
         token.workspaceId = (user as any).workspaceId;
         token.email = user.email!;
-        
+
         if (user.name) {
           const nameParts = user.name.split(' ');
           token.firstName = (user as any).firstName || nameParts[0] || '';
@@ -119,7 +125,7 @@ export const authOptions: NextAuthOptions = {
           token.firstName = (user as any).firstName;
           token.lastName = (user as any).lastName;
         }
-        
+
         token.role = (user as any).role;
         token.membershipType = (user as any).membershipType ?? "standard";
         // Map OAuth user.image to our imageUrl or let NextAuth auto-population handle token.picture
