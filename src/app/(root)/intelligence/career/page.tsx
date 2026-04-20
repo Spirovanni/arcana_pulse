@@ -1,6 +1,6 @@
 "use client";
 
-import { Target, Compass, Briefcase, Award, GraduationCap, Bot, BookOpen, FileText, Building2 } from "lucide-react";
+import { Target, Compass, Briefcase, Award, GraduationCap, Bot, BookOpen, FileText, Building2, Users } from "lucide-react";
 import CareerTrajectoryWidget from "@/components/CareerTrajectoryWidget";
 import ActivePathwayWidget from "@/components/ActivePathwayWidget";
 import Link from "next/link";
@@ -166,6 +166,24 @@ export default function CareerPage() {
          </div>
          <Link href="/intelligence/career/resume" className="shrink-0 px-5 py-2 bg-surface-container-high text-primary text-[10px] uppercase tracking-widest font-bold border border-primary/20 hover:bg-primary/5 transition-colors rounded-sm">
             Build Resume &rarr;
+         </Link>
+      </div>
+
+      {/* Community Network Banner */}
+      <div className="bg-surface-container border border-purple-500/20 rounded-sm p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 hover:border-purple-500/30 transition-colors">
+         <div className="flex items-start gap-4">
+            <div className="p-2 rounded bg-purple-500/10 border border-purple-500/20 text-purple-400 mt-0.5">
+               <Users className="size-4" />
+            </div>
+            <div className="space-y-0.5">
+               <h3 className="font-headline text-base text-on-surface font-light">Professional Network</h3>
+               <p className="text-secondary text-xs max-w-xl leading-relaxed">
+                  2 mentors available · 4 community events this month · Licensed advisors, candidates, and employers in one ecosystem.
+               </p>
+            </div>
+         </div>
+         <Link href="/intelligence/career/network" className="shrink-0 px-5 py-2 bg-purple-500/10 text-purple-400 text-[10px] uppercase tracking-widest font-bold border border-purple-500/20 hover:bg-purple-500/20 transition-colors rounded-sm whitespace-nowrap">
+            View Network &rarr;
          </Link>
       </div>
 
