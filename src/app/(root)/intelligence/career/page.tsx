@@ -1,6 +1,6 @@
 "use client";
 
-import { Target, Compass, Briefcase, Award, GraduationCap } from "lucide-react";
+import { Target, Compass, Briefcase, Award, GraduationCap, Bot } from "lucide-react";
 import CareerTrajectoryWidget from "@/components/CareerTrajectoryWidget";
 import ActivePathwayWidget from "@/components/ActivePathwayWidget";
 import Link from "next/link";
@@ -121,6 +121,34 @@ export default function CareerPage() {
                View Credentials &rarr;
             </Link>
          </div>
+      </div>
+
+      {/* AI Coach Banner */}
+      <div className="bg-surface-container border border-primary/20 rounded-sm p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 relative overflow-hidden">
+         <div className="absolute inset-0 bg-primary/3 pointer-events-none" />
+         <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 blur-3xl -mr-16 -mt-16 rounded-full pointer-events-none" />
+         <div className="flex items-start gap-4 relative z-10">
+            <div className="p-2 rounded bg-primary/10 border border-primary/20 text-primary mt-0.5">
+               <Bot className="size-5" />
+            </div>
+            <div className="space-y-1">
+               <div className="flex items-center gap-2">
+                  <h3 className="font-headline text-lg text-on-surface font-light">AI Career Coach</h3>
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[9px] uppercase tracking-widest font-bold text-primary border border-primary/30 bg-primary/5 rounded-sm">
+                     <div className="size-1.5 rounded-full bg-primary animate-pulse" /> Active
+                  </span>
+               </div>
+               <p className="text-secondary text-xs max-w-xl leading-relaxed">
+                  14 sessions run · 6 of 8 goals met · Interview sim queued. Get predictive coaching, skill gap analysis, and mock interview practice calibrated to your Financial Advisor pathway.
+               </p>
+            </div>
+         </div>
+         <Link
+            href="/intelligence/career/coach"
+            className="relative z-10 shrink-0 px-6 py-2.5 bg-primary text-background text-[10px] uppercase tracking-widest font-bold hover:bg-primary-container transition-colors rounded-sm shadow-[0_0_15px_rgba(197,160,89,0.3)]"
+         >
+            Open Coach &rarr;
+         </Link>
       </div>
 
       {/* Legal & Licensing Disclaimer */}
