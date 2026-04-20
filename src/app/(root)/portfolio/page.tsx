@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState, useEffect, useCallback } from "react";
 import {
   PieChart,
   Pie,
@@ -11,9 +11,19 @@ import {
   YAxis,
   Tooltip,
   ResponsiveContainer,
-  Legend,
 } from "recharts";
-import { TrendingUp, TrendingDown, BarChart2 } from "lucide-react";
+import {
+  TrendingUp,
+  TrendingDown,
+  BarChart2,
+  Brain,
+  AlertTriangle,
+  CheckCircle,
+  Info,
+  RefreshCw,
+  Loader2,
+} from "lucide-react";
+import type { PortfolioInsight } from "@/app/api/ai/portfolio-insights/route";
 import {
   getInvestmentAccountsByWorkspace,
   getHoldingsByAccount,
@@ -52,6 +62,17 @@ const ALLOCATION_LABELS: Record<string, string> = {
   other: "Other",
 };
 
+const SEVERITY_ICON: Record<string, React.ComponentType<{ className?: string }>> = {
+  warning: AlertTriangle,
+  success: CheckCircle,
+  info: Info,
+};
+const SEVERITY_COLOR: Record<string, string> = {
+  warning: "text-amber-400 border-amber-400/20 bg-amber-400/5",
+  success: "text-green-400 border-green-400/20 bg-green-400/5",
+  info: "text-blue-400 border-blue-400/20 bg-blue-400/5",
+};
+
 export default function PortfolioPage() {
   const accounts = getInvestmentAccountsByWorkspace(DEFAULT_WORKSPACE_ID);
   const totalValue = getTotalInvestmentBalance(DEFAULT_WORKSPACE_ID);
@@ -60,6 +81,31 @@ export default function PortfolioPage() {
     () => accounts.flatMap((a) => getHoldingsByAccount(a.investmentAccountId)),
     [accounts]
   );
+
+  // AI insights
+  const [insights, setInsights] = useState<PortfolioInsight[]>([]);
+  const [insightsLoading, setInsightsLoading] = useState(false);
+  const [insightsFetched, setInsightsFetched] = useState(false);
+
+  const fetchInsights = useCallback(async () => {
+    setInsightsLoading(true);
+    try {
+      const res = await fetch("/api/ai/portfolio-insights", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ holdings: allHoldings, accounts, totalValue }),
+      });
+      const data = await res.json();
+      if (data.insights) setInsights(data.insights);
+    } catch {
+      // silently fail — insights are non-critical
+    } finally {
+      setInsightsLoading(false);
+      setInsightsFetched(true);
+    }
+  }, [allHoldings, accounts, totalValue]);
+
+  useEffect(() => { fetchInsights(); }, [fetchInsights]);
 
   // Asset allocation by security type
   const allocationData = useMemo(() => {
@@ -201,6 +247,63 @@ export default function PortfolioPage() {
               </div>
             ))}
           </div>
+        </div>
+      </div>
+
+      {/* AI Insights */}
+      <div className="rounded-xl bg-arcana-surface border border-arcana-border overflow-hidden">
+        <div className="px-6 py-4 border-b border-arcana-border flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Brain className="w-4 h-4 text-primary" />
+            <h2 className="text-sm font-semibold text-white uppercase tracking-wider">AI Portfolio Analysis</h2>
+          </div>
+          <button
+            type="button"
+            onClick={fetchInsights}
+            disabled={insightsLoading}
+            className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-white transition-colors disabled:opacity-50"
+          >
+            {insightsLoading
+              ? <Loader2 className="w-3 h-3 animate-spin" />
+              : <RefreshCw className="w-3 h-3" />}
+            Refresh
+          </button>
+        </div>
+
+        <div className="p-6">
+          {insightsLoading && !insightsFetched ? (
+            <div className="flex items-center justify-center gap-2 py-8 text-slate-400 text-sm">
+              <Loader2 className="w-4 h-4 animate-spin" />
+              Analyzing portfolio…
+            </div>
+          ) : insights.length === 0 ? (
+            <p className="text-slate-500 text-sm text-center py-8">No insights available.</p>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {insights.map((insight) => {
+                const Icon = SEVERITY_ICON[insight.severity] ?? Info;
+                const colors = SEVERITY_COLOR[insight.severity] ?? SEVERITY_COLOR.info;
+                return (
+                  <div key={insight.id} className={`rounded-lg border p-4 ${colors}`}>
+                    <div className="flex items-start gap-3">
+                      <Icon className="w-4 h-4 mt-0.5 shrink-0" />
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center justify-between gap-2 mb-1">
+                          <p className="text-sm font-semibold">{insight.title}</p>
+                          {insight.metric && (
+                            <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-black/20 shrink-0">
+                              {insight.metric}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs opacity-80 leading-relaxed">{insight.description}</p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       </div>
 
