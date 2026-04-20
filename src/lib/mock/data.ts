@@ -27,6 +27,7 @@ export const mockUser: User = {
   firstName: "Alex",
   lastName: "Morgan",
   role: "owner",
+  membershipType: "standard",
   createdAt: "2026-01-15T10:00:00Z",
   updatedAt: "2026-03-14T10:00:00Z",
 };

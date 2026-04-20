@@ -24,6 +24,7 @@ function toUser(doc: Models.Document & Record<string, any>): User {
     lastName: doc.lastName,
     imageUrl: doc.imageUrl ?? undefined,
     role: doc.role,
+    membershipType: doc.membershipType ?? "standard",
     createdAt: doc.$createdAt,
     updatedAt: doc.$updatedAt,
   };
@@ -98,6 +99,7 @@ export interface SignUpInput {
   lastName: string;
   email: string;
   password: string;
+  membershipType?: string;
 }
 
 export async function signUp(
@@ -131,6 +133,7 @@ export async function signUp(
       firstName: input.firstName,
       lastName: input.lastName,
       role: "owner",
+      membershipType: input.membershipType ?? "standard",
     }
   );
 
@@ -592,6 +595,7 @@ export async function exportUserData(userId: string, workspaceId: string): Promi
       firstName: userDoc.firstName,
       lastName: userDoc.lastName,
       role: userDoc.role,
+      membershipType: userDoc.membershipType ?? "standard",
       createdAt: userDoc.$createdAt,
     };
   } catch {

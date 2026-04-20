@@ -98,11 +98,24 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(signInUrl);
   }
 
-  // Authenticated user on /sign-in, /sign-up etc. → redirect to dashboard
+  // Authenticated user on /sign-in, /sign-up etc. → redirect to correct dashboard
   // (but allow authenticated users to visit / landing page via logo click)
   if (token && isAuthPage) {
-    const dashboardUrl = new URL("/dashboard", request.url);
+    let targetPath = "/dashboard";
+    if (token.membershipType === "student") targetPath = "/intelligence/career";
+    if (token.membershipType === "employer") targetPath = "/employer/dashboard";
+    const dashboardUrl = new URL(targetPath, request.url);
     return NextResponse.redirect(dashboardUrl);
+  }
+
+  // Intercept pure /dashboard routes for special personas
+  if (token && pathname === "/dashboard") {
+    if (token.membershipType === "student") {
+      return NextResponse.redirect(new URL("/intelligence/career", request.url));
+    }
+    if (token.membershipType === "employer") {
+      return NextResponse.redirect(new URL("/employer/dashboard", request.url));
+    }
   }
 
   return NextResponse.next();

@@ -81,6 +81,7 @@ export const authOptions: NextAuthOptions = {
           firstName: doc.firstName,
           lastName: doc.lastName,
           role: doc.role,
+          membershipType: doc.membershipType ?? "standard",
           imageUrl: doc.imageUrl ?? undefined,
         };
       },
@@ -120,6 +121,7 @@ export const authOptions: NextAuthOptions = {
         }
         
         token.role = (user as any).role;
+        token.membershipType = (user as any).membershipType ?? "standard";
         // Map OAuth user.image to our imageUrl or let NextAuth auto-population handle token.picture
         token.imageUrl = (user as any).imageUrl || user.image;
         if (user.image) token.picture = user.image;
@@ -135,6 +137,7 @@ export const authOptions: NextAuthOptions = {
         firstName: token.firstName as string,
         lastName: token.lastName as string,
         role: token.role as any,
+        membershipType: token.membershipType as any,
         imageUrl: (token.imageUrl as string) || (token.picture as string),
         image: (token.picture as string) || (token.imageUrl as string),
         name: token.firstName ? `${token.firstName} ${token.lastName}`.trim() : (token.name as string),

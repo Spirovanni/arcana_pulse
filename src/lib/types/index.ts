@@ -13,6 +13,7 @@ export type TransactionStatus = "pending" | "posted" | "failed" | "cancelled";
 export type WorkspacePlan = "starter" | "pro" | "team";
 export type WorkspaceStatus = "active" | "suspended";
 export type UserRole = "owner" | "admin" | "member" | "viewer";
+export type MembershipType = "standard" | "student" | "employer";
 
 export type InviteStatus = "pending" | "accepted" | "expired" | "revoked";
 
@@ -82,6 +83,7 @@ export interface User {
   lastName: string;
   imageUrl?: string;
   role: UserRole;
+  membershipType: MembershipType;
   createdAt: string;
   updatedAt: string;
 }

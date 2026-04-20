@@ -32,6 +32,7 @@ function toUser(doc: Models.Document & Record<string, any>): User {
     lastName: doc.lastName,
     imageUrl: doc.imageUrl ?? undefined,
     role: doc.role,
+    membershipType: doc.membershipType ?? "standard",
     createdAt: doc.$createdAt,
     updatedAt: doc.$updatedAt,
   };

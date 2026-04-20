@@ -14,11 +14,12 @@ import { logAuditEvent } from "@/lib/services/db/auditLog";
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { firstName, lastName, email, password } = body as {
+    const { firstName, lastName, email, password, membershipType = "standard" } = body as {
       firstName: string;
       lastName: string;
       email: string;
       password: string;
+      membershipType?: string;
     };
 
     if (!firstName || !lastName || !email || !password) {
@@ -65,6 +66,7 @@ export async function POST(request: NextRequest) {
         firstName,
         lastName,
         role: "owner",
+        membershipType,
       }
     );
 

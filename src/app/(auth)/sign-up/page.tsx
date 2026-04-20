@@ -12,6 +12,7 @@ export default function SignUpPage() {
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [membershipType, setMembershipType] = useState<"standard" | "student" | "employer">("standard");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [created, setCreated] = useState(false);
@@ -32,7 +33,7 @@ export default function SignUpPage() {
       const res = await fetch("/api/auth/sign-up", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ firstName, lastName, email, password }),
+        body: JSON.stringify({ firstName, lastName, email, password, membershipType }),
       });
 
       const data = await res.json();
@@ -161,6 +162,48 @@ export default function SignUpPage() {
             className="w-full px-3 py-2.5 rounded-lg bg-arcana-navy border border-arcana-border text-white text-sm placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-arcana-blue"
           />
         </div>
+
+        <div>
+          <label className="block text-sm text-slate-300 mb-2">
+            Account Type
+          </label>
+          <div className="grid grid-cols-3 gap-2">
+            <button
+              type="button"
+              onClick={() => setMembershipType("standard")}
+              className={`py-2 px-3 rounded-lg text-xs font-medium border transition-colors ${
+                membershipType === "standard"
+                  ? "bg-primary/20 border-primary text-primary"
+                  : "bg-arcana-navy border-arcana-border text-slate-400 hover:text-slate-200"
+              }`}
+            >
+              Standard
+            </button>
+            <button
+              type="button"
+              onClick={() => setMembershipType("student")}
+              className={`py-2 px-3 rounded-lg text-xs font-medium border transition-colors ${
+                membershipType === "student"
+                  ? "bg-purple-500/20 border-purple-500 text-purple-400"
+                  : "bg-arcana-navy border-arcana-border text-slate-400 hover:text-slate-200"
+              }`}
+            >
+              Student
+            </button>
+            <button
+              type="button"
+              onClick={() => setMembershipType("employer")}
+              className={`py-2 px-3 rounded-lg text-xs font-medium border transition-colors ${
+                membershipType === "employer"
+                  ? "bg-teal-500/20 border-teal-500 text-teal-400"
+                  : "bg-arcana-navy border-arcana-border text-slate-400 hover:text-slate-200"
+              }`}
+            >
+              Employer
+            </button>
+          </div>
+        </div>
+
         <button
           type="submit"
           disabled={loading}
