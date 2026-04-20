@@ -19,6 +19,9 @@ import {
   X,
   Zap,
   BarChart2,
+  Wallet,
+  Target,
+  Brain,
 } from "lucide-react";
 import { NAV_ITEMS } from "@/lib/constants";
 import { cn } from "@/lib/utils";
@@ -36,6 +39,9 @@ const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
   Bell,
   Settings,
   BarChart2,
+  Wallet,
+  Target,
+  Brain,
 };
 
 export default function MobileNav() {
@@ -75,6 +81,8 @@ export default function MobileNav() {
                 Arcana
               </Link>
               <button
+                type="button"
+                title="Close menu"
                 onClick={() => setOpen(false)}
                 className="p-1 text-secondary hover:text-on-surface transition-colors"
               >
@@ -109,6 +117,7 @@ export default function MobileNav() {
 
             <div className="mt-8 pt-8 border-t border-outline/50 space-y-6">
               <button
+                type="button"
                 onClick={() => signOut({ callbackUrl: "/sign-in" })}
                 className="flex items-center gap-4 text-[11px] uppercase tracking-[2px] transition-all duration-300 group text-secondary hover:text-danger w-full"
               >

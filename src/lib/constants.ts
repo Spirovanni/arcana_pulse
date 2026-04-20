@@ -3,6 +3,10 @@ import type { NavItem, Category } from "@/lib/types";
 export const NAV_ITEMS: NavItem[] = [
   { label: "Dashboard", href: "/dashboard", icon: "LayoutDashboard" },
   { label: "My Banks", href: "/my-banks", icon: "Landmark" },
+  { label: "Portfolio", href: "/portfolio", icon: "BarChart2" },
+  { label: "Budgets", href: "/budgets", icon: "Wallet" },
+  { label: "Goals", href: "/goals", icon: "Target" },
+  { label: "Intelligence", href: "/intelligence/career", icon: "Brain" },
   { label: "Transactions", href: "/transactions", icon: "ArrowLeftRight" },
   { label: "Income", href: "/income", icon: "TrendingUp" },
   { label: "Expense", href: "/expense", icon: "TrendingDown" },

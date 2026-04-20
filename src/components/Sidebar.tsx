@@ -15,6 +15,10 @@ import {
   Settings,
   LogOut,
   Zap,
+  BarChart2,
+  Wallet,
+  Target,
+  Brain,
 } from "lucide-react";
 import { NAV_ITEMS } from "@/lib/constants";
 import { cn } from "@/lib/utils";
@@ -31,6 +35,10 @@ const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
   MessageCircle,
   Bell,
   Settings,
+  BarChart2,
+  Wallet,
+  Target,
+  Brain,
 };
 
 export default function Sidebar() {
