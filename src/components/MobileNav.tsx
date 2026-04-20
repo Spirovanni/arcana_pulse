@@ -18,6 +18,7 @@ import {
   Menu,
   X,
   Zap,
+  BarChart2,
 } from "lucide-react";
 import { NAV_ITEMS } from "@/lib/constants";
 import { cn } from "@/lib/utils";
@@ -34,6 +35,7 @@ const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
   MessageCircle,
   Bell,
   Settings,
+  BarChart2,
 };
 
 export default function MobileNav() {
