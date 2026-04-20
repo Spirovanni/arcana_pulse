@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import {
   Target,
   RefreshCw,
@@ -13,9 +13,23 @@ import {
   TrendingUp,
   Pause,
   Play,
+  BarChart2,
+  Zap,
 } from "lucide-react";
+import {
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+  ReferenceLine,
+} from "recharts";
 import { DEFAULT_WORKSPACE_ID } from "@/lib/services/workspace";
 import { formatCurrency } from "@/lib/utils";
+import { getTotalInvestmentBalance } from "@/lib/services/investments";
+import { runMonteCarloForGoals } from "@/lib/services/monte-carlo";
+import type { MonteCarloResult } from "@/lib/services/monte-carlo";
 import GoalModal from "@/components/GoalModal";
 import type {
   SavingsGoal,
@@ -185,6 +199,27 @@ export default function GoalsPage() {
   // Summary stats
   const totalTarget = activeGoals.reduce((s, g) => s + g.targetAmount, 0);
   const totalSaved = activeGoals.reduce((s, g) => s + g.currentAmount, 0);
+
+  // Monte Carlo projections (client-side, instant)
+  const totalInvestmentBalance = getTotalInvestmentBalance(DEFAULT_WORKSPACE_ID);
+  const perGoalLinked = activeGoals.length > 0 ? totalInvestmentBalance / activeGoals.length : 0;
+
+  const mcResults = useMemo<MonteCarloResult[]>(() => {
+    if (activeGoals.length === 0) return [];
+    return runMonteCarloForGoals(
+      activeGoals.map((g) => ({
+        goalId: g.goalId,
+        currentAmount: g.currentAmount,
+        targetAmount: g.targetAmount,
+        targetDate: g.targetDate,
+        monthlyContribution: g.monthlyContribution,
+        linkedInvestmentValue: perGoalLinked,
+      }))
+    );
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [goals]);
+
+  const mcMap = new Map(mcResults.map((r) => [r.goalId, r]));
 
   return (
     <div className="space-y-6">
@@ -533,6 +568,134 @@ export default function GoalsPage() {
                 </span>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── Monte Carlo Investment Projections ── */}
+      {mcResults.length > 0 && (
+        <div className="space-y-4">
+          <div className="flex items-center gap-2">
+            <BarChart2 className="w-4 h-4 text-primary" />
+            <h2 className="text-sm font-semibold text-white uppercase tracking-wider">
+              Investment Scenarios
+            </h2>
+            <span className="text-[10px] text-slate-500 uppercase tracking-widest ml-1">
+              Monte Carlo · 500 simulations
+            </span>
+          </div>
+          {totalInvestmentBalance > 0 && (
+            <p className="text-xs text-slate-500">
+              Projections include {formatCurrency(totalInvestmentBalance)} in linked investment accounts,
+              allocated proportionally across {activeGoals.length} goal{activeGoals.length !== 1 ? "s" : ""}.
+            </p>
+          )}
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {mcResults.map((mc) => {
+              const goal = activeGoals.find((g) => g.goalId === mc.goalId);
+              if (!goal) return null;
+              const prob = mc.successProbability;
+              const probColor = prob >= 75 ? "text-green-400" : prob >= 50 ? "text-amber-400" : "text-red-400";
+              const probBg    = prob >= 75 ? "bg-green-400/10 border-green-400/20" : prob >= 50 ? "bg-amber-400/10 border-amber-400/20" : "bg-red-400/10 border-red-400/20";
+
+              const months = mc.chartData[mc.chartData.length - 1]?.month ?? 0;
+              const xTickCount = Math.min(6, mc.chartData.length);
+              const tickStep = Math.ceil(mc.chartData.length / xTickCount);
+              const xTicks = mc.chartData.filter((_, i) => i % tickStep === 0).map((d) => d.month);
+
+              return (
+                <div key={mc.goalId} className="rounded-xl bg-arcana-surface border border-arcana-border p-5">
+                  {/* Header */}
+                  <div className="flex items-start justify-between mb-4">
+                    <div>
+                      <p className="text-sm font-semibold text-white">{goal.name}</p>
+                      <p className="text-xs text-slate-500 mt-0.5">
+                        Target: {formatCurrency(goal.targetAmount)} by{" "}
+                        {new Date(goal.targetDate).toLocaleDateString("en-US", { month: "short", year: "numeric" })}
+                      </p>
+                    </div>
+                    <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-sm font-bold ${probBg} ${probColor}`}>
+                      <Zap className="w-3.5 h-3.5" />
+                      {prob}%
+                    </div>
+                  </div>
+
+                  {/* Chart */}
+                  <ResponsiveContainer width="100%" height={160}>
+                    <AreaChart data={mc.chartData} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
+                      <defs>
+                        <linearGradient id={`opt-${mc.goalId}`} x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%"  stopColor="#10B981" stopOpacity={0.15} />
+                          <stop offset="95%" stopColor="#10B981" stopOpacity={0} />
+                        </linearGradient>
+                        <linearGradient id={`exp-${mc.goalId}`} x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%"  stopColor="#3B82F6" stopOpacity={0.2} />
+                          <stop offset="95%" stopColor="#3B82F6" stopOpacity={0} />
+                        </linearGradient>
+                        <linearGradient id={`pes-${mc.goalId}`} x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%"  stopColor="#F59E0B" stopOpacity={0.1} />
+                          <stop offset="95%" stopColor="#F59E0B" stopOpacity={0} />
+                        </linearGradient>
+                      </defs>
+                      <XAxis
+                        dataKey="month"
+                        ticks={xTicks}
+                        tick={{ fill: "#64748b", fontSize: 10 }}
+                        tickFormatter={(v) => `m${v}`}
+                        axisLine={false} tickLine={false}
+                      />
+                      <YAxis
+                        tick={{ fill: "#64748b", fontSize: 10 }}
+                        tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`}
+                        axisLine={false} tickLine={false} width={44}
+                      />
+                      <Tooltip
+                        contentStyle={{ background: "#0f172a", border: "1px solid #1e293b", borderRadius: 8, fontSize: 11 }}
+                        formatter={(v, name) => [formatCurrency(Number(v)), name]}
+                        labelFormatter={(v) => `Month ${v}`}
+                      />
+                      <ReferenceLine y={goal.targetAmount} stroke="#C5A059" strokeDasharray="4 3" strokeWidth={1} label={{ value: "Target", fill: "#C5A059", fontSize: 9, position: "right" }} />
+                      <Area type="monotone" dataKey="optimistic"  name="Optimistic (10%)"  stroke="#10B981" strokeWidth={1.5} fill={`url(#opt-${mc.goalId})`} dot={false} />
+                      <Area type="monotone" dataKey="expected"    name="Expected (7%)"     stroke="#3B82F6" strokeWidth={1.5} fill={`url(#exp-${mc.goalId})`} dot={false} />
+                      <Area type="monotone" dataKey="pessimistic" name="Pessimistic (3%)"  stroke="#F59E0B" strokeWidth={1.5} fill={`url(#pes-${mc.goalId})`} dot={false} />
+                    </AreaChart>
+                  </ResponsiveContainer>
+
+                  {/* Scenario final values */}
+                  <div className="grid grid-cols-3 gap-2 mt-4 pt-4 border-t border-arcana-border">
+                    {[
+                      { label: "Pessimistic", value: mc.scenarios.pessimistic.finalValue, color: "text-amber-400", rate: "3%" },
+                      { label: "Expected",    value: mc.scenarios.expected.finalValue,    color: "text-blue-400",  rate: "7%" },
+                      { label: "Optimistic",  value: mc.scenarios.optimistic.finalValue,  color: "text-green-400", rate: "10%" },
+                    ].map((s) => (
+                      <div key={s.label} className="text-center">
+                        <p className="text-[9px] uppercase tracking-widest text-slate-500 mb-1">{s.label} · {s.rate}</p>
+                        <p className={`text-sm font-bold tabular-nums ${s.color}`}>{formatCurrency(s.value)}</p>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Contribution suggestion */}
+                  {mc.suggestedContribution > 0 && Math.abs(mc.suggestedContribution - goal.monthlyContribution) > 10 && (
+                    <div className="mt-3 flex items-start gap-2 bg-primary/5 border border-primary/15 rounded-lg px-3 py-2">
+                      <TrendingUp className="w-3.5 h-3.5 text-primary mt-0.5 shrink-0" />
+                      <p className="text-[11px] text-slate-300 leading-relaxed">
+                        To reach this goal by {new Date(goal.targetDate).toLocaleDateString("en-US", { month: "short", year: "numeric" })} at 7% returns,
+                        contribute <span className="text-primary font-semibold">{formatCurrency(mc.suggestedContribution)}/mo</span>
+                        {goal.monthlyContribution > 0 && (
+                          <span className="text-slate-500">
+                            {" "}(currently {formatCurrency(goal.monthlyContribution)}/mo —{" "}
+                            {mc.suggestedContribution > goal.monthlyContribution ? "increase by " : "decrease by "}
+                            {formatCurrency(Math.abs(mc.suggestedContribution - goal.monthlyContribution))})
+                          </span>
+                        )}.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
