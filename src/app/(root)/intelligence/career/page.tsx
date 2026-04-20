@@ -1,6 +1,6 @@
 "use client";
 
-import { Target, Compass, Briefcase, Award, GraduationCap, Bot, BookOpen, FileText } from "lucide-react";
+import { Target, Compass, Briefcase, Award, GraduationCap, Bot, BookOpen, FileText, Building2 } from "lucide-react";
 import CareerTrajectoryWidget from "@/components/CareerTrajectoryWidget";
 import ActivePathwayWidget from "@/components/ActivePathwayWidget";
 import Link from "next/link";
@@ -126,6 +126,27 @@ export default function CareerPage() {
                View Credentials &rarr;
             </Link>
          </div>
+      </div>
+
+      {/* Placement Pipeline Banner */}
+      <div className="bg-surface-container border border-teal-500/20 rounded-sm p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 hover:border-teal-500/30 transition-colors">
+         <div className="flex items-start gap-4">
+            <div className="p-2 rounded bg-teal-500/10 border border-teal-500/20 text-teal-400 mt-0.5">
+               <Building2 className="size-4" />
+            </div>
+            <div className="space-y-0.5">
+               <div className="flex items-center gap-2">
+                  <h3 className="font-headline text-base text-on-surface font-light">Job Placement Pipeline</h3>
+                  <span className="text-[9px] uppercase tracking-widest font-bold text-teal-400 border border-teal-400/30 bg-teal-400/5 px-2 py-0.5 rounded-sm">5 Matches</span>
+               </div>
+               <p className="text-secondary text-xs max-w-xl leading-relaxed">
+                  94% top match at Meridian Wealth Partners. Track applications from first contact to offer across RIA, wirehouse, and credit union hiring ledgers.
+               </p>
+            </div>
+         </div>
+         <Link href="/intelligence/career/placement" className="shrink-0 px-5 py-2 bg-teal-500/10 text-teal-400 text-[10px] uppercase tracking-widest font-bold border border-teal-500/20 hover:bg-teal-500/20 transition-colors rounded-sm whitespace-nowrap">
+            View Matches &rarr;
+         </Link>
       </div>
 
       {/* Resume Builder Banner */}
