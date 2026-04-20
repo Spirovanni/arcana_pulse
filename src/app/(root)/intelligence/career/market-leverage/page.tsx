@@ -22,7 +22,7 @@ export default function MarketLeveragePage() {
           <h1 className="font-headline text-3xl font-light text-on-surface tracking-tight uppercase">Market Leverage</h1>
         </div>
         <p className="text-secondary text-sm tracking-wide font-light max-w-xl leading-relaxed">
-          Your structural skills map indicates a statistical mismatch between your current compensation and liquid market rates for equivalent architectural scope.
+          Your structural skills map indicates a statistical mismatch between your current compensation and liquid market rates for equivalent advisory scope.
         </p>
       </header>
 

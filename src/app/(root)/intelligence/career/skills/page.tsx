@@ -5,10 +5,10 @@ import Link from "next/link";
 
 export default function SkillAcquisitionsPage() {
   const nodes = [
-    { id: 1, title: "Procedural Legacy", active: true, icon: FileCode2, impact: "+0%" },
-    { id: 2, title: "Cloud Architecture", active: false, icon: Cpu, impact: "+18%" },
-    { id: 3, title: "Distributed Systems", active: false, icon: GitMerge, impact: "+25%" },
-    { id: 4, title: "Vector Databases", active: false, icon: Database, impact: "+12%" },
+    { id: 1, title: "Client Service Operations", active: true, icon: FileCode2, impact: "+0%" },
+    { id: 2, title: "FINRA Series 7 & 63", active: false, icon: Cpu, impact: "+18%" },
+    { id: 3, title: "Fiduciary Wealth Architecture", active: false, icon: GitMerge, impact: "+25%" },
+    { id: 4, title: "Macroeconomic Portfolio Mgt", active: false, icon: Database, impact: "+12%" },
   ];
 
   return (

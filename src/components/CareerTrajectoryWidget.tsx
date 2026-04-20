@@ -21,10 +21,10 @@ const DEFAULT_PARAMS = {
   baseGrowthRate: 0.04, // 4% standard
   aiOptimizedGrowthRate: 0.07, // 7% standard compounding
   milestones: [
-    { yearOffset: 0, label: "Senior IC Baseline", bumpFactor: 0 },
-    { yearOffset: 1, label: "Tech Lead Pivot", bumpFactor: 0.15 }, // +15% bump
-    { yearOffset: 3, label: "Principal Architect", bumpFactor: 0.25 }, // +25% bump
-    { yearOffset: 5, label: "Director Equity", bumpFactor: 0.35 } // +35% bump
+    { yearOffset: 0, label: "Client Support Baseline", bumpFactor: 0 },
+    { yearOffset: 1, label: "Client Relationship Associate", bumpFactor: 0.15 }, // +15% bump
+    { yearOffset: 3, label: "Wealth Management Pivot", bumpFactor: 0.25 }, // +25% bump
+    { yearOffset: 5, label: "Financial Advisor / Partner", bumpFactor: 0.35 } // +35% bump
   ]
 };
 
@@ -65,17 +65,17 @@ export default function CareerTrajectoryWidget() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10 relative z-10">
           <div className="bg-background/40 border border-outline/40 p-4 rounded-sm hover:border-primary/30 transition-colors cursor-default">
             <h4 className="text-[9px] uppercase tracking-[2px] text-primary font-bold mb-1">Q3 2026</h4>
-            <div className="text-xs text-on-surface font-medium truncate">System Design Masterclass</div>
+            <div className="text-xs text-on-surface font-medium truncate">Series 7 Acquisition</div>
             <div className="text-[10px] text-secondary mt-1 font-mono">+12% Earning Cap</div>
           </div>
           <div className="bg-background/40 border border-outline/40 p-4 rounded-sm hover:border-primary/30 transition-colors cursor-default">
             <h4 className="text-[9px] uppercase tracking-[2px] text-primary font-bold mb-1">Q1 2027</h4>
-            <div className="text-xs text-on-surface font-medium truncate">Enterprise Arch Migration</div>
+            <div className="text-xs text-on-surface font-medium truncate">Client Book Expansion</div>
             <div className="text-[10px] text-secondary mt-1 font-mono">+25% Promotion Yield</div>
           </div>
           <div className="bg-background/40 border border-outline/40 p-4 rounded-sm hover:border-primary/30 transition-colors cursor-default border-dashed">
             <h4 className="text-[9px] uppercase tracking-[2px] text-secondary font-bold mb-1">Q4 2028</h4>
-            <div className="text-xs text-on-surface font-medium truncate flex items-center gap-1"><Trophy className="size-3"/> Principal Pivot</div>
+            <div className="text-xs text-on-surface font-medium truncate flex items-center gap-1"><Trophy className="size-3"/> Full Advisor Pivot</div>
             <div className="text-[10px] text-secondary mt-1 font-mono">+40% Base Yield</div>
           </div>
           <div className="bg-background/40 border border-outline/40 p-4 rounded-sm hover:border-primary/30 transition-colors cursor-default border-dashed">

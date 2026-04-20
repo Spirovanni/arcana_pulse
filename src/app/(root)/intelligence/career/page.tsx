@@ -29,6 +29,18 @@ export default function CareerPage() {
         </div>
       </header>
 
+      {/* Supported Pathways Marquee */}
+      <div className="space-y-4">
+        <h2 className="text-[10px] uppercase tracking-widest text-secondary font-bold pl-1">Actively Supported Pathways</h2>
+        <div className="flex flex-wrap gap-3">
+           {["Financial Advisor", "Registered Representative", "Wealth Management Associate", "Client Relationship Associate", "Insurance / Retirement Planning Support", "Financial Coach", "Credit Union Member Advisor", "Community Financial Navigator"].map((path) => (
+              <div key={path} className="px-3 py-1.5 rounded-sm bg-surface-container border border-outline/50 text-xs text-slate-300 font-medium hover:border-primary/40 hover:bg-primary/5 transition-colors cursor-default shadow-sm">
+                 {path}
+              </div>
+           ))}
+        </div>
+      </div>
+
       {/* Main Asset Projection Widget */}
       <div className="space-y-6">
         <h2 className="text-on-surface font-headline text-xl flex items-center gap-2 border-l-2 border-primary pl-4 tracking-tighter">
@@ -49,7 +61,7 @@ export default function CareerPage() {
             </div>
             <h4 className="text-on-surface font-headline font-medium text-lg mb-2">Market Leverage</h4>
             <p className="text-secondary text-xs leading-relaxed mb-4">
-              Your structural skills map indicates a 14% delta between your current compensation and the median market leverage for equivalent engineering scope.
+              Your structural skills map indicates a 14% delta between your current compensation and the median market leverage for equivalent financial advisory scope.
             </p>
             <Link href="/intelligence/career/market-leverage" className="inline-block text-[10px] uppercase font-bold tracking-widest text-primary hover:text-primary-container transition-colors">
                Analyze Gap &rarr;
@@ -64,7 +76,7 @@ export default function CareerPage() {
             </div>
             <h4 className="text-on-surface font-headline font-medium text-lg mb-2">Skill Acquisitions</h4>
             <p className="text-secondary text-xs leading-relaxed mb-4">
-               Migrating from procedural legacy to cloud-first Distributed Architectures scales your equity ceiling by a factor of 1.8x.
+               Acquiring your FINRA Series 7 directly unlocks fiduciary architectural positioning, scaling your total advisory equity ceiling by a factor of 1.8x.
             </p>
             <Link href="/intelligence/career/skills" className="inline-block text-[10px] uppercase font-bold tracking-widest text-teal-400 hover:text-teal-300 transition-colors">
                View Curriculum &rarr;
