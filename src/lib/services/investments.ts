@@ -14,7 +14,9 @@ const SECURITIES: Security[] = [
   { securityId: "sec-bnd",  ticker: "BND",  name: "Vanguard Total Bond Market ETF", type: "etf", closePrice: 74.31, closePriceAsOf: "2026-04-18" },
   { securityId: "sec-msft", ticker: "MSFT", name: "Microsoft Corporation", type: "equity", closePrice: 388.47, closePriceAsOf: "2026-04-18" },
   { securityId: "sec-vxus", ticker: "VXUS", name: "Vanguard Total International Stock ETF", type: "etf", closePrice: 57.92, closePriceAsOf: "2026-04-18" },
-  { securityId: "sec-fxaix", ticker: "FXAIX", name: "Fidelity 500 Index Fund", type: "mutual_fund", closePrice: 198.34, closePriceAsOf: "2026-04-18" },
+  { securityId: "sec-fxaix", ticker: "FXAIX", name: "Fidelity 500 Index Fund",               type: "mutual_fund", closePrice: 198.34, closePriceAsOf: "2026-04-18" },
+  { securityId: "sec-pypl",  ticker: "PYPL",  name: "PayPal Holdings Inc.",                  type: "equity",      closePrice: 61.44,  closePriceAsOf: "2026-04-18" },
+  { securityId: "sec-intc",  ticker: "INTC",  name: "Intel Corporation",                     type: "equity",      closePrice: 20.18,  closePriceAsOf: "2026-04-18" },
 ];
 
 const INVESTMENT_ACCOUNTS: InvestmentAccount[] = [
@@ -50,6 +52,9 @@ const HOLDINGS: Holding[] = [
   { holdingId: "hld-002", investmentAccountId: "inv-acct-001", securityId: "sec-vti",  security: SECURITIES[1], quantity: 80, institutionValue: 19345.60, costBasis: 16800.00, unrealizedGainLoss: 2545.60, unrealizedGainLossPct: 15.15 },
   { holdingId: "hld-003", investmentAccountId: "inv-acct-001", securityId: "sec-bnd",  security: SECURITIES[2], quantity: 100, institutionValue: 7431.00, costBasis: 7800.00, unrealizedGainLoss: -369.00, unrealizedGainLossPct: -4.73 },
   { holdingId: "hld-004", investmentAccountId: "inv-acct-001", securityId: "sec-msft", security: SECURITIES[3], quantity: 32, institutionValue: 12431.04, costBasis: 9920.00, unrealizedGainLoss: 2511.04, unrealizedGainLossPct: 25.31 },
+  // Brokerage — underwater positions (TLH candidates)
+  { holdingId: "hld-007", investmentAccountId: "inv-acct-001", securityId: "sec-pypl", security: SECURITIES[6], quantity: 120, institutionValue: 7372.80, costBasis: 10800.00, unrealizedGainLoss: -3427.20, unrealizedGainLossPct: -31.73 },
+  { holdingId: "hld-008", investmentAccountId: "inv-acct-001", securityId: "sec-intc", security: SECURITIES[7], quantity: 300, institutionValue: 6054.00,  costBasis: 7500.00,  unrealizedGainLoss: -1446.00, unrealizedGainLossPct: -19.28 },
   // Roth IRA holdings
   { holdingId: "hld-005", investmentAccountId: "inv-acct-002", securityId: "sec-fxaix", security: SECURITIES[5], quantity: 55, institutionValue: 10908.70, costBasis: 9500.00, unrealizedGainLoss: 1408.70, unrealizedGainLossPct: 14.83 },
   { holdingId: "hld-006", investmentAccountId: "inv-acct-002", securityId: "sec-vxus",  security: SECURITIES[4], quantity: 195, institutionValue: 11294.40, costBasis: 10200.00, unrealizedGainLoss: 1094.40, unrealizedGainLossPct: 10.73 },
@@ -59,8 +64,10 @@ const INVESTMENT_TRANSACTIONS: InvestmentTransaction[] = [
   // Buy orders
   { investmentTransactionId: "itxn-001", investmentAccountId: "inv-acct-001", securityId: "sec-vti",   security: SECURITIES[1], type: "buy",      name: "Buy VTI",   amount: 2418.20, quantity: 10, price: 241.82, fees: 0, date: "2026-04-10" },
   { investmentTransactionId: "itxn-002", investmentAccountId: "inv-acct-001", securityId: "sec-aapl",  security: SECURITIES[0], type: "buy",      name: "Buy AAPL",  amount: 1067.45, quantity: 5,  price: 213.49, fees: 0, date: "2026-04-05" },
-  { investmentTransactionId: "itxn-004", investmentAccountId: "inv-acct-001", securityId: "sec-bnd",   security: SECURITIES[2], type: "buy",      name: "Buy BND",   amount: 3715.50, quantity: 50, price: 74.31,  fees: 0, date: "2026-03-01" },
-  { investmentTransactionId: "itxn-005", investmentAccountId: "inv-acct-002", securityId: "sec-fxaix", security: SECURITIES[5], type: "buy",      name: "Buy FXAIX", amount: 991.70,  quantity: 5,  price: 198.34, fees: 0, date: "2026-04-01" },
+  { investmentTransactionId: "itxn-004", investmentAccountId: "inv-acct-001", securityId: "sec-bnd",   security: SECURITIES[2], type: "buy",      name: "Buy BND",   amount: 3715.50,  quantity: 50,  price: 74.31,  fees: 0, date: "2026-03-01" },
+  { investmentTransactionId: "itxn-005", investmentAccountId: "inv-acct-002", securityId: "sec-fxaix", security: SECURITIES[5], type: "buy",      name: "Buy FXAIX", amount: 991.70,   quantity: 5,   price: 198.34, fees: 0, date: "2026-04-01" },
+  { investmentTransactionId: "itxn-006", investmentAccountId: "inv-acct-001", securityId: "sec-pypl",  security: SECURITIES[6], type: "buy",      name: "Buy PYPL",  amount: 10800.00, quantity: 120, price: 90.00,  fees: 0, date: "2024-11-15" },
+  { investmentTransactionId: "itxn-007", investmentAccountId: "inv-acct-001", securityId: "sec-intc",  security: SECURITIES[7], type: "buy",      name: "Buy INTC",  amount: 7500.00,  quantity: 300, price: 25.00,  fees: 0, date: "2025-02-10" },
   // Dividends — AAPL (quarterly)
   { investmentTransactionId: "itxn-d01", investmentAccountId: "inv-acct-001", securityId: "sec-aapl",  security: SECURITIES[0], type: "dividend", name: "AAPL Dividend",  amount: 24.36,  date: "2026-03-15" },
   { investmentTransactionId: "itxn-d02", investmentAccountId: "inv-acct-001", securityId: "sec-aapl",  security: SECURITIES[0], type: "dividend", name: "AAPL Dividend",  amount: 23.94,  date: "2025-12-15" },

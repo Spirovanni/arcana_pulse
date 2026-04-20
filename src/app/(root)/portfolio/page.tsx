@@ -22,14 +22,20 @@ import {
   Info,
   RefreshCw,
   Loader2,
+  Scissors,
+  Zap,
+  ShieldAlert,
 } from "lucide-react";
 import type { PortfolioInsight } from "@/app/api/ai/portfolio-insights/route";
+import type { TLHSuggestion } from "@/app/api/ai/tax-loss-harvesting/route";
 import {
   getInvestmentAccountsByWorkspace,
   getHoldingsByAccount,
   getTotalInvestmentBalance,
   ACCOUNT_TYPE_LABELS,
+  getInvestmentTransactionsByAccount,
 } from "@/lib/services/investments";
+import { analyzeTaxLossHarvesting } from "@/lib/services/tlh";
 import { DEFAULT_WORKSPACE_ID } from "@/lib/services/workspace";
 import { formatCurrency } from "@/lib/utils";
 
@@ -106,6 +112,41 @@ export default function PortfolioPage() {
   }, [allHoldings, accounts, totalValue]);
 
   useEffect(() => { fetchInsights(); }, [fetchInsights]);
+
+  // Tax-loss harvesting analysis (sync, runs immediately)
+  const allTransactions = useMemo(
+    () => accounts.flatMap((a) => getInvestmentTransactionsByAccount(a.investmentAccountId)),
+    [accounts]
+  );
+  const tlhSummary = useMemo(
+    () => analyzeTaxLossHarvesting(allHoldings, allTransactions),
+    [allHoldings, allTransactions]
+  );
+
+  const [tlhSuggestions, setTlhSuggestions] = useState<TLHSuggestion[]>([]);
+  const [tlhLoading, setTlhLoading] = useState(false);
+  const [tlhFetched, setTlhFetched] = useState(false);
+
+  const fetchTlhSuggestions = useCallback(async () => {
+    if (tlhSummary.opportunities.length === 0) { setTlhFetched(true); return; }
+    setTlhLoading(true);
+    try {
+      const res = await fetch("/api/ai/tax-loss-harvesting", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ summary: tlhSummary }),
+      });
+      const data = await res.json();
+      if (data.suggestions) setTlhSuggestions(data.suggestions);
+    } catch {
+      // non-critical
+    } finally {
+      setTlhLoading(false);
+      setTlhFetched(true);
+    }
+  }, [tlhSummary]);
+
+  useEffect(() => { fetchTlhSuggestions(); }, [fetchTlhSuggestions]);
 
   // Asset allocation by security type
   const allocationData = useMemo(() => {
@@ -306,6 +347,137 @@ export default function PortfolioPage() {
           )}
         </div>
       </div>
+
+      {/* Tax-Loss Harvesting */}
+      {(tlhSummary.opportunities.length > 0 || tlhLoading) && (
+        <div className="rounded-xl bg-arcana-surface border border-arcana-border overflow-hidden">
+          <div className="px-6 py-4 border-b border-arcana-border flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Scissors className="w-4 h-4 text-amber-400" />
+              <h2 className="text-sm font-semibold text-white uppercase tracking-wider">Tax-Loss Harvesting</h2>
+              {tlhSummary.washSaleWarningCount > 0 && (
+                <span className="flex items-center gap-1 text-[10px] font-semibold text-red-400 bg-red-400/10 border border-red-400/20 px-2 py-0.5 rounded-full">
+                  <ShieldAlert className="w-3 h-3" />
+                  {tlhSummary.washSaleWarningCount} wash-sale risk
+                </span>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={fetchTlhSuggestions}
+              disabled={tlhLoading}
+              className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-white transition-colors disabled:opacity-50"
+            >
+              {tlhLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
+              Refresh
+            </button>
+          </div>
+
+          {/* Summary row */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-px bg-arcana-border">
+            {[
+              { label: "Harvestable Loss",     value: formatCurrency(tlhSummary.totalHarvestableLoss),     color: "text-red-400"   },
+              { label: "Est. Savings (32%)",   value: formatCurrency(tlhSummary.estimatedSavingsShortTerm), color: "text-green-400" },
+              { label: "Est. Savings (15%)",   value: formatCurrency(tlhSummary.estimatedSavingsLongTerm),  color: "text-teal-400"  },
+              { label: "Unrealized Gains",     value: formatCurrency(tlhSummary.totalUnrealizedGains),      color: "text-blue-400"  },
+            ].map((s) => (
+              <div key={s.label} className="bg-arcana-surface px-5 py-4">
+                <p className="text-[10px] uppercase tracking-wider text-slate-500 mb-1">{s.label}</p>
+                <p className={`text-lg font-bold tabular-nums ${s.color}`}>{s.value}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* Opportunity cards */}
+          <div className="p-6 space-y-4">
+            {tlhSummary.opportunities.map((opp) => (
+              <div
+                key={opp.holdingId}
+                className={`rounded-lg border p-4 ${opp.washSaleRisk ? "border-red-400/20 bg-red-400/5" : "border-amber-400/20 bg-amber-400/5"}`}
+              >
+                <div className="flex items-start justify-between gap-4 flex-wrap">
+                  <div className="flex items-center gap-3">
+                    {opp.washSaleRisk
+                      ? <ShieldAlert className="w-5 h-5 text-red-400 shrink-0" />
+                      : <Scissors className="w-5 h-5 text-amber-400 shrink-0" />
+                    }
+                    <div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-mono font-bold text-white">{opp.ticker}</span>
+                        <span className="text-xs text-slate-400">{opp.securityName}</span>
+                        <span className={`text-[10px] px-1.5 py-0.5 rounded font-semibold ${opp.isLongTerm ? "bg-blue-400/10 text-blue-400" : "bg-orange-400/10 text-orange-400"}`}>
+                          {opp.isLongTerm ? "Long-term" : "Short-term"} · {opp.holdingPeriodDays}d
+                        </span>
+                      </div>
+                      <p className="text-sm font-bold text-red-400 mt-0.5">
+                        {formatCurrency(opp.unrealizedLoss)} ({opp.unrealizedLossPct.toFixed(2)}%)
+                      </p>
+                    </div>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <p className="text-[10px] text-slate-500 uppercase tracking-wider">Est. Tax Savings</p>
+                    <p className="text-sm font-bold text-green-400">
+                      {formatCurrency(opp.isLongTerm ? opp.estimatedTaxSavings.savingsAtLongTerm : opp.estimatedTaxSavings.savingsAtShortTerm)}
+                    </p>
+                    <p className="text-[10px] text-slate-500">at {opp.isLongTerm ? "15%" : "32%"} rate</p>
+                  </div>
+                </div>
+
+                {opp.washSaleWarning && (
+                  <div className="mt-3 flex items-start gap-2 text-xs text-red-300 bg-red-400/10 rounded-lg px-3 py-2">
+                    <ShieldAlert className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                    {opp.washSaleWarning}
+                  </div>
+                )}
+
+                {opp.suggestedReplacement && !opp.washSaleRisk && (
+                  <div className="mt-3 flex items-start gap-2 text-xs text-slate-300 bg-arcana-navy/60 rounded-lg px-3 py-2">
+                    <Zap className="w-3.5 h-3.5 text-primary shrink-0 mt-0.5" />
+                    <span>
+                      <span className="font-semibold text-primary">Replace with {opp.suggestedReplacement.ticker}</span>
+                      {" — "}{opp.suggestedReplacement.rationale}
+                    </span>
+                  </div>
+                )}
+              </div>
+            ))}
+
+            {/* AI suggestions */}
+            {(tlhLoading && !tlhFetched) ? (
+              <div className="flex items-center gap-2 text-slate-500 text-sm py-2">
+                <Loader2 className="w-4 h-4 animate-spin" /> Generating AI suggestions…
+              </div>
+            ) : tlhSuggestions.length > 0 && (
+              <div className="pt-2 border-t border-arcana-border">
+                <div className="flex items-center gap-2 mb-3">
+                  <Brain className="w-4 h-4 text-primary" />
+                  <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">AI Tax Optimization</span>
+                </div>
+                <div className="space-y-2">
+                  {tlhSuggestions.map((s) => {
+                    const borderColor = s.severity === "action" ? "border-green-400/20 bg-green-400/5" : s.severity === "warning" ? "border-amber-400/20 bg-amber-400/5" : "border-blue-400/20 bg-blue-400/5";
+                    const textColor = s.severity === "action" ? "text-green-400" : s.severity === "warning" ? "text-amber-400" : "text-blue-400";
+                    const Icon = s.severity === "action" ? CheckCircle : s.severity === "warning" ? AlertTriangle : Info;
+                    return (
+                      <div key={s.id} className={`rounded-lg border px-4 py-3 flex items-start gap-3 ${borderColor}`}>
+                        <Icon className={`w-4 h-4 shrink-0 mt-0.5 ${textColor}`} />
+                        <div>
+                          <p className={`text-sm font-semibold ${textColor}`}>{s.title}</p>
+                          <p className="text-xs text-slate-400 mt-0.5 leading-relaxed">{s.body}</p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            <p className="text-[10px] text-slate-600 leading-relaxed pt-2">
+              ⚠ Tax savings are estimates only. Rates vary by income, filing status, and jurisdiction. Consult a qualified tax professional before executing any tax-loss harvesting strategy.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Holdings table */}
       <div className="rounded-xl bg-arcana-surface border border-arcana-border overflow-hidden">
