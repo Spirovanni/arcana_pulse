@@ -236,8 +236,13 @@ export default function LandingPage() {
               },
               { name: "Ledger" },
               { name: "Pulse" },
+              { name: "Pricing", href: "/pricing" },
             ].map((item) => (
-              <div key={item.name} className="relative group cursor-pointer py-4">
+              <div
+                key={item.name}
+                className="relative group cursor-pointer py-4"
+                onClick={() => item.href && !item.options ? router.push(item.href) : undefined}
+              >
                 <span className="text-sm uppercase tracking-[2px] text-secondary font-medium group-hover:text-primary transition-colors duration-300">
                   {item.name}
                 </span>

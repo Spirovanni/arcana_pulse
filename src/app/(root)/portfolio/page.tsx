@@ -38,6 +38,7 @@ import {
 import { analyzeTaxLossHarvesting } from "@/lib/services/tlh";
 import { DEFAULT_WORKSPACE_ID } from "@/lib/services/workspace";
 import { formatCurrency } from "@/lib/utils";
+import PlanGate from "@/components/PlanGate";
 
 // ── Static performance history (mock 6-month weekly snapshots) ───────────────
 const PERFORMANCE_HISTORY = [
@@ -292,6 +293,7 @@ export default function PortfolioPage() {
       </div>
 
       {/* AI Insights */}
+      <PlanGate required="pro" featureName="AI Portfolio Analysis">
       <div className="rounded-xl bg-arcana-surface border border-arcana-border overflow-hidden">
         <div className="px-6 py-4 border-b border-arcana-border flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -347,8 +349,10 @@ export default function PortfolioPage() {
           )}
         </div>
       </div>
+      </PlanGate>
 
       {/* Tax-Loss Harvesting */}
+      <PlanGate required="pro" featureName="Tax-Loss Harvesting">
       {(tlhSummary.opportunities.length > 0 || tlhLoading) && (
         <div className="rounded-xl bg-arcana-surface border border-arcana-border overflow-hidden">
           <div className="px-6 py-4 border-b border-arcana-border flex items-center justify-between">
@@ -478,6 +482,7 @@ export default function PortfolioPage() {
           </div>
         </div>
       )}
+      </PlanGate>
 
       {/* Holdings table */}
       <div className="rounded-xl bg-arcana-surface border border-arcana-border overflow-hidden">
