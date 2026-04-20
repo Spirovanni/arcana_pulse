@@ -35,9 +35,40 @@ At launch, the product centers on six core experiences:
 - **Income and expense workspaces**
 - **Internal payment transfer**
 
-This PRD frames Arcana Pulse as the **member application for Arcana Credit Union’s sandbox platform**, not evidence of an already chartered financial institution. Real-world launch under a true credit union structure would still require substantial compliance, operations, reconciliation, fraud, member support, and legal work beyond the application scope.
+## 2. Strategic Fit
+Why this belongs in the platform
 
-## 2. Product Vision
+Arcana Pulse should not only help users manage money. It should help users build the career power to earn, advise, serve, and create legacy.
+
+This career component fits the platform because it connects:
+
+* Personal finance education
+* Career mobility
+* Financial advisor training
+* Licensing readiness
+* Job placement preparation
+* Community wealth-building
+* Arcana Credit Union / FundArcana ecosystem
+
+The FATI-style page shows a strong model:
+- Landing page
+- Lead capture
+- Program promise
+- Career benefits
+- Course modules
+- Testimonials
+- Call-to-action
+
+But Arcana should evolve this into something deeper:
+- Career pathway dashboard
+- Learning roadmap
+- Licensing readiness tracker
+- AI career coach
+- Resume/interview builder
+- Employer/job placement pipeline
+- Community financial professional network
+
+## 3. Product Vision
 Give Arcana Credit Union members a single financial cockpit where they can connect accounts, understand cash flow, manage categorized transactions, and move money between accounts inside a polished credit union style experience.
 
 ## 3. Product Positioning
