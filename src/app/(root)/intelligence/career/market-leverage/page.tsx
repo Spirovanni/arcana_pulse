@@ -13,7 +13,7 @@ export default function MarketLeveragePage() {
     <div className="max-w-7xl mx-auto space-y-12 pb-20 fade-in">
       <header className="space-y-6">
         <Link href="/intelligence/career" className="inline-flex items-center gap-2 text-xs uppercase tracking-widest text-secondary hover:text-on-surface transition-colors">
-          <ArrowLeft className="size-4" /> Back to Trajectory Hub
+          <ArrowLeft className="size-4" /> Back to Advisor Academy
         </Link>
         <div className="flex items-center gap-3">
           <span className="p-2 rounded bg-primary/10 text-primary border border-primary/20 shadow-[0_0_15px_rgba(197,160,89,0.15)]">

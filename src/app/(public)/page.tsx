@@ -35,7 +35,7 @@ const PILLARS = [
   },
   {
     Icon: TrendingUp,
-    tag: "Career Trajectory",
+    tag: "Advisor Academy",
     title: "Map the income you deserve",
     body: "Link your career moves to your financial outcomes. Arcana models the gap between where you are and where you should be — then builds the bridge.",
     points: ["Income optimization modeling", "Career-to-wealth correlation", "Milestone projection engine"],
@@ -217,7 +217,7 @@ export default function LandingPage() {
                 name: "Intelligence",
                 options: [
                   { label: "Financial Analytics", href: "/intelligence/analytics" },
-                  { label: "Career Trajectory", href: "/intelligence/career" },
+                  { label: "Advisor Academy", href: "/intelligence/career" },
                   { label: "Predictive Forecasting", href: "/intelligence/forecasting" },
                 ]
               },

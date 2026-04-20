@@ -321,7 +321,7 @@ export default function ResumeBuilderPage() {
       {/* Header */}
       <header className="space-y-6">
         <Link href="/intelligence/career" className="inline-flex items-center gap-2 text-xs uppercase tracking-widest text-secondary hover:text-on-surface transition-colors">
-          <ArrowLeft className="size-4" /> Back to Trajectory Hub
+          <ArrowLeft className="size-4" /> Back to Advisor Academy
         </Link>
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
           <div className="space-y-3">

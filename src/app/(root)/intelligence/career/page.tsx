@@ -15,7 +15,7 @@ export default function CareerPage() {
             <span className="p-2 rounded bg-primary/10 text-primary border border-primary/20 shadow-[0_0_15px_rgba(197,160,89,0.15)]">
                <Compass className="size-5" />
             </span>
-            <h1 className="font-headline text-3xl font-light text-on-surface tracking-tight uppercase">Career Trajectory</h1>
+            <h1 className="font-headline text-3xl font-light text-on-surface tracking-tight uppercase">Arcana Advisor Academy</h1>
           </div>
           <p className="text-secondary text-sm tracking-wide font-light max-w-xl leading-relaxed">
             Your human capital is a compounding asset class. We map unstructured salary floors against continuous AI-calibrated optimization routes, giving you a statistical edge in the labor market.

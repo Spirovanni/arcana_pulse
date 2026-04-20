@@ -430,7 +430,7 @@ export default function PlacementPipelinePage() {
       {/* Header */}
       <header className="space-y-6">
         <Link href="/intelligence/career" className="inline-flex items-center gap-2 text-xs uppercase tracking-widest text-secondary hover:text-on-surface transition-colors">
-          <ArrowLeft className="size-4" /> Back to Trajectory Hub
+          <ArrowLeft className="size-4" /> Back to Advisor Academy
         </Link>
         <div className="flex items-center gap-3">
           <span className="p-2 rounded bg-teal-500/10 text-teal-400 border border-teal-500/20 shadow-[0_0_15px_rgba(20,184,166,0.15)]">
