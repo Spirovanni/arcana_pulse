@@ -39,6 +39,9 @@ export default function CareerPage() {
               </div>
            ))}
         </div>
+        <p className="text-secondary text-xs leading-relaxed max-w-4xl mt-3 pl-1 italic">
+           Engineered to accelerate beginners and career-switchers entering the financial services sphere. We connect individual career mobility directly against our larger mission: democratizing financial education, compounding family asset-building, and establishing generational sovereignty. 
+        </p>
       </div>
 
       {/* Main Asset Projection Widget */}
@@ -97,6 +100,16 @@ export default function CareerPage() {
                View Scenarios &rarr;
             </Link>
          </div>
+      </div>
+
+      {/* Legal & Licensing Disclaimer */}
+      <div className="pt-10 mb-8 border-t border-outline/30 flex items-start gap-4">
+         <div className="p-1.5 rounded-sm bg-slate-500/10 text-slate-400 border border-slate-500/20 shadow-sm mt-1">
+            <Award className="size-4" />
+         </div>
+         <p className="text-[11px] leading-relaxed text-slate-500 max-w-4xl tracking-wide uppercase">
+            <strong className="text-slate-400">Regulatory Disclaimer:</strong> This framework provides career education and readiness support only. It is <span className="text-arcana-warning">not</span> investment, legal, tax, or licensing advice. All users must verify official licensing requirements, regulatory thresholds, and exam policies directly with FINRA, NASAA, their respective state insurance departments, their active employers, and certified training providers.
+         </p>
       </div>
     </div>
   );
