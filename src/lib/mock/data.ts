@@ -4,6 +4,7 @@ import type {
   Bank,
   Transaction,
   Transfer,
+  Candidate,
 } from "@/lib/types";
 
 // ─── Workspace ──────────────────────────────────────────────────────
@@ -296,3 +297,66 @@ export const mockTransfers: Transfer[] = [
   },
 ];
 
+// ─── Recruitment Funnel ──────────────────────────────────────────────
+
+export const mockCandidates: Candidate[] = [
+  {
+    candidateId: "can-001",
+    workspaceId: "ws-001",
+    firstName: "Elena",
+    lastName: "Rostova",
+    targetRole: "Senior Frontend Engineer",
+    matchScore: 94,
+    status: "offer_pending",
+    avatarUrl: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?q=80&w=250&auto=format&fit=facearea&facepad=2&w=256&h=256",
+    appliedDate: "2026-02-10T10:00:00Z",
+    lastActionDate: "2026-03-12T14:30:00Z",
+  },
+  {
+    candidateId: "can-002",
+    workspaceId: "ws-001",
+    firstName: "Marcus",
+    lastName: "Chen",
+    targetRole: "Backend Architect",
+    matchScore: 88,
+    status: "interviewing",
+    avatarUrl: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=250&auto=format&fit=facearea&facepad=2&w=256&h=256",
+    appliedDate: "2026-03-01T09:15:00Z",
+    lastActionDate: "2026-03-14T08:00:00Z",
+  },
+  {
+    candidateId: "can-003",
+    workspaceId: "ws-001",
+    firstName: "Sarah",
+    lastName: "Jenkins",
+    targetRole: "Product Manager",
+    matchScore: 91,
+    status: "sourced",
+    avatarUrl: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=250&auto=format&fit=facearea&facepad=2&w=256&h=256",
+    appliedDate: "2026-03-10T11:45:00Z",
+    lastActionDate: "2026-03-11T10:20:00Z",
+  },
+  {
+    candidateId: "can-004",
+    workspaceId: "ws-001",
+    firstName: "David",
+    lastName: "Kim",
+    targetRole: "Senior Frontend Engineer",
+    matchScore: 76,
+    status: "rejected",
+    appliedDate: "2026-02-05T14:00:00Z",
+    lastActionDate: "2026-02-28T09:30:00Z",
+  },
+  {
+    candidateId: "can-005",
+    workspaceId: "ws-001",
+    firstName: "Aisha",
+    lastName: "Patel",
+    targetRole: "Data Scientist",
+    matchScore: 97,
+    status: "hired",
+    avatarUrl: "https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?q=80&w=250&auto=format&fit=facearea&facepad=2&w=256&h=256",
+    appliedDate: "2026-01-15T08:00:00Z",
+    lastActionDate: "2026-03-01T10:00:00Z",
+  }
+];

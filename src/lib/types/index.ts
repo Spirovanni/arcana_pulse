@@ -88,6 +88,23 @@ export interface User {
   updatedAt: string;
 }
 
+// ─── Recruitment Funnel ──────────────────────────────────────────────
+
+export type PipelineStatus = "sourced" | "interviewing" | "offer_pending" | "hired" | "rejected";
+
+export interface Candidate {
+  candidateId: string;
+  workspaceId: string;
+  firstName: string;
+  lastName: string;
+  targetRole: string;
+  matchScore: number;
+  status: PipelineStatus;
+  avatarUrl?: string;
+  appliedDate: string;
+  lastActionDate: string;
+}
+
 export interface Bank {
   bankId: string;
   workspaceId: string;

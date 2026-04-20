@@ -3,7 +3,9 @@
 import { useSession } from "next-auth/react";
 import { Building2, Users, Briefcase, ChevronRight, CheckCircle2 } from "lucide-react";
 import Link from "next/link";
-import { formatCurrency } from "@/lib/utils";
+import { CandidateFunnelWidget } from "@/components/CandidateFunnelWidget";
+import { EmployerLedgerWidget } from "@/components/EmployerLedgerWidget";
+import { mockTransactions, mockCandidates } from "@/lib/mock/data";
 
 export default function EmployerDashboard() {
   const { data: session } = useSession();
@@ -24,38 +26,16 @@ export default function EmployerDashboard() {
         </div>
       </header>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-surface-container rounded-sm border border-outline p-6 hover:border-primary/30 transition-colors shadow-sm">
-          <div className="flex items-center justify-between mb-4">
-             <div className="size-10 rounded bg-primary/10 border border-primary/20 flex items-center justify-center">
-                 <Briefcase className="size-5 text-primary" />
-             </div>
-             <span className="text-xs font-mono text-secondary">Active Ledger</span>
-          </div>
-          <h3 className="text-2xl font-light text-on-surface mb-1">{formatCurrency(453000)}</h3>
-          <p className="text-xs text-arcana-success flex items-center gap-1"><CheckCircle2 className="size-3"/> Target Reserves Met</p>
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 h-[600px]">
+        {/* Left Column: Corporate Ledger */}
+        <div className="lg:col-span-4 h-full">
+          <EmployerLedgerWidget transactions={mockTransactions} />
         </div>
 
-        <div className="bg-surface-container rounded-sm border border-outline p-6 hover:border-primary/30 transition-colors shadow-sm">
-          <div className="flex items-center justify-between mb-4">
-             <div className="size-10 rounded bg-arcana-sky/10 border border-arcana-sky/20 flex items-center justify-center">
-                 <Users className="size-5 text-arcana-sky" />
-             </div>
-             <span className="text-xs font-mono text-secondary">Candidates Tracking</span>
-          </div>
-          <h3 className="text-2xl font-light text-on-surface mb-1">12</h3>
-          <p className="text-xs text-arcana-sky/80">4 pending final reviews</p>
+        {/* Right Column: Candidate Funnel */}
+        <div className="lg:col-span-8 h-full">
+          <CandidateFunnelWidget candidates={mockCandidates} />
         </div>
-      </div>
-
-      <div className="bg-surface-container-high rounded-sm border border-outline p-8">
-         <h2 className="text-lg font-headline font-medium text-on-surface mb-4">Platform Intelligence</h2>
-         <p className="text-sm text-secondary leading-relaxed max-w-2xl mb-6">
-           This dashboard acts as your corporate operating system. You are currently viewing the placeholder intercept layer. In future iterations, your candidate funnels and corporate expense ledgers will mount here automatically.
-         </p>
-         <Link href="/dashboard" className="inline-flex items-center gap-2 text-sm text-primary hover:text-primary-container transition-colors uppercase tracking-widest font-bold">
-            View Standard Ledger <ChevronRight className="size-4" />
-         </Link>
       </div>
     </div>
   );
