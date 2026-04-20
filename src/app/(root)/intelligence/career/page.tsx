@@ -2,6 +2,7 @@
 
 import { Target, Compass, Briefcase, Award, GraduationCap } from "lucide-react";
 import CareerTrajectoryWidget from "@/components/CareerTrajectoryWidget";
+import ActivePathwayWidget from "@/components/ActivePathwayWidget";
 import Link from "next/link";
 
 export default function CareerPage() {
@@ -42,6 +43,11 @@ export default function CareerPage() {
         <p className="text-secondary text-xs leading-relaxed max-w-4xl mt-3 pl-1 italic">
            Engineered to accelerate beginners and career-switchers entering the financial services sphere. We connect individual career mobility directly against our larger mission: democratizing financial education, compounding family asset-building, and establishing generational sovereignty. 
         </p>
+      </div>
+
+      {/* Active Pathway Execution Widget */}
+      <div className="space-y-4">
+        <ActivePathwayWidget />
       </div>
 
       {/* Main Asset Projection Widget */}
