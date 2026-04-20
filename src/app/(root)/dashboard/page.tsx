@@ -8,7 +8,10 @@ import {
   Globe,
   Cpu,
   Wallet,
-  ArrowRight
+  ArrowRight,
+  DollarSign,
+  Repeat2,
+  Percent,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import {
@@ -22,6 +25,7 @@ import {
   CartesianGrid
 } from "recharts";
 import { computeDashboardMetrics } from "@/lib/services/dashboard";
+import { getDividendSummary } from "@/lib/services/investments";
 import { DEFAULT_WORKSPACE_ID } from "@/lib/services/workspace";
 import { CATEGORY_LABELS } from "@/lib/constants";
 import { formatCurrency, cn } from "@/lib/utils";
@@ -41,6 +45,7 @@ import type {
 
 export default function DashboardPage() {
   const metrics = computeDashboardMetrics(DEFAULT_WORKSPACE_ID);
+  const divSummary = getDividendSummary(DEFAULT_WORKSPACE_ID);
 
   const [insights, setInsights] = useState<SpendingInsight[]>([]);
   const [insightsLoading, setInsightsLoading] = useState(true);
@@ -265,6 +270,50 @@ export default function DashboardPage() {
           />
         </div>
         
+        {/* Investment Income Widget */}
+        <div className="lg:col-span-12 bg-surface-container rounded-sm border border-outline p-8">
+          <div className="flex items-center justify-between mb-6">
+            <div className="space-y-1">
+              <div className="inline-block px-3 py-1 bg-primary/5 text-primary text-[9px] uppercase tracking-[3px] border border-primary/10 rounded-sm mb-1">Passive Income</div>
+              <h3 className="font-sans text-on-surface font-light text-lg tracking-tight">Investment Income</h3>
+            </div>
+            <a href="/income" className="text-[10px] uppercase tracking-widest text-secondary hover:text-primary transition-colors flex items-center gap-1.5">
+              View Details <ArrowRight className="size-3" />
+            </a>
+          </div>
+
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            {[
+              { Icon: DollarSign, label: "Received YTD",     value: formatCurrency(divSummary.totalReceivedYTD),  color: "text-green-400" },
+              { Icon: TrendingUp, label: "Projected Annual", value: formatCurrency(divSummary.projectedAnnual),   color: "text-blue-400"  },
+              { Icon: Percent,    label: "Portfolio Yield",  value: `${divSummary.portfolioYield.toFixed(2)}%`,   color: "text-primary"   },
+              { Icon: Repeat2,    label: "DRIP Tickers",     value: divSummary.dripTickers.length > 0 ? divSummary.dripTickers.join(", ") : "None", color: "text-teal-400" },
+            ].map(({ Icon, label, value, color }) => (
+              <div key={label} className="bg-background/40 border border-outline/50 rounded-sm p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <Icon className={`size-3.5 ${color}`} />
+                  <span className="text-[9px] uppercase tracking-[2px] text-secondary">{label}</span>
+                </div>
+                <p className={`text-lg font-light ${color}`}>{value}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="space-y-2">
+            <div className="text-[9px] uppercase tracking-[2px] text-secondary/60 font-bold mb-3">Top Dividend Payers (LTM)</div>
+            {divSummary.byTicker.slice(0, 4).map((t) => (
+              <div key={t.ticker} className="flex items-center gap-4">
+                <span className="font-mono font-bold text-[11px] text-on-surface w-14 shrink-0">{t.ticker}</span>
+                <div className="flex-1 h-1 bg-outline/20 rounded-full overflow-hidden">
+                  <div className="h-full bg-primary/60 rounded-full" style={{ width: `${t.pct}%` }} />
+                </div>
+                <span className="text-[11px] text-secondary w-16 text-right tabular-nums">{formatCurrency(t.amount)}</span>
+                <span className="text-[10px] text-secondary/50 w-10 text-right tabular-nums">{t.pct.toFixed(0)}%</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
         {/* Recent Transactions Matrix */}
         <div className="lg:col-span-12 mt-8 bg-surface-container rounded-sm border border-outline p-10">
           <div className="flex items-center justify-between mb-8">
