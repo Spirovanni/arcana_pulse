@@ -351,6 +351,74 @@ export interface GoalProjection {
   narrative: string;
 }
 
+// ─── Investments ────────────────────────────────────────────────────
+
+export type InvestmentAccountType =
+  | "brokerage"
+  | "ira"
+  | "roth"
+  | "401k"
+  | "403b"
+  | "529"
+  | "other";
+
+export type InvestmentTransactionType =
+  | "buy"
+  | "sell"
+  | "dividend"
+  | "transfer"
+  | "other";
+
+export interface InvestmentAccount {
+  investmentAccountId: string;
+  workspaceId: string;
+  bankId: string;
+  accountId: string;
+  institutionName: string;
+  displayMask: string;
+  accountType: InvestmentAccountType;
+  balance: number;
+  accessTokenRef?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Security {
+  securityId: string;
+  ticker?: string;
+  name: string;
+  type: "equity" | "etf" | "mutual_fund" | "fixed_income" | "cash" | "other";
+  closePrice?: number;
+  closePriceAsOf?: string;
+  isin?: string;
+}
+
+export interface Holding {
+  holdingId: string;
+  investmentAccountId: string;
+  securityId: string;
+  security: Security;
+  quantity: number;
+  institutionValue: number;
+  costBasis?: number;
+  unrealizedGainLoss?: number;
+  unrealizedGainLossPct?: number;
+}
+
+export interface InvestmentTransaction {
+  investmentTransactionId: string;
+  investmentAccountId: string;
+  securityId?: string;
+  security?: Security;
+  type: InvestmentTransactionType;
+  name: string;
+  amount: number;
+  quantity?: number;
+  price?: number;
+  fees?: number;
+  date: string;
+}
+
 // ─── Navigation ─────────────────────────────────────────────────────
 
 export interface NavItem {

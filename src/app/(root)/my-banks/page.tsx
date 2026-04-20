@@ -10,6 +10,9 @@ import {
   ChevronUp,
   Loader2,
   RefreshCw,
+  TrendingUp,
+  TrendingDown,
+  Minus,
 } from "lucide-react";
 import { usePlaidLink } from "react-plaid-link";
 import EmptyState from "@/components/EmptyState";
@@ -18,6 +21,11 @@ import {
   DEFAULT_WORKSPACE_ID,
 } from "@/lib/services/workspace";
 import { listTransactions } from "@/lib/services/transactions";
+import {
+  getInvestmentAccountsByWorkspace,
+  getHoldingsByAccount,
+  ACCOUNT_TYPE_LABELS,
+} from "@/lib/services/investments";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { CATEGORY_LABELS } from "@/lib/constants";
 
@@ -141,6 +149,106 @@ export default function MyBanksPage() {
           )}
           {linking ? "Linking..." : "Connect Bank"}
         </button>
+      </div>
+
+      {/* ── Investment Accounts ─────────────────────────────────── */}
+      {(() => {
+        const investmentAccounts = getInvestmentAccountsByWorkspace(DEFAULT_WORKSPACE_ID);
+        if (investmentAccounts.length === 0) return null;
+        return (
+          <div className="space-y-4">
+            <div>
+              <h2 className="text-lg font-semibold text-white">Investment Accounts</h2>
+              <p className="text-xs text-slate-400 mt-0.5">
+                Brokerage, IRA, and retirement accounts linked via Plaid
+              </p>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {investmentAccounts.map((acct) => {
+                const holdings = getHoldingsByAccount(acct.investmentAccountId).slice(0, 3);
+                const totalGainLoss = holdings.reduce((s, h) => s + (h.unrealizedGainLoss ?? 0), 0);
+                const gainPositive = totalGainLoss >= 0;
+                return (
+                  <div key={acct.investmentAccountId} className="rounded-xl bg-arcana-surface border border-arcana-border">
+                    <div className="p-5 space-y-4">
+                      {/* Header */}
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-arcana-navy">
+                            <TrendingUp className="w-5 h-5 text-green-400" />
+                          </div>
+                          <div>
+                            <p className="text-sm font-semibold text-white">{acct.institutionName}</p>
+                            <p className="text-xs text-slate-400">
+                              {ACCOUNT_TYPE_LABELS[acct.accountType]} · ...{acct.displayMask}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Balance + gain */}
+                      <div className="flex items-end justify-between">
+                        <div>
+                          <p className="text-xs text-slate-400 mb-1">Total Value</p>
+                          <p className="text-xl font-bold text-white">{formatCurrency(acct.balance)}</p>
+                        </div>
+                        <div className={`flex items-center gap-1 text-sm font-medium ${gainPositive ? "text-green-400" : "text-red-400"}`}>
+                          {gainPositive
+                            ? <TrendingUp className="w-3.5 h-3.5" />
+                            : <TrendingDown className="w-3.5 h-3.5" />}
+                          {gainPositive ? "+" : ""}{formatCurrency(totalGainLoss)}
+                        </div>
+                      </div>
+
+                      {/* Top holdings */}
+                      {holdings.length > 0 && (
+                        <div className="space-y-2 border-t border-arcana-border pt-3">
+                          <p className="text-[10px] font-medium text-slate-500 uppercase tracking-wider">Top Holdings</p>
+                          {holdings.map((h) => {
+                            const pct = h.unrealizedGainLossPct ?? 0;
+                            const up = pct >= 0;
+                            return (
+                              <div key={h.holdingId} className="flex items-center justify-between">
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <span className="text-xs font-mono font-bold text-slate-300 w-12 shrink-0">
+                                    {h.security.ticker ?? "—"}
+                                  </span>
+                                  <span className="text-xs text-slate-500 truncate">{h.security.name}</span>
+                                </div>
+                                <div className="flex items-center gap-2 shrink-0 ml-2">
+                                  <span className="text-xs font-medium text-white">{formatCurrency(h.institutionValue)}</span>
+                                  <span className={`text-[10px] font-mono flex items-center gap-0.5 ${up ? "text-green-400" : "text-red-400"}`}>
+                                    {up ? <TrendingUp className="w-2.5 h-2.5" /> : <TrendingDown className="w-2.5 h-2.5" />}
+                                    {up ? "+" : ""}{pct.toFixed(1)}%
+                                  </span>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+
+                      {/* Sync button */}
+                      <button
+                        type="button"
+                        className="w-full flex items-center justify-center gap-1 py-2 rounded-lg text-xs font-medium bg-arcana-navy text-slate-300 hover:bg-arcana-border transition-colors"
+                        onClick={() => {/* future: call /api/plaid/investments/holdings */}}
+                      >
+                        <RefreshCw className="w-3 h-3" /> Sync Holdings
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* ── Depository / Bank Accounts ───────────────────────────── */}
+      <div>
+        <h2 className="text-lg font-semibold text-white">Bank Accounts</h2>
+        <p className="text-xs text-slate-400 mt-0.5 mb-4">Checking and savings accounts linked via Plaid</p>
       </div>
 
       {banks.length === 0 ? (

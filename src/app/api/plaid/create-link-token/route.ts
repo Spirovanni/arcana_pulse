@@ -7,7 +7,7 @@ export async function POST() {
     const response = await plaidClient.linkTokenCreate({
       user: { client_user_id: "usr-001" },
       client_name: "Arcana Pulse",
-      products: [Products.Auth, Products.Transactions],
+      products: [Products.Auth, Products.Transactions, Products.Investments],
       country_codes: [CountryCode.Us],
       language: "en",
     });
