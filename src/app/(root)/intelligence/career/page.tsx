@@ -1,6 +1,6 @@
 "use client";
 
-import { Target, Compass, Briefcase, Award, GraduationCap, Bot, BookOpen } from "lucide-react";
+import { Target, Compass, Briefcase, Award, GraduationCap, Bot, BookOpen, FileText } from "lucide-react";
 import CareerTrajectoryWidget from "@/components/CareerTrajectoryWidget";
 import ActivePathwayWidget from "@/components/ActivePathwayWidget";
 import Link from "next/link";
@@ -126,6 +126,26 @@ export default function CareerPage() {
                View Credentials &rarr;
             </Link>
          </div>
+      </div>
+
+      {/* Resume Builder Banner */}
+      <div className="bg-surface-container border border-outline/50 rounded-sm p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 hover:border-primary/20 transition-colors">
+         <div className="flex items-start gap-4">
+            <div className="p-2 rounded bg-primary/10 border border-primary/20 text-primary mt-0.5">
+               <FileText className="size-4" />
+            </div>
+            <div className="space-y-0.5">
+               <div className="flex items-center gap-2">
+                  <h3 className="font-headline text-base text-on-surface font-light">Resume & Interview Builder</h3>
+               </div>
+               <p className="text-secondary text-xs max-w-xl leading-relaxed">
+                  W2 + 1099 profile builder with AI bullet optimization and live resume preview. Export PDF-ready for wirehouse and RIA hiring pipelines.
+               </p>
+            </div>
+         </div>
+         <Link href="/intelligence/career/resume" className="shrink-0 px-5 py-2 bg-surface-container-high text-primary text-[10px] uppercase tracking-widest font-bold border border-primary/20 hover:bg-primary/5 transition-colors rounded-sm">
+            Build Resume &rarr;
+         </Link>
       </div>
 
       {/* AI Coach Banner */}
