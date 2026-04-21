@@ -13,6 +13,7 @@ export const NAV_ITEMS: NavItem[] = [
   { label: "Transfer Funds", href: "/transfer", icon: "SendHorizontal" },
   { label: "Assistant", href: "/assistant", icon: "MessageCircle" },
   { label: "Notifications", href: "/notifications", icon: "Bell" },
+  { label: "Pricing", href: "/pricing", icon: "CreditCard" },
   { label: "Settings", href: "/settings", icon: "Settings" },
 ];
 
