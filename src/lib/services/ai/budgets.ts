@@ -1,10 +1,7 @@
 import { getAnthropicClient } from "@/lib/anthropic";
-import {
-  getCategoryBreakdown,
-  getMonthlyFlow,
-  sumByType,
-} from "@/lib/services/db/transactions";
-import { detectRecurringPatterns } from "@/lib/services/db/forecasting";
+import * as DbTx from "@/lib/services/db/transactions";
+import * as DbFc from "@/lib/services/db/forecasting";
+import * as MockTx from "@/lib/services/transactions";
 import { CATEGORY_LABELS } from "@/lib/constants";
 import type {
   BudgetRecommendation,
@@ -83,14 +80,28 @@ RULES:
 async function gatherBudgetContext(
   workspaceId: string
 ): Promise<BudgetContext> {
-  const [categoryBreakdown, monthlyFlow, totalIncome, totalExpense, recurringPatterns] =
-    await Promise.all([
-      getCategoryBreakdown(workspaceId, "expense"),
-      getMonthlyFlow(workspaceId),
-      sumByType(workspaceId, "income"),
-      sumByType(workspaceId, "expense"),
-      detectRecurringPatterns(workspaceId),
-    ]);
+  let categoryBreakdown: Awaited<ReturnType<typeof DbTx.getCategoryBreakdown>>;
+  let monthlyFlow: Awaited<ReturnType<typeof DbTx.getMonthlyFlow>>;
+  let totalIncome: number;
+  let totalExpense: number;
+  let recurringPatterns: Awaited<ReturnType<typeof DbFc.detectRecurringPatterns>>;
+
+  try {
+    [categoryBreakdown, monthlyFlow, totalIncome, totalExpense, recurringPatterns] =
+      await Promise.all([
+        DbTx.getCategoryBreakdown(workspaceId, "expense"),
+        DbTx.getMonthlyFlow(workspaceId),
+        DbTx.sumByType(workspaceId, "income"),
+        DbTx.sumByType(workspaceId, "expense"),
+        DbFc.detectRecurringPatterns(workspaceId),
+      ]);
+  } catch {
+    categoryBreakdown = MockTx.getCategoryBreakdown(workspaceId, "expense");
+    monthlyFlow = MockTx.getMonthlyFlow(workspaceId);
+    totalIncome = MockTx.sumByType(workspaceId, "income");
+    totalExpense = MockTx.sumByType(workspaceId, "expense");
+    recurringPatterns = [];
+  }
 
   const monthCount = Math.max(monthlyFlow.length, 1);
   const totalMonthlyIncome = totalIncome / monthCount;

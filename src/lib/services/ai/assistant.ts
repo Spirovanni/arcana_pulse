@@ -1,17 +1,10 @@
 import { getAnthropicClient } from "@/lib/anthropic";
-import {
-  listTransactions,
-  getRecentTransactions,
-  sumByType,
-  totalTransactionValue,
-  getCategoryBreakdown,
-  getMonthlyFlow,
-} from "@/lib/services/db/transactions";
-import {
-  getBanksByWorkspace,
-  getTotalBalance,
-} from "@/lib/services/db/banks";
-import { getTransfersByWorkspace } from "@/lib/services/db/transfers";
+import * as DbTx from "@/lib/services/db/transactions";
+import * as DbBanks from "@/lib/services/db/banks";
+import * as DbTransfers from "@/lib/services/db/transfers";
+import * as MockTx from "@/lib/services/transactions";
+import * as MockBanks from "@/lib/services/banks";
+import * as MockTransfers from "@/lib/services/transfers";
 import { CATEGORY_LABELS } from "@/lib/constants";
 import type { Category } from "@/lib/types";
 import type Anthropic from "@anthropic-ai/sdk";
@@ -159,27 +152,21 @@ async function executeTool(
     switch (toolName) {
       case "query_transactions": {
         const limit = typeof toolInput.limit === "number" ? toolInput.limit : 20;
-        const result = await listTransactions(
-          {
-            workspaceId,
-            ...(toolInput.date_from
-              ? { dateFrom: toolInput.date_from as string }
-              : {}),
-            ...(toolInput.date_to
-              ? { dateTo: toolInput.date_to as string }
-              : {}),
-            ...(toolInput.category
-              ? { category: toolInput.category as Category }
-              : {}),
-            ...(toolInput.transaction_type
-              ? { transactionType: toolInput.transaction_type as "income" | "expense" | "transfer" }
-              : {}),
-            ...(toolInput.search
-              ? { search: toolInput.search as string }
-              : {}),
-          },
-          { page: 1, pageSize: Math.min(limit, 50) }
-        );
+        const filter = {
+          workspaceId,
+          ...(toolInput.date_from ? { dateFrom: toolInput.date_from as string } : {}),
+          ...(toolInput.date_to ? { dateTo: toolInput.date_to as string } : {}),
+          ...(toolInput.category ? { category: toolInput.category as Category } : {}),
+          ...(toolInput.transaction_type ? { transactionType: toolInput.transaction_type as "income" | "expense" | "transfer" } : {}),
+          ...(toolInput.search ? { search: toolInput.search as string } : {}),
+        };
+        const pageOpts = { page: 1, pageSize: Math.min(limit, 50) };
+        let result: Awaited<ReturnType<typeof DbTx.listTransactions>>;
+        try {
+          result = await DbTx.listTransactions(filter, pageOpts);
+        } catch {
+          result = MockTx.listTransactions(filter, pageOpts);
+        }
         const items = result.items.map((t) => ({
           title: t.title,
           type: t.transactionType,
@@ -192,15 +179,25 @@ async function executeTool(
       }
 
       case "get_account_summary": {
-        const [balance, income, expense, txnValue, banks] = await Promise.all([
-          getTotalBalance(workspaceId),
-          sumByType(workspaceId, "income"),
-          sumByType(workspaceId, "expense"),
-          totalTransactionValue(workspaceId),
-          getBanksByWorkspace(workspaceId),
-        ]);
+        let balance: number, income: number, expense: number, txnValue: number;
+        let banks: Awaited<ReturnType<typeof DbBanks.getBanksByWorkspace>>;
+        try {
+          [balance, income, expense, txnValue, banks] = await Promise.all([
+            DbBanks.getTotalBalance(workspaceId),
+            DbTx.sumByType(workspaceId, "income"),
+            DbTx.sumByType(workspaceId, "expense"),
+            DbTx.totalTransactionValue(workspaceId),
+            DbBanks.getBanksByWorkspace(workspaceId),
+          ]);
+        } catch {
+          balance = MockBanks.getTotalBalance(workspaceId);
+          income = MockTx.sumByType(workspaceId, "income");
+          expense = MockTx.sumByType(workspaceId, "expense");
+          txnValue = MockTx.totalTransactionValue(workspaceId);
+          banks = MockBanks.getBanksByWorkspace(workspaceId);
+        }
         const netIncome = income - expense;
-        const savingsRate = income > 0 ? ((netIncome / income) * 100) : 0;
+        const savingsRate = income > 0 ? (netIncome / income) * 100 : 0;
         return JSON.stringify({
           totalBalance: balance,
           totalIncome: income,
@@ -214,17 +211,32 @@ async function executeTool(
 
       case "get_spending_by_category": {
         const type = toolInput.type as "income" | "expense" | undefined;
-        const breakdown = await getCategoryBreakdown(workspaceId, type);
+        let breakdown: Awaited<ReturnType<typeof DbTx.getCategoryBreakdown>>;
+        try {
+          breakdown = await DbTx.getCategoryBreakdown(workspaceId, type);
+        } catch {
+          breakdown = MockTx.getCategoryBreakdown(workspaceId, type);
+        }
         return JSON.stringify(breakdown);
       }
 
       case "get_monthly_trends": {
-        const flow = await getMonthlyFlow(workspaceId);
+        let flow: Awaited<ReturnType<typeof DbTx.getMonthlyFlow>>;
+        try {
+          flow = await DbTx.getMonthlyFlow(workspaceId);
+        } catch {
+          flow = MockTx.getMonthlyFlow(workspaceId);
+        }
         return JSON.stringify(flow.slice(-12));
       }
 
       case "get_bank_accounts": {
-        const banks = await getBanksByWorkspace(workspaceId);
+        let banks: Awaited<ReturnType<typeof DbBanks.getBanksByWorkspace>>;
+        try {
+          banks = await DbBanks.getBanksByWorkspace(workspaceId);
+        } catch {
+          banks = MockBanks.getBanksByWorkspace(workspaceId);
+        }
         const safe = banks.map((b) => ({
           institutionName: b.institutionName,
           displayMask: b.displayMask,
@@ -234,7 +246,12 @@ async function executeTool(
       }
 
       case "get_recent_transfers": {
-        const transfers = await getTransfersByWorkspace(workspaceId);
+        let transfers: Awaited<ReturnType<typeof DbTransfers.getTransfersByWorkspace>>;
+        try {
+          transfers = await DbTransfers.getTransfersByWorkspace(workspaceId);
+        } catch {
+          transfers = MockTransfers.getTransfersByWorkspace(workspaceId);
+        }
         const recent = transfers.slice(0, 20).map((t) => ({
           amount: t.amount,
           status: t.status,

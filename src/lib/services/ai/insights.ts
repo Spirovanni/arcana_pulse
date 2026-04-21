@@ -1,10 +1,6 @@
 import { getAnthropicClient } from "@/lib/anthropic";
-import {
-  getCategoryBreakdown,
-  getMonthlyFlow,
-  getRecentTransactions,
-  sumByType,
-} from "@/lib/services/db/transactions";
+import * as DbTx from "@/lib/services/db/transactions";
+import * as MockTx from "@/lib/services/transactions";
 import { CATEGORY_LABELS } from "@/lib/constants";
 import { generateId } from "@/lib/utils";
 import type {
@@ -76,14 +72,28 @@ RULES:
 async function gatherFinancialContext(
   workspaceId: string
 ): Promise<FinancialContext> {
-  const [categoryBreakdown, monthlyFlow, recentTxns, totalIncome, totalExpense] =
-    await Promise.all([
-      getCategoryBreakdown(workspaceId, "expense"),
-      getMonthlyFlow(workspaceId),
-      getRecentTransactions(workspaceId, 50),
-      sumByType(workspaceId, "income"),
-      sumByType(workspaceId, "expense"),
-    ]);
+  let categoryBreakdown: Awaited<ReturnType<typeof DbTx.getCategoryBreakdown>>;
+  let monthlyFlow: Awaited<ReturnType<typeof DbTx.getMonthlyFlow>>;
+  let recentTxns: Awaited<ReturnType<typeof DbTx.getRecentTransactions>>;
+  let totalIncome: number;
+  let totalExpense: number;
+
+  try {
+    [categoryBreakdown, monthlyFlow, recentTxns, totalIncome, totalExpense] =
+      await Promise.all([
+        DbTx.getCategoryBreakdown(workspaceId, "expense"),
+        DbTx.getMonthlyFlow(workspaceId),
+        DbTx.getRecentTransactions(workspaceId, 50),
+        DbTx.sumByType(workspaceId, "income"),
+        DbTx.sumByType(workspaceId, "expense"),
+      ]);
+  } catch {
+    categoryBreakdown = MockTx.getCategoryBreakdown(workspaceId, "expense");
+    monthlyFlow = MockTx.getMonthlyFlow(workspaceId);
+    recentTxns = MockTx.getRecentTransactions(workspaceId, 50);
+    totalIncome = MockTx.sumByType(workspaceId, "income");
+    totalExpense = MockTx.sumByType(workspaceId, "expense");
+  }
 
   const now = new Date();
   const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;

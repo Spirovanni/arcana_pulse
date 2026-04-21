@@ -1,15 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { isAppwriteConfigured } from "@/lib/appwrite";
 import { generateForecastWithSummary } from "@/lib/services/ai/forecast";
 
 export async function GET(request: NextRequest) {
-  if (!isAppwriteConfigured()) {
-    return NextResponse.json(
-      { error: "Appwrite is not configured" },
-      { status: 503 }
-    );
-  }
-
   try {
     const workspaceId =
       request.nextUrl.searchParams.get("workspaceId") ?? "ws-001";

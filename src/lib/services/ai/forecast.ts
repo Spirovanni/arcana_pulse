@@ -1,6 +1,8 @@
 import { getAnthropicClient } from "@/lib/anthropic";
 import { generateCashFlowForecast } from "@/lib/services/db/forecasting";
-import { getMonthlyFlow } from "@/lib/services/db/transactions";
+import * as DbTx from "@/lib/services/db/transactions";
+import * as MockTx from "@/lib/services/transactions";
+import { generateId } from "@/lib/utils";
 import { CATEGORY_LABELS } from "@/lib/constants";
 import type {
   CashFlowForecast,
@@ -99,10 +101,48 @@ function generateFallbackSummary(
 // Public API
 // ---------------------------------------------------------------------------
 
+function buildMockForecast(workspaceId: string): Omit<CashFlowForecast, "aiSummary"> {
+  const monthlyFlow = MockTx.getMonthlyFlow(workspaceId);
+  const avgIncome = monthlyFlow.length
+    ? monthlyFlow.reduce((s, m) => s + m.income, 0) / monthlyFlow.length
+    : 0;
+  const avgExpense = monthlyFlow.length
+    ? monthlyFlow.reduce((s, m) => s + m.expense, 0) / monthlyFlow.length
+    : 0;
+
+  const now = new Date();
+  const forecast: ForecastBucket[] = Array.from({ length: 3 }, (_, i) => {
+    const d = new Date(now.getFullYear(), now.getMonth() + i + 1, 1);
+    const month = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    return {
+      month,
+      projectedIncome: Math.round(avgIncome),
+      projectedExpense: Math.round(avgExpense),
+      netCashFlow: Math.round(avgIncome - avgExpense),
+    };
+  });
+
+  return {
+    recurringPatterns: [],
+    forecast,
+    flaggedExpenses: [],
+    generatedAt: new Date().toISOString(),
+  };
+}
+
 export async function generateForecastWithSummary(
   workspaceId: string
 ): Promise<CashFlowForecast> {
-  const forecastData = await generateCashFlowForecast(workspaceId);
+  let forecastData: Omit<CashFlowForecast, "aiSummary">;
+  let historicalFlow: { month: string; income: number; expense: number }[];
+
+  try {
+    forecastData = await generateCashFlowForecast(workspaceId);
+    historicalFlow = await DbTx.getMonthlyFlow(workspaceId);
+  } catch {
+    forecastData = buildMockForecast(workspaceId);
+    historicalFlow = MockTx.getMonthlyFlow(workspaceId);
+  }
 
   // If minimal data, skip AI
   if (
@@ -115,8 +155,6 @@ export async function generateForecastWithSummary(
         "Add more transactions to enable cash flow forecasting. We need at least 2 months of history to detect recurring patterns.",
     };
   }
-
-  const historicalFlow = await getMonthlyFlow(workspaceId);
 
   try {
     const client = getAnthropicClient();

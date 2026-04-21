@@ -1,16 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { isAppwriteConfigured } from "@/lib/appwrite";
 import { chat } from "@/lib/services/ai/assistant";
 import type { ChatMessage } from "@/lib/services/ai/assistant";
 
 export async function POST(request: NextRequest) {
-  if (!isAppwriteConfigured()) {
-    return NextResponse.json(
-      { error: "Appwrite is not configured" },
-      { status: 503 }
-    );
-  }
-
   try {
     const body = await request.json();
     const { message, history, workspaceId } = body as {

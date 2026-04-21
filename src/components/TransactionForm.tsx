@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { X } from "lucide-react";
+import { X, Sparkles, Loader2 } from "lucide-react";
 import type {
   Transaction,
   TransactionType,
@@ -64,9 +64,37 @@ export default function TransactionForm({
       : new Date().toISOString().slice(0, 10)
   );
   const [note, setNote] = useState(transaction?.note ?? "");
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiConfidence, setAiConfidence] = useState<number | null>(null);
 
   const categories =
     txnType === "income" ? INCOME_CATEGORIES : EXPENSE_CATEGORIES;
+
+  async function suggestCategory() {
+    if (!title.trim() || aiLoading) return;
+    setAiLoading(true);
+    setAiConfidence(null);
+    try {
+      const res = await fetch("/api/ai/categorize", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: title.trim(),
+          amount: parseFloat(amount) || 0,
+          transactionType: txnType === "transfer" ? "expense" : txnType,
+        }),
+      });
+      const data = await res.json();
+      if (data.category && categories.includes(data.category as Category)) {
+        setCategory(data.category as Category);
+        setAiConfidence(data.confidence ?? null);
+      }
+    } catch {
+      // silent fail
+    } finally {
+      setAiLoading(false);
+    }
+  }
 
   // Reset category when type changes
   useEffect(() => {
@@ -165,12 +193,27 @@ export default function TransactionForm({
           </div>
 
           <div>
-            <label className="block text-sm text-slate-300 mb-1.5">
-              Category
-            </label>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="block text-sm text-slate-300">Category</label>
+              <button
+                type="button"
+                title="AI suggest category"
+                onClick={suggestCategory}
+                disabled={!title.trim() || aiLoading || txnType === "transfer"}
+                className="flex items-center gap-1 px-2 py-1 rounded text-[10px] uppercase tracking-wider font-bold text-arcana-blue hover:bg-arcana-blue/10 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                {aiLoading ? (
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                ) : (
+                  <Sparkles className="w-3 h-3" />
+                )}
+                AI Suggest
+              </button>
+            </div>
             <select
+              title="Transaction category"
               value={category}
-              onChange={(e) => setCategory(e.target.value as Category)}
+              onChange={(e) => { setCategory(e.target.value as Category); setAiConfidence(null); }}
               className="w-full px-3 py-2.5 rounded-lg bg-arcana-navy border border-arcana-border text-white text-sm focus:outline-none focus:ring-2 focus:ring-arcana-blue"
             >
               {categories.map((cat) => (
@@ -179,6 +222,11 @@ export default function TransactionForm({
                 </option>
               ))}
             </select>
+            {aiConfidence !== null && (
+              <p className="mt-1 text-[10px] text-arcana-blue/70">
+                AI suggested · {Math.round(aiConfidence * 100)}% confidence
+              </p>
+            )}
           </div>
 
           <div>
