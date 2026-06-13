@@ -112,24 +112,89 @@ export const authOptions: NextAuthOptions = {
       }
 
       if (user) {
-        // Handle OAuth vs Credentials mappings
-        token.userId = (user as any).userId || user.id;
-        token.workspaceId = (user as any).workspaceId;
         token.email = user.email!;
 
-        if (user.name) {
-          const nameParts = user.name.split(' ');
-          token.firstName = (user as any).firstName || nameParts[0] || '';
-          token.lastName = (user as any).lastName || nameParts.slice(1).join(' ') || '';
+        // Handle OAuth vs Credentials mappings
+        if (account?.provider === "google") {
+          try {
+            const db = getDatabase();
+            const result = await db.listDocuments(
+              DATABASE_ID,
+              COLLECTIONS.users,
+              [Query.equal("email", user.email!.toLowerCase()), Query.limit(1)]
+            );
+
+            let doc: any;
+            if (result.documents.length > 0) {
+              doc = result.documents[0];
+              // Link Google user to their existing account, and update the profile picture in database to match their social login picture
+              if (user.image && doc.imageUrl !== user.image) {
+                await db.updateDocument(DATABASE_ID, COLLECTIONS.users, doc.$id, {
+                  imageUrl: user.image,
+                });
+                doc.imageUrl = user.image;
+              }
+            } else {
+              // Create user document in database if it doesn't exist yet
+              const nameParts = user.name ? user.name.split(' ') : [];
+              const firstName = nameParts[0] || '';
+              const lastName = nameParts.slice(1).join(' ') || '';
+              const generatedId = `usr_${Date.now().toString(36)}_${Math.random().toString(36).substring(2, 7)}`;
+              doc = await db.createDocument(
+                DATABASE_ID,
+                COLLECTIONS.users,
+                generatedId,
+                {
+                  workspaceId: "ws-001",
+                  email: user.email!.toLowerCase(),
+                  passwordHash: "",
+                  firstName,
+                  lastName,
+                  role: "owner",
+                  membershipType: "standard",
+                  imageUrl: user.image ?? undefined,
+                }
+              );
+            }
+
+            token.userId = doc.$id;
+            token.workspaceId = doc.workspaceId;
+            token.firstName = doc.firstName;
+            token.lastName = doc.lastName;
+            token.role = doc.role;
+            token.membershipType = doc.membershipType;
+            token.imageUrl = (doc.imageUrl || user.image || undefined) as string | undefined;
+          } catch (err) {
+            console.error("Error matching/creating Google user in database:", err);
+            // Fallback to Google profile data
+            token.userId = user.id;
+            token.workspaceId = "ws-001";
+            const nameParts = user.name ? user.name.split(' ') : [];
+            token.firstName = nameParts[0] || '';
+            token.lastName = nameParts.slice(1).join(' ') || '';
+            token.role = "owner";
+            token.membershipType = "standard";
+            token.imageUrl = (user.image || undefined) as string | undefined;
+          }
         } else {
-          token.firstName = (user as any).firstName;
-          token.lastName = (user as any).lastName;
+          // Credentials Provider
+          token.userId = (user as any).userId || user.id;
+          token.workspaceId = (user as any).workspaceId;
+          
+          if (user.name) {
+            const nameParts = user.name.split(' ');
+            token.firstName = (user as any).firstName || nameParts[0] || '';
+            token.lastName = (user as any).lastName || nameParts.slice(1).join(' ') || '';
+          } else {
+            token.firstName = (user as any).firstName;
+            token.lastName = (user as any).lastName;
+          }
+          
+          token.role = (user as any).role;
+          token.membershipType = (user as any).membershipType ?? "standard";
+          token.imageUrl = ((user as any).imageUrl || user.image || undefined) as string | undefined;
         }
 
-        token.role = (user as any).role;
-        token.membershipType = (user as any).membershipType ?? "standard";
-        // Map OAuth user.image to our imageUrl or let NextAuth auto-population handle token.picture
-        token.imageUrl = (user as any).imageUrl || user.image;
         if (user.image) token.picture = user.image;
       }
       return token;
