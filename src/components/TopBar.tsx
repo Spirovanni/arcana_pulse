@@ -9,19 +9,19 @@ export default function TopBar() {
   const { data: session } = useSession();
   const user = session?.user as any;
 
-  if (!user) return null;
+  // Derive these before hooks so we can pass them as initial/dep values
+  const primaryImageUrl = user?.imageUrl;
+  const fallbackImageUrl = user?.image;
+  const fullName = user?.name || (user?.firstName ? `${user.firstName} ${user.lastName}`.trim() : "");
 
-  const fullName = user.name || (user.firstName ? `${user.firstName} ${user.lastName}`.trim() : "");
-  
-  // Try custom uploaded avatar first, fallback to social login image
-  const primaryImageUrl = user.imageUrl;
-  const fallbackImageUrl = user.image;
-
+  // Hooks must always be called unconditionally — before any early return
   const [imgSrc, setImgSrc] = useState<string | undefined>(primaryImageUrl || fallbackImageUrl);
 
   useEffect(() => {
     setImgSrc(primaryImageUrl || fallbackImageUrl);
   }, [primaryImageUrl, fallbackImageUrl]);
+
+  if (!user) return null;
 
   return (
     <div className="hidden lg:flex items-center justify-end px-10 py-4 border-b border-outline/30 bg-surface sticky top-0 z-30">
