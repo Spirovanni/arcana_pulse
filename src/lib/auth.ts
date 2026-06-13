@@ -1,12 +1,6 @@
 import type { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
-import {
-  getDatabase,
-  DATABASE_ID,
-  COLLECTIONS,
-  Query,
-} from "@/lib/appwrite";
 import * as bcrypt from "bcryptjs";
 import { verifySync } from "otplib";
 import { decryptSafe } from "@/lib/crypto";
@@ -26,6 +20,7 @@ export const authOptions: NextAuthOptions = {
           return null;
         }
 
+        const { getDatabase, DATABASE_ID, COLLECTIONS, Query } = await import("@/lib/appwrite");
         const db = getDatabase();
         const result = await db.listDocuments(
           DATABASE_ID,
@@ -117,6 +112,7 @@ export const authOptions: NextAuthOptions = {
         // Handle OAuth vs Credentials mappings
         if (account?.provider === "google") {
           try {
+            const { getDatabase, DATABASE_ID, COLLECTIONS, Query } = await import("@/lib/appwrite");
             const db = getDatabase();
             const result = await db.listDocuments(
               DATABASE_ID,

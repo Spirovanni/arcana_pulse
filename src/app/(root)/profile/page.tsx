@@ -3,7 +3,7 @@
 import { useSession } from "next-auth/react";
 import { User, Mail, Shield, Key, AtSign, Globe, BadgeCheck, ShieldAlert, Upload, Loader2, ImagePlus } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 
 export default function ProfilePage() {
   const { data: session, status, update } = useSession();
@@ -13,6 +13,18 @@ export default function ProfilePage() {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const user = session?.user as any;
+  const primaryImageUrl = user?.imageUrl;
+  const fallbackImageUrl = user?.image;
+
+  const [imgSrc, setImgSrc] = useState<string | undefined>(undefined);
+
+  useEffect(() => {
+    if (user) {
+      setImgSrc(primaryImageUrl || fallbackImageUrl);
+    }
+  }, [primaryImageUrl, fallbackImageUrl, user]);
 
   if (status === "loading") {
     return (
@@ -28,8 +40,6 @@ export default function ProfilePage() {
     return null;
   }
 
-  const user = session.user as any;
-  const originalImageUrl = user.image || user.imageUrl;
   const fullName = user.name || (user.firstName ? `${user.firstName} ${user.lastName}` : "Sovereign User");
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -80,7 +90,7 @@ export default function ProfilePage() {
     }
   };
 
-  const currentDisplayAvatar = localAvatar || originalImageUrl;
+  const currentDisplayAvatar = localAvatar || imgSrc;
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto w-full">
@@ -107,6 +117,13 @@ export default function ProfilePage() {
                 alt="Profile Avatar" 
                 className="size-full object-cover"
                 referrerPolicy="no-referrer"
+                onError={() => {
+                  if (currentDisplayAvatar === primaryImageUrl && fallbackImageUrl && primaryImageUrl !== fallbackImageUrl) {
+                    setImgSrc(fallbackImageUrl);
+                  } else {
+                    setImgSrc(undefined);
+                  }
+                }}
               />
             ) : (
               <span className="text-primary font-headline font-bold text-3xl">
