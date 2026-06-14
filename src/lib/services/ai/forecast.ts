@@ -1,4 +1,4 @@
-import { getAnthropicClient } from "@/lib/anthropic";
+import { completeForFeature } from "@/lib/ai-router";
 import { generateCashFlowForecast } from "@/lib/services/db/forecasting";
 import * as DbTx from "@/lib/services/db/transactions";
 import * as MockTx from "@/lib/services/transactions";
@@ -157,8 +157,6 @@ export async function generateForecastWithSummary(
   }
 
   try {
-    const client = getAnthropicClient();
-
     const context: ForecastContext = {
       recurringPatterns: forecastData.recurringPatterns.map((p) => ({
         title: p.title,
@@ -173,20 +171,12 @@ export async function generateForecastWithSummary(
       flaggedExpenseCount: forecastData.flaggedExpenses.length,
     };
 
-    const response = await client.messages.create({
-      model: "claude-haiku-4-5-20251001",
-      max_tokens: 1024,
-      system: SYSTEM_PROMPT,
-      messages: [
-        {
-          role: "user",
-          content: `Summarize this cash flow forecast:\n${JSON.stringify(context, null, 2)}`,
-        },
-      ],
-    });
-
-    const text =
-      response.content[0].type === "text" ? response.content[0].text : "";
+    const text = await completeForFeature(
+      "forecast",
+      SYSTEM_PROMPT,
+      `Summarize this cash flow forecast:\n${JSON.stringify(context, null, 2)}`,
+      1024
+    );
 
     const trimmed = text.trim();
     if (

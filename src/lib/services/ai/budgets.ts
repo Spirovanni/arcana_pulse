@@ -1,4 +1,4 @@
-import { getAnthropicClient } from "@/lib/anthropic";
+import { completeForFeature } from "@/lib/ai-router";
 import * as DbTx from "@/lib/services/db/transactions";
 import * as DbFc from "@/lib/services/db/forecasting";
 import * as MockTx from "@/lib/services/transactions";
@@ -252,22 +252,12 @@ export async function generateBudgetRecommendations(
   }
 
   try {
-    const client = getAnthropicClient();
-
-    const response = await client.messages.create({
-      model: "claude-haiku-4-5-20251001",
-      max_tokens: 1024,
-      system: SYSTEM_PROMPT,
-      messages: [
-        {
-          role: "user",
-          content: `Generate budget recommendations based on this financial data:\n${JSON.stringify(context, null, 2)}`,
-        },
-      ],
-    });
-
-    const text =
-      response.content[0].type === "text" ? response.content[0].text : "";
+    const text = await completeForFeature(
+      "budgets",
+      SYSTEM_PROMPT,
+      `Generate budget recommendations based on this financial data:\n${JSON.stringify(context, null, 2)}`,
+      1024
+    );
 
     const validated = validateRecommendations(text);
     if (validated) return validated;

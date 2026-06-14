@@ -1,4 +1,4 @@
-import { getAnthropicClient } from "@/lib/anthropic";
+import { completeForFeature } from "@/lib/ai-router";
 import {
   getDatabase,
   DATABASE_ID,
@@ -240,8 +240,6 @@ export async function categorizeBatch(
   if (inputs.length === 0) return [];
 
   try {
-    const client = getAnthropicClient();
-
     const fewShot = await fetchFewShotExamples(workspaceId);
 
     const userContent = inputs.map((t, i) => ({
@@ -251,26 +249,12 @@ export async function categorizeBatch(
       type: t.transactionType,
     }));
 
-    const messages: { role: "user"; content: string }[] = [];
+    // Fold few-shot examples into the user prompt so we can use completeForFeature
+    const userPrompt = fewShot
+      ? `${fewShot}\nCategorize these transactions:\n${JSON.stringify(userContent, null, 2)}`
+      : `Categorize these transactions:\n${JSON.stringify(userContent, null, 2)}`;
 
-    if (fewShot) {
-      messages.push({ role: "user", content: fewShot });
-    }
-
-    messages.push({
-      role: "user",
-      content: `Categorize these transactions:\n${JSON.stringify(userContent, null, 2)}`,
-    });
-
-    const response = await client.messages.create({
-      model: "claude-haiku-4-5-20251001",
-      max_tokens: 1024,
-      system: SYSTEM_PROMPT,
-      messages,
-    });
-
-    const text =
-      response.content[0].type === "text" ? response.content[0].text : "";
+    const text = await completeForFeature("categorize", SYSTEM_PROMPT, userPrompt, 1024);
 
     return validateAndMapResults(text, inputs);
   } catch {
