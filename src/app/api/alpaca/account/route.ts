@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { alpacaGet, isAlpacaConfigured, AlpacaConfigError } from "@/lib/alpaca";
 import type { AlpacaAccount } from "@/lib/types";
