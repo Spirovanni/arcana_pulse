@@ -514,3 +514,52 @@ export interface AlpacaAsset {
   fractionable: boolean;
 }
 
+// ─── Resource Vault ──────────────────────────────────────────────────
+
+export type ResourceType =
+  | "documentation"
+  | "grant"
+  | "writing"
+  | "finance"
+  | "code"
+  | "reference"
+  | "other";
+
+export type ResourceSource = "manual" | "mcp" | "import";
+
+export interface ArcanaResource {
+  resourceId: string;
+  userId: string;
+  url: string;
+  title: string;
+  notes?: string;
+  tags?: string[];
+  resourceType?: ResourceType;
+  projectKey?: string;
+  source: ResourceSource;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateResourceInput {
+  url: string;
+  title: string;
+  notes?: string;
+  tags?: string[];
+  resourceType?: ResourceType;
+  projectKey?: string;
+  source?: ResourceSource;
+}
+
+// ─── MCP Personal Access Token ───────────────────────────────────────
+
+export interface McpToken {
+  tokenId: string;
+  userId: string;
+  tokenHash: string;
+  label: string;
+  lastUsedAt?: string;
+  createdAt: string;
+  expiresAt?: string;
+}
+

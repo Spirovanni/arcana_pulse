@@ -21,6 +21,7 @@ import {
   Brain,
   CreditCard,
   Bot,
+  BookMarked,
 } from "lucide-react";
 import { NAV_ITEMS } from "@/lib/constants";
 import { cn } from "@/lib/utils";
@@ -43,6 +44,7 @@ const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
   Brain,
   CreditCard,
   Bot,
+  BookMarked,
 };
 
 export default function Sidebar() {

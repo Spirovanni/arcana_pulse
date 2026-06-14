@@ -35,6 +35,8 @@ export const COLLECTIONS = {
   auditLogs: "auditLogs",
   workspaceMembers: "workspaceMembers",
   workspaceInvites: "workspaceInvites",
+  resources: "resources",
+  mcpTokens: "mcpTokens",
 } as const;
 
 // ---------------------------------------------------------------------------

@@ -23,6 +23,7 @@ import {
   Target,
   Brain,
   CreditCard,
+  BookMarked,
 } from "lucide-react";
 import { NAV_ITEMS } from "@/lib/constants";
 import { cn } from "@/lib/utils";
@@ -44,6 +45,7 @@ const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
   Target,
   Brain,
   CreditCard,
+  BookMarked,
 };
 
 export default function MobileNav() {
