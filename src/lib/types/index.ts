@@ -426,3 +426,91 @@ export interface NavItem {
   href: string;
   icon: string;
 }
+
+// ─── Alpaca Markets ──────────────────────────────────────────────────
+
+export interface AlpacaAccount {
+  equity: number;
+  cash: number;
+  buyingPower: number;
+  portfolioValue: number;
+  dayPLAmount: number;
+  dayPLPercent: number;
+  totalPLAmount: number;
+  totalPLPercent: number;
+  status: string;
+  accountNumber: string;
+  currency: string;
+  patternDayTrader: boolean;
+}
+
+export interface AlpacaPosition {
+  symbol: string;
+  qty: number;
+  avgEntryPrice: number;
+  currentPrice: number;
+  marketValue: number;
+  costBasis: number;
+  unrealizedPL: number;
+  unrealizedPLPC: number;
+  unrealizedIntradayPL: number;
+  unrealizedIntradayPLPC: number;
+  side: "long" | "short";
+  assetClass: string;
+}
+
+export type AlpacaOrderSide = "buy" | "sell";
+export type AlpacaOrderType = "market" | "limit" | "stop" | "stop_limit";
+export type AlpacaTimeInForce = "day" | "gtc" | "ioc" | "fok";
+export type AlpacaOrderStatus =
+  | "new" | "partially_filled" | "filled" | "done_for_day"
+  | "canceled" | "expired" | "replaced" | "pending_cancel"
+  | "pending_replace" | "accepted" | "pending_new" | "accepted_for_bidding"
+  | "stopped" | "rejected" | "suspended" | "calculated";
+
+export interface AlpacaOrder {
+  orderId: string;
+  clientOrderId: string;
+  symbol: string;
+  side: AlpacaOrderSide;
+  type: AlpacaOrderType;
+  timeInForce: AlpacaTimeInForce;
+  qty: number;
+  filledQty: number;
+  filledAvgPrice: number | null;
+  limitPrice: number | null;
+  stopPrice: number | null;
+  status: AlpacaOrderStatus;
+  submittedAt: string;
+  filledAt: string | null;
+  canceledAt: string | null;
+  notional: number | null;
+  assetClass: string;
+}
+
+export interface PlaceOrderInput {
+  symbol: string;
+  qty: number;
+  side: AlpacaOrderSide;
+  type: AlpacaOrderType;
+  timeInForce: AlpacaTimeInForce;
+  limitPrice?: number;
+  stopPrice?: number;
+}
+
+export interface PerformancePoint {
+  date: string;        // ISO date string
+  value: number;       // portfolio equity value
+  percentReturn: number;
+}
+
+export interface AlpacaAsset {
+  id: string;
+  symbol: string;
+  name: string;
+  exchange: string;
+  assetClass: string;
+  tradable: boolean;
+  fractionable: boolean;
+}
+

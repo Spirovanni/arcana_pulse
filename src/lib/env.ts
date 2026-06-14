@@ -21,6 +21,11 @@ interface EnvConfig {
 
   // Sentry
   NEXT_PUBLIC_SENTRY_DSN: string | undefined;
+
+  // Alpaca Markets (paper/live trading)
+  ALPACA_API_KEY: string | undefined;
+  ALPACA_API_SECRET: string | undefined;
+  ALPACA_ENV: "paper" | "live";
 }
 
 export const env: EnvConfig = {
@@ -37,6 +42,10 @@ export const env: EnvConfig = {
   ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
 
   NEXT_PUBLIC_SENTRY_DSN: process.env.NEXT_PUBLIC_SENTRY_DSN,
+
+  ALPACA_API_KEY: process.env.ALPACA_API_KEY,
+  ALPACA_API_SECRET: process.env.ALPACA_API_SECRET,
+  ALPACA_ENV: (process.env.ALPACA_ENV as "paper" | "live") || "paper",
 };
 
 /**

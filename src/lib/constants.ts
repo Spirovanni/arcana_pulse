@@ -4,6 +4,7 @@ export const NAV_ITEMS: NavItem[] = [
   { label: "Dashboard", href: "/dashboard", icon: "LayoutDashboard" },
   { label: "My Banks", href: "/my-banks", icon: "Landmark" },
   { label: "Portfolio", href: "/portfolio", icon: "BarChart2" },
+  { label: "Algo Strategies", href: "/algo-strategies", icon: "Bot" },
   { label: "Budgets", href: "/budgets", icon: "Wallet" },
   { label: "Goals", href: "/goals", icon: "Target" },
   { label: "Advisor Academy", href: "/intelligence/career", icon: "Brain" },
