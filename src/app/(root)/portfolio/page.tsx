@@ -34,6 +34,12 @@ import {
   Search,
   ChevronDown,
   TriangleAlert,
+  DollarSign,
+  CalendarDays,
+  Target,
+  Link2,
+  X,
+  Building2,
 } from "lucide-react";
 import type { PortfolioInsight } from "@/app/api/ai/portfolio-insights/route";
 import type { TLHSuggestion } from "@/app/api/ai/tax-loss-harvesting/route";
@@ -51,11 +57,17 @@ import {
   getTotalInvestmentBalance,
   ACCOUNT_TYPE_LABELS,
   getInvestmentTransactionsByAccount,
+  getDividendSummary,
+  getDividendHistory,
+  getDividendYields,
 } from "@/lib/services/investments";
+import type { DividendSummary, DividendRecord, DividendYield } from "@/lib/services/investments";
 import { analyzeTaxLossHarvesting } from "@/lib/services/tlh";
 import { DEFAULT_WORKSPACE_ID } from "@/lib/services/workspace";
 import { formatCurrency } from "@/lib/utils";
 import PlanGate from "@/components/PlanGate";
+import type { SavingsGoal } from "@/lib/types";
+import { BarChart, Bar } from "recharts";
 
 // ── Static mock performance history (fallback) ───────────────────────────────
 const MOCK_PERFORMANCE_HISTORY = [
@@ -520,6 +532,87 @@ export default function PortfolioPage() {
   }, [tlhSummary]);
   useEffect(() => { fetchTlhSuggestions(); }, [fetchTlhSuggestions]);
 
+  // ── Dividend data (derived from mock service) ──
+  const dividendSummary: DividendSummary = useMemo(
+    () => getDividendSummary(DEFAULT_WORKSPACE_ID),
+    []
+  );
+  const dividendHistory: DividendRecord[] = useMemo(
+    () => getDividendHistory(DEFAULT_WORKSPACE_ID).slice(0, 20),
+    []
+  );
+  const dividendYields: DividendYield[] = useMemo(
+    () => getDividendYields(DEFAULT_WORKSPACE_ID),
+    []
+  );
+
+  // ── Goals ──
+  const [goals, setGoals] = useState<SavingsGoal[]>([]);
+  const [goalsLoading, setGoalsLoading] = useState(true);
+  useEffect(() => {
+    fetch("/api/goals")
+      .then((r) => r.json())
+      .then((d) => setGoals(d.goals ?? []))
+      .catch(() => setGoals([]))
+      .finally(() => setGoalsLoading(false));
+  }, []);
+
+  // ── Plaid Investment Linking ──
+  const [linkingInvestment, setLinkingInvestment] = useState(false);
+  const [linkSuccess, setLinkSuccess] = useState<string | null>(null);
+
+  async function handleLinkInvestmentAccount() {
+    setLinkingInvestment(true);
+    setLinkSuccess(null);
+    try {
+      // Create link token
+      const tokenRes = await fetch("/api/plaid/create-link-token", { method: "POST" });
+      const tokenData = await tokenRes.json();
+      if (!tokenData.linkToken) throw new Error("Failed to create link token");
+
+      // Load and open Plaid Link
+      await new Promise<void>((resolve, reject) => {
+        const script = document.createElement("script");
+        script.src = "https://cdn.plaid.com/link/v2/stable/link-initialize.js";
+        script.onload = () => resolve();
+        script.onerror = () => reject(new Error("Failed to load Plaid Link"));
+        document.head.appendChild(script);
+      });
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const Plaid = (window as any).Plaid;
+      if (!Plaid) throw new Error("Plaid Link not available");
+
+      await new Promise<void>((resolve, reject) => {
+        const handler = Plaid.create({
+          token: tokenData.linkToken,
+          onSuccess: async (publicToken: string) => {
+            try {
+              const exchRes = await fetch("/api/plaid/exchange-investment-token", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ publicToken }),
+              });
+              const exchData = await exchRes.json();
+              if (!exchRes.ok) throw new Error(exchData.error ?? "Exchange failed");
+              setLinkSuccess(exchData.message ?? "Investment account linked successfully");
+              resolve();
+            } catch (err) {
+              reject(err);
+            }
+          },
+          onExit: () => resolve(),
+          onError: (err: Error) => reject(err),
+        });
+        handler.open();
+      });
+    } catch (err) {
+      console.error("Plaid investment link error:", err);
+    } finally {
+      setLinkingInvestment(false);
+    }
+  }
+
   // Chart formatter
   function fmtDate(iso: string): string {
     const d = new Date(iso);
@@ -538,15 +631,38 @@ export default function PortfolioPage() {
             Investment accounts, holdings, and performance
           </p>
         </div>
-        <button
-          onClick={() => fetchAlpacaData(selectedPeriod)}
-          disabled={alpacaLoading}
-          className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-white transition-colors disabled:opacity-50"
-        >
-          {alpacaLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
-          Refresh
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={handleLinkInvestmentAccount}
+            disabled={linkingInvestment}
+            className="flex items-center gap-1.5 text-xs bg-primary/10 border border-primary/30 text-primary hover:bg-primary/20 px-3 py-2 rounded-lg transition-colors disabled:opacity-50"
+          >
+            {linkingInvestment ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Building2 className="w-3.5 h-3.5" />}
+            Link Brokerage Account
+          </button>
+          <button
+            onClick={() => fetchAlpacaData(selectedPeriod)}
+            disabled={alpacaLoading}
+            className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-white transition-colors disabled:opacity-50"
+          >
+            {alpacaLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
+            Refresh
+          </button>
+        </div>
       </div>
+
+      {/* Plaid Link Success Banner */}
+      {linkSuccess && (
+        <div className="rounded-xl bg-green-400/5 border border-green-400/20 p-4 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <CheckCircle className="w-4 h-4 text-green-400 shrink-0" />
+            <p className="text-sm text-green-400">{linkSuccess}</p>
+          </div>
+          <button onClick={() => setLinkSuccess(null)} className="text-slate-500 hover:text-slate-300">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
 
       {/* ── Alpaca Connection Banner ───────────────────────────────────── */}
       {alpacaConfigured === null ? (
@@ -1107,6 +1223,289 @@ export default function PortfolioPage() {
           })}
         </div>
       )}
+
+      {/* ── Dividend Tracking ────────────────────────────────────────────── */}
+      <div className="rounded-xl bg-arcana-surface border border-arcana-border overflow-hidden">
+        <div className="px-6 py-4 border-b border-arcana-border flex items-center gap-2">
+          <DollarSign className="w-4 h-4 text-teal-400" />
+          <h2 className="text-sm font-semibold text-white uppercase tracking-wider">Dividend Income</h2>
+        </div>
+
+        {/* Summary cards */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-px bg-arcana-border">
+          {[
+            { label: "Received YTD",     value: formatCurrency(dividendSummary.totalReceivedYTD),  color: "text-teal-400" },
+            { label: "Received LTM",     value: formatCurrency(dividendSummary.totalReceivedLTM),  color: "text-teal-300" },
+            { label: "Projected Annual", value: formatCurrency(dividendSummary.projectedAnnual),    color: "text-white" },
+            { label: "Portfolio Yield",  value: `${dividendSummary.portfolioYield.toFixed(2)}%`,   color: "text-green-400" },
+          ].map((s) => (
+            <div key={s.label} className="bg-arcana-surface px-5 py-4">
+              <p className="text-[10px] uppercase tracking-wider text-slate-500 mb-1">{s.label}</p>
+              <p className={`text-lg font-bold tabular-nums ${s.color}`}>{s.value}</p>
+            </div>
+          ))}
+        </div>
+
+        <div className="p-6 grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* Monthly bar chart */}
+          <div>
+            <p className="text-[10px] uppercase tracking-wider text-slate-500 mb-4">Monthly Dividend Income (6-Month)</p>
+            <ResponsiveContainer width="100%" height={140}>
+              <BarChart data={dividendSummary.monthlyBreakdown} barSize={20}>
+                <XAxis dataKey="month" tick={{ fill: "#64748b", fontSize: 11 }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fill: "#64748b", fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={(v) => `$${v}`} width={40} />
+                <Tooltip
+                  contentStyle={{ background: "#0f172a", border: "1px solid #1e293b", borderRadius: 8, fontSize: 12 }}
+                  formatter={(v) => [formatCurrency(typeof v === "number" ? v : 0), "Dividends"]}
+                />
+                <Bar dataKey="amount" fill="#2dd4bf" radius={[3, 3, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+
+          {/* By-ticker breakdown */}
+          <div>
+            <p className="text-[10px] uppercase tracking-wider text-slate-500 mb-4">Income by Position (LTM)</p>
+            <div className="space-y-3">
+              {dividendSummary.byTicker.map((t) => (
+                <div key={t.ticker}>
+                  <div className="flex items-center justify-between text-xs mb-1">
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono font-bold text-slate-200 w-12">{t.ticker}</span>
+                      <span className="text-slate-500 truncate max-w-[120px]">{t.securityName}</span>
+                    </div>
+                    <div className="flex items-center gap-3 shrink-0">
+                      <span className="text-slate-400">{t.pct.toFixed(1)}%</span>
+                      <span className="font-semibold text-teal-400 tabular-nums">{formatCurrency(t.amount)}</span>
+                    </div>
+                  </div>
+                  <div className="h-1.5 bg-arcana-navy rounded-full overflow-hidden">
+                    <div className="h-full bg-teal-500 rounded-full" style={{ width: `${t.pct}%` }} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Dividend yield table */}
+        <div className="px-6 pb-6">
+          <p className="text-[10px] uppercase tracking-wider text-slate-500 mb-3">Dividend Yield by Holding</p>
+          <div className="overflow-x-auto rounded-lg border border-arcana-border">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-arcana-border">
+                  {["Ticker", "Annual Income", "Yield", "Cost Yield", "Frequency", "Next Est. Pmt", "DRIP"].map((h) => (
+                    <th key={h} className="px-4 py-3 text-left text-[10px] uppercase tracking-wider text-slate-500 font-medium">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {dividendYields.map((y) => (
+                  <tr key={y.holdingId} className="border-b border-arcana-border/50 hover:bg-arcana-navy/30 transition-colors">
+                    <td className="px-4 py-3 font-mono font-bold text-slate-200">{y.ticker}</td>
+                    <td className="px-4 py-3 text-teal-400 tabular-nums font-semibold">{formatCurrency(y.annualIncome)}</td>
+                    <td className="px-4 py-3 text-green-400 tabular-nums">{y.currentYield.toFixed(2)}%</td>
+                    <td className="px-4 py-3 text-slate-300 tabular-nums">{y.yieldOnCost.toFixed(2)}%</td>
+                    <td className="px-4 py-3 text-slate-400 capitalize">{y.frequency}</td>
+                    <td className="px-4 py-3 text-slate-400 tabular-nums text-xs">
+                      <span>{new Date(y.nextEstimatedDate).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
+                      <span className="ml-1 text-teal-500">~{formatCurrency(y.nextEstimatedAmount)}</span>
+                    </td>
+                    <td className="px-4 py-3">
+                      {y.isDRIPEnrolled ? (
+                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-teal-400/10 text-teal-400 border border-teal-400/20">DRIP</span>
+                      ) : (
+                        <span className="text-slate-600 text-xs">—</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Recent dividend history */}
+        <div className="px-6 pb-6">
+          <p className="text-[10px] uppercase tracking-wider text-slate-500 mb-3">Recent Dividends</p>
+          <div className="overflow-x-auto rounded-lg border border-arcana-border">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-arcana-border">
+                  {["Date", "Security", "Type", "Amount"].map((h) => (
+                    <th key={h} className="px-4 py-3 text-left text-[10px] uppercase tracking-wider text-slate-500 font-medium">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {dividendHistory.map((d) => (
+                  <tr key={d.investmentTransactionId} className="border-b border-arcana-border/50 hover:bg-arcana-navy/30 transition-colors">
+                    <td className="px-4 py-3 text-slate-400 text-xs tabular-nums">
+                      {new Date(d.date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className="font-mono font-bold text-slate-200 text-xs">{d.ticker}</span>
+                      <span className="ml-2 text-slate-500 text-xs">{d.securityName}</span>
+                    </td>
+                    <td className="px-4 py-3">
+                      {d.isDRIP ? (
+                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-blue-400/10 text-blue-400 border border-blue-400/20">DRIP</span>
+                      ) : (
+                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-teal-400/10 text-teal-400 border border-teal-400/20">Cash</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-teal-400 tabular-nums font-semibold">+{formatCurrency(d.amount)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Goal-Based Investing ─────────────────────────────────────────── */}
+      <div className="rounded-xl bg-arcana-surface border border-arcana-border overflow-hidden">
+        <div className="px-6 py-4 border-b border-arcana-border flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Target className="w-4 h-4 text-violet-400" />
+            <h2 className="text-sm font-semibold text-white uppercase tracking-wider">Investment Goals</h2>
+          </div>
+          <a
+            href="/goals"
+            className="flex items-center gap-1 text-xs text-slate-400 hover:text-primary transition-colors"
+          >
+            <Link2 className="w-3 h-3" />
+            Manage Goals
+          </a>
+        </div>
+
+        {goalsLoading ? (
+          <div className="flex items-center justify-center gap-2 py-8 text-slate-400 text-sm">
+            <Loader2 className="w-4 h-4 animate-spin" /> Loading goals…
+          </div>
+        ) : goals.length === 0 ? (
+          <div className="p-8 text-center">
+            <Target className="w-8 h-8 text-slate-600 mx-auto mb-3" />
+            <p className="text-slate-400 text-sm font-medium">No active goals</p>
+            <p className="text-slate-600 text-xs mt-1">Create a savings goal and link it to your investment portfolio to track progress here.</p>
+            <a href="/goals" className="inline-flex items-center gap-1.5 mt-4 text-xs bg-primary/10 border border-primary/30 text-primary hover:bg-primary/20 px-4 py-2 rounded-lg transition-colors">
+              <Target className="w-3.5 h-3.5" />
+              Create a Goal
+            </a>
+          </div>
+        ) : (
+          <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+            {goals
+              .filter((g) => g.status === "active")
+              .map((goal) => {
+                const pct = goal.targetAmount > 0
+                  ? Math.min((goal.currentAmount / goal.targetAmount) * 100, 100)
+                  : 0;
+                const remaining = Math.max(goal.targetAmount - goal.currentAmount, 0);
+                const daysLeft = goal.targetDate
+                  ? Math.max(
+                      Math.ceil(
+                        (new Date(goal.targetDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24)
+                      ),
+                      0
+                    )
+                  : null;
+                const isOnTrack =
+                  goal.monthlyContribution > 0 && daysLeft != null
+                    ? goal.monthlyContribution * (daysLeft / 30) >= remaining
+                    : null;
+                const priorityColor = {
+                  high: "text-red-400 border-red-400/20 bg-red-400/5",
+                  medium: "text-amber-400 border-amber-400/20 bg-amber-400/5",
+                  low: "text-slate-400 border-slate-400/20 bg-slate-400/5",
+                }[goal.priority] ?? "text-slate-400 border-slate-400/20 bg-slate-400/5";
+
+                return (
+                  <div key={goal.goalId} className="rounded-xl border border-arcana-border bg-arcana-navy/30 p-5">
+                    <div className="flex items-start justify-between gap-3 mb-3">
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-white truncate">{goal.name}</p>
+                        {goal.targetDate && (
+                          <p className="text-xs text-slate-500 mt-0.5 flex items-center gap-1">
+                            <CalendarDays className="w-3 h-3" />
+                            {new Date(goal.targetDate).toLocaleDateString("en-US", { month: "short", year: "numeric" })}
+                            {daysLeft != null && <span>· {daysLeft} days left</span>}
+                          </p>
+                        )}
+                      </div>
+                      <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${priorityColor} shrink-0 capitalize`}>
+                        {goal.priority}
+                      </span>
+                    </div>
+
+                    {/* Progress bar */}
+                    <div className="mb-3">
+                      <div className="flex items-center justify-between text-xs mb-1.5">
+                        <span className="text-slate-400">{formatCurrency(goal.currentAmount)} saved</span>
+                        <span className="text-slate-500">of {formatCurrency(goal.targetAmount)}</span>
+                      </div>
+                      <div className="h-2 bg-arcana-surface rounded-full overflow-hidden">
+                        <div
+                          className={`h-full rounded-full transition-all ${pct >= 100 ? "bg-green-400" : pct >= 66 ? "bg-teal-400" : pct >= 33 ? "bg-primary" : "bg-violet-400"}`}
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
+                      <div className="flex items-center justify-between text-xs mt-1.5">
+                        <span className={`font-semibold ${pct >= 100 ? "text-green-400" : "text-violet-400"}`}>
+                          {pct.toFixed(1)}% complete
+                        </span>
+                        {remaining > 0 && (
+                          <span className="text-slate-500">{formatCurrency(remaining)} remaining</span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* On-track indicator + portfolio linkage hint */}
+                    <div className="flex items-center justify-between gap-3 pt-2 border-t border-arcana-border/50">
+                      {isOnTrack != null ? (
+                        <div className={`flex items-center gap-1.5 text-xs ${isOnTrack ? "text-green-400" : "text-amber-400"}`}>
+                          {isOnTrack ? <CheckCircle className="w-3.5 h-3.5" /> : <AlertTriangle className="w-3.5 h-3.5" />}
+                          {isOnTrack ? "On track" : "Behind schedule"}
+                          {goal.monthlyContribution > 0 && (
+                            <span className="text-slate-500">· {formatCurrency(goal.monthlyContribution)}/mo</span>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-xs text-slate-600">No contribution set</span>
+                      )}
+                      <div className="flex items-center gap-1 text-xs text-slate-500">
+                        <DollarSign className="w-3 h-3 text-teal-500" />
+                        <span className="text-teal-500 tabular-nums">
+                          +{formatCurrency(dividendSummary.projectedAnnual / Math.max(goals.filter(g => g.status === "active").length, 1))}
+                        </span>
+                        <span>/yr dividends</span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+          </div>
+        )}
+
+        {!goalsLoading && goals.filter((g) => g.status === "active").length > 0 && (
+          <div className="px-6 pb-5">
+            <div className="rounded-lg border border-violet-400/20 bg-violet-400/5 p-4">
+              <div className="flex items-start gap-3">
+                <Info className="w-4 h-4 text-violet-400 shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-xs font-semibold text-violet-400">Portfolio Dividend Contribution</p>
+                  <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+                    Your investment portfolio generates <span className="text-teal-400 font-semibold">{formatCurrency(dividendSummary.projectedAnnual)}</span> in projected annual dividend income
+                    ({formatCurrency(dividendSummary.projectedAnnual / 12)}/mo), which can accelerate progress toward your savings goals.
+                    Visit <a href="/goals" className="text-primary underline">Goals</a> to adjust contribution amounts.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAnthropicClient } from "@/lib/anthropic";
+import { completeForFeature } from "@/lib/ai-router";
 import { generateId } from "@/lib/utils";
 import type { Holding, InvestmentAccount } from "@/lib/types";
 
@@ -189,15 +189,12 @@ export async function POST(req: NextRequest) {
     };
 
     try {
-      const client = getAnthropicClient();
-      const response = await client.messages.create({
-        model: "claude-haiku-4-5-20251001",
-        max_tokens: 1024,
-        system: SYSTEM_PROMPT,
-        messages: [{ role: "user", content: `Analyze this portfolio and generate insights:\n${JSON.stringify(context, null, 2)}` }],
-      });
-
-      const text = response.content[0].type === "text" ? response.content[0].text : "";
+      const text = await completeForFeature(
+        "portfolio_insights",
+        SYSTEM_PROMPT,
+        `Analyze this portfolio and generate insights:\n${JSON.stringify(context, null, 2)}`,
+        1024
+      );
       const validated = validate(text);
       if (validated) return NextResponse.json({ insights: validated });
     } catch {

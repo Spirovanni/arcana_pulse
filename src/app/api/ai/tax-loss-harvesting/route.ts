@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAnthropicClient } from "@/lib/anthropic";
+import { completeForFeature } from "@/lib/ai-router";
 import type { TLHSummary, TLHOpportunity } from "@/lib/services/tlh";
 
 export interface TLHSuggestion {
@@ -107,15 +107,12 @@ export async function POST(req: NextRequest) {
     };
 
     try {
-      const client = getAnthropicClient();
-      const response = await client.messages.create({
-        model: "claude-haiku-4-5-20251001",
-        max_tokens: 1024,
-        system: SYSTEM_PROMPT,
-        messages: [{ role: "user", content: `Generate tax-loss harvesting suggestions for this portfolio:\n${JSON.stringify(context, null, 2)}` }],
-      });
-
-      const text = response.content[0].type === "text" ? response.content[0].text : "";
+      const text = await completeForFeature(
+        "tlh",
+        SYSTEM_PROMPT,
+        `Generate tax-loss harvesting suggestions for this portfolio:\n${JSON.stringify(context, null, 2)}`,
+        1024
+      );
       let cleaned = text.trim().replace(/^```(?:json)?\s*/, "").replace(/```\s*$/, "");
 
       let parsed: unknown;

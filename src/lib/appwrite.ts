@@ -39,6 +39,7 @@ export const COLLECTIONS = {
   mcpTokens: "mcpTokens",
   featureFlags: "featureFlags",
   supportTickets: "supportTickets",
+  investmentAccounts: "investmentAccounts",
 } as const;
 
 // ---------------------------------------------------------------------------
