@@ -149,6 +149,33 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // ── Force HTTPS + canonical www in production ─────────────────────────────
+  // Handles cases where Vercel's edge redirect hasn't run yet (e.g. first visit,
+  // direct HTTP navigation). Both redirects are permanent (308) so browsers cache
+  // them and browsers that support HSTS preload won't need them on repeat visits.
+  if (process.env.NODE_ENV === "production") {
+    const proto = request.headers.get("x-forwarded-proto");
+    const host = request.headers.get("host") ?? "";
+
+    // Redirect HTTP → HTTPS
+    if (proto === "http") {
+      const httpsUrl = new URL(request.url);
+      httpsUrl.protocol = "https:";
+      const res = NextResponse.redirect(httpsUrl, { status: 308 });
+      res.headers.set("Strict-Transport-Security", "max-age=63072000; includeSubDomains; preload");
+      return res;
+    }
+
+    // Redirect apex domain → www
+    if (host === "arcanapulse.ai") {
+      const wwwUrl = new URL(request.url);
+      wwwUrl.host = "www.arcanapulse.ai";
+      const res = NextResponse.redirect(wwwUrl, { status: 308 });
+      res.headers.set("Strict-Transport-Security", "max-age=63072000; includeSubDomains; preload");
+      return res;
+    }
+  }
+
   // ── Preflight (OPTIONS) for CORS-open routes ──────────────────────────────
   if (httpMethod === "OPTIONS" && CORS_OPEN_PATHS.some((p) => pathname.startsWith(p))) {
     const preflight = new NextResponse(null, { status: 204 });
