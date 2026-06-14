@@ -23,6 +23,7 @@ import {
 import { usePlaidLink } from "react-plaid-link";
 import EmptyState from "@/components/EmptyState";
 import StatementUpload from "@/components/StatementUpload";
+import UploadBankModal, { type BuildResult as ModalBuildResult } from "@/components/UploadBankModal";
 import {
   getBanksByWorkspace,
   DEFAULT_WORKSPACE_ID,
@@ -76,6 +77,9 @@ export default function MyBanksPage() {
   const [importResults, setImportResults] = useState<Record<string, ImportResult>>({});
   const [buildingFile, setBuildingFile] = useState<string | null>(null);
   const [buildResults, setBuildResults] = useState<Record<string, BuildResult>>({});
+
+  // Upload Bank Info modal
+  const [showUploadModal, setShowUploadModal] = useState(false);
 
   // Derive username from email
   const username = session?.user?.email?.split("@")[0]?.replace(/[^a-zA-Z0-9_]/g, "_") ?? "";
@@ -248,19 +252,32 @@ export default function MyBanksPage() {
             Manage your connected bank accounts
           </p>
         </div>
-        <button
-          type="button"
-          disabled={!canConnect}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-arcana-blue text-white text-sm font-medium hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed self-start sm:self-auto"
-          onClick={() => openPlaidLink()}
-        >
-          {linking ? (
-            <Loader2 className="w-4 h-4 animate-spin" />
-          ) : (
-            <Plus className="w-4 h-4" />
-          )}
-          {linking ? "Linking..." : "Connect Bank"}
-        </button>
+        <div className="flex items-center gap-2 self-start sm:self-auto">
+          {/* Upload Bank Info — statement-based bank creation */}
+          <button
+            type="button"
+            onClick={() => setShowUploadModal(true)}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-gradient-to-r from-violet-600 to-arcana-blue text-white text-sm font-medium hover:opacity-90 transition-opacity"
+          >
+            <Upload className="w-4 h-4" />
+            Upload Bank Info
+          </button>
+
+          {/* Connect via Plaid */}
+          <button
+            type="button"
+            disabled={!canConnect}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-arcana-surface border border-arcana-border text-white text-sm font-medium hover:bg-arcana-border transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            onClick={() => openPlaidLink()}
+          >
+            {linking ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Plus className="w-4 h-4" />
+            )}
+            {linking ? "Linking..." : "Link Bank"}
+          </button>
+        </div>
       </div>
 
       {/* ── Investment Accounts ─────────────────────────────────── */}
@@ -349,6 +366,111 @@ export default function MyBanksPage() {
                         <RefreshCw className="w-3 h-3" /> Sync Holdings
                       </button>
                     </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* ── Statement-Linked Banks ───────────────────────────────── */}
+      {(() => {
+        // Banks created from uploaded statements have accountId starting with "stmt-"
+        const stmtBanks = banks.filter((b) => b.accountId.startsWith("stmt-"));
+        if (stmtBanks.length === 0) return null;
+        return (
+          <div className="space-y-4">
+            <div>
+              <h2 className="text-lg font-semibold text-white flex items-center gap-2">
+                <FileText className="w-5 h-5 text-violet-400" />
+                Statement-Linked Banks
+              </h2>
+              <p className="text-xs text-slate-400 mt-0.5">
+                Banks built from uploaded statement files with AI-categorised transactions
+              </p>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {stmtBanks.map((bank) => {
+                const txnData = getRecentBankTransactions(bank.bankId);
+                const totalTxns = txnData.items.length;
+                return (
+                  <div key={bank.bankId} className="rounded-xl bg-arcana-surface border border-violet-800/40 relative overflow-hidden">
+                    {/* AI badge ribbon */}
+                    <div className="absolute top-0 right-0 flex items-center gap-1 bg-gradient-to-l from-violet-600 to-arcana-blue text-white text-[9px] font-bold px-2 py-1 rounded-bl-lg">
+                      <Sparkles className="w-2.5 h-2.5" />
+                      AI Categorised
+                    </div>
+
+                    <div className="p-5 pt-7">
+                      <div className="flex items-center gap-3 mb-4">
+                        <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-violet-900/40 border border-violet-700/30">
+                          <FileText className="w-5 h-5 text-violet-400" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-semibold text-white">{bank.institutionName}</p>
+                          <p className="text-xs text-slate-400">···{bank.displayMask}</p>
+                        </div>
+                      </div>
+
+                      <div className="mb-4">
+                        <p className="text-xs text-slate-400 mb-1">Ending Balance</p>
+                        <p className="text-xl font-bold text-white">{formatCurrency(bank.balance)}</p>
+                      </div>
+
+                      <div className="flex gap-2">
+                        {/* View statement */}
+                        <a
+                          href={`/statement-viewer/${encodeURIComponent(username)}/${encodeURIComponent(bank.shareableId.replace(/[^a-zA-Z0-9_\-]/g, "_"))}`}
+                          className="flex-1 flex items-center justify-center gap-1 py-2 rounded-lg text-xs font-medium bg-violet-900/30 border border-violet-700/30 text-violet-300 hover:bg-violet-800/40 transition-colors"
+                        >
+                          <Eye className="w-3 h-3" />
+                          View Statement
+                        </a>
+                        {/* Expand transactions */}
+                        <button
+                          type="button"
+                          onClick={() => toggleExpand(bank.bankId)}
+                          className="flex items-center justify-center gap-1 px-3 py-2 rounded-lg text-xs font-medium bg-arcana-navy text-slate-300 hover:bg-arcana-border transition-colors"
+                          title="Recent transactions"
+                        >
+                          {expandedBankId === bank.bankId
+                            ? <ChevronUp className="w-3 h-3" />
+                            : <ChevronDown className="w-3 h-3" />}
+                        </button>
+                      </div>
+                    </div>
+
+                    {expandedBankId === bank.bankId && (
+                      <div className="border-t border-arcana-border px-5 py-4">
+                        <p className="text-xs font-medium text-slate-400 mb-3">
+                          Recent Transactions
+                          <span className="ml-1 text-slate-500">({totalTxns} loaded)</span>
+                        </p>
+                        {txnData.items.length === 0 ? (
+                          <p className="text-xs text-slate-500 text-center py-4">No transactions found</p>
+                        ) : (
+                          <div className="space-y-2">
+                            {txnData.items.map((txn) => (
+                              <div key={txn.transactionId} className="flex items-center justify-between py-2 border-b border-arcana-border last:border-b-0">
+                                <div className="min-w-0 flex-1">
+                                  <p className="text-sm text-white truncate">{txn.title}</p>
+                                  <p className="text-[10px] text-slate-500">
+                                    {formatDate(txn.date)} · {CATEGORY_LABELS[txn.category]}
+                                  </p>
+                                </div>
+                                <p className={`text-sm font-medium ml-3 ${txn.transactionType === "income" ? "text-green-400" : "text-red-400"}`}>
+                                  {txn.transactionType === "income" ? "+" : "−"}{formatCurrency(txn.amount)}
+                                </p>
+                              </div>
+                            ))}
+                            <a href={`/transactions?bank=${bank.bankId}`} className="block text-center text-xs text-arcana-sky hover:text-blue-400 pt-2 transition-colors">
+                              View all transactions →
+                            </a>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -678,9 +800,21 @@ export default function MyBanksPage() {
           onClose={() => setUploadingBank(null)}
           onSuccess={(imported) => {
             setUploadingBank(null);
-            bump(); // refresh transaction counts
-            // Brief toast could go here — for now bump re-renders the page
+            bump();
             console.info(`[StatementUpload] imported ${imported} transactions`);
+          }}
+        />
+      )}
+
+      {/* Upload Bank Info modal — creates a statement-linked bank with AI categories */}
+      {showUploadModal && (
+        <UploadBankModal
+          username={username}
+          onClose={() => setShowUploadModal(false)}
+          onSuccess={(result: ModalBuildResult) => {
+            setShowUploadModal(false);
+            bump(); // re-render to show the new statement bank card
+            console.info(`[UploadBank] created ${result.bank.institutionName} with ${result.imported} txns`);
           }}
         />
       )}
