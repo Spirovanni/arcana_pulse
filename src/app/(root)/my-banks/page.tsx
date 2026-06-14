@@ -19,6 +19,7 @@ import {
   Eye,
   Sparkles,
   CheckCircle2,
+  X,
 } from "lucide-react";
 import { usePlaidLink } from "react-plaid-link";
 import EmptyState from "@/components/EmptyState";
@@ -36,6 +37,7 @@ import {
 } from "@/lib/services/investments";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { CATEGORY_LABELS } from "@/lib/constants";
+import type { Bank } from "@/lib/types";
 
 type SavedFile = {
   filename: string;
@@ -80,6 +82,39 @@ export default function MyBanksPage() {
 
   // Upload Bank Info modal
   const [showUploadModal, setShowUploadModal] = useState(false);
+
+  // Statement-linked banks — persisted in localStorage so they survive page refreshes
+  // (server-side in-memory store doesn't persist across Vercel serverless invocations)
+  const LS_KEY  = "arcana:statement-banks";
+  const LS_META = "arcana:statement-banks-meta";
+
+  const [statementBanks, setStatementBanks] = useState<Bank[]>([]);
+  const [stmtMeta, setStmtMeta] = useState<
+    Record<string, { imported: number; periodStart: string; periodEnd: string; filename: string; username: string }>
+  >({});
+
+  // Load from localStorage on mount
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(LS_KEY);
+      if (raw) setStatementBanks(JSON.parse(raw) as Bank[]);
+      const meta = localStorage.getItem(LS_META);
+      if (meta) setStmtMeta(JSON.parse(meta));
+    } catch { /* ignore parse errors */ }
+  }, []);
+
+  function addStatementBank(bank: Bank, meta: { imported: number; periodStart: string; periodEnd: string; filename: string; username: string }) {
+    setStatementBanks((prev) => {
+      const next = prev.filter((b) => b.bankId !== bank.bankId).concat(bank);
+      try { localStorage.setItem(LS_KEY, JSON.stringify(next)); } catch { /* quota */ }
+      return next;
+    });
+    setStmtMeta((prev) => {
+      const next = { ...prev, [bank.bankId]: meta };
+      try { localStorage.setItem(LS_META, JSON.stringify(next)); } catch { /* quota */ }
+      return next;
+    });
+  }
 
   // Derive username from email
   const username = session?.user?.email?.split("@")[0]?.replace(/[^a-zA-Z0-9_]/g, "_") ?? "";
@@ -375,109 +410,96 @@ export default function MyBanksPage() {
       })()}
 
       {/* ── Statement-Linked Banks ───────────────────────────────── */}
-      {(() => {
-        // Banks created from uploaded statements have accountId starting with "stmt-"
-        const stmtBanks = banks.filter((b) => b.accountId.startsWith("stmt-"));
-        if (stmtBanks.length === 0) return null;
-        return (
-          <div className="space-y-4">
-            <div>
-              <h2 className="text-lg font-semibold text-white flex items-center gap-2">
-                <FileText className="w-5 h-5 text-violet-400" />
-                Statement-Linked Banks
-              </h2>
-              <p className="text-xs text-slate-400 mt-0.5">
-                Banks built from uploaded statement files with AI-categorised transactions
-              </p>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {stmtBanks.map((bank) => {
-                const txnData = getRecentBankTransactions(bank.bankId);
-                const totalTxns = txnData.items.length;
-                return (
-                  <div key={bank.bankId} className="rounded-xl bg-arcana-surface border border-violet-800/40 relative overflow-hidden">
-                    {/* AI badge ribbon */}
-                    <div className="absolute top-0 right-0 flex items-center gap-1 bg-gradient-to-l from-violet-600 to-arcana-blue text-white text-[9px] font-bold px-2 py-1 rounded-bl-lg">
-                      <Sparkles className="w-2.5 h-2.5" />
-                      AI Categorised
+      {statementBanks.length > 0 && (
+        <div className="space-y-4">
+          <div>
+            <h2 className="text-lg font-semibold text-white flex items-center gap-2">
+              <FileText className="w-5 h-5 text-violet-400" />
+              Statement-Linked Banks
+            </h2>
+            <p className="text-xs text-slate-400 mt-0.5">
+              Banks built from uploaded statement files with AI-categorised transactions
+            </p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {statementBanks.map((bank) => {
+              const meta = stmtMeta[bank.bankId];
+              const viewerUrl = meta
+                ? `/statement-viewer/${encodeURIComponent(meta.username)}/${encodeURIComponent(meta.filename)}`
+                : null;
+              return (
+                <div key={bank.bankId} className="rounded-xl bg-arcana-surface border border-violet-800/40 relative overflow-hidden">
+                  {/* AI badge ribbon */}
+                  <div className="absolute top-0 right-0 flex items-center gap-1 bg-gradient-to-l from-violet-600 to-arcana-blue text-white text-[9px] font-bold px-2 py-1 rounded-bl-lg">
+                    <Sparkles className="w-2.5 h-2.5" />
+                    AI Categorised
+                  </div>
+
+                  <div className="p-5 pt-7">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-violet-900/40 border border-violet-700/30">
+                        <FileText className="w-5 h-5 text-violet-400" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-white">{bank.institutionName}</p>
+                        <p className="text-xs text-slate-400">···{bank.displayMask}</p>
+                      </div>
                     </div>
 
-                    <div className="p-5 pt-7">
-                      <div className="flex items-center gap-3 mb-4">
-                        <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-violet-900/40 border border-violet-700/30">
-                          <FileText className="w-5 h-5 text-violet-400" />
+                    <div className="mb-3">
+                      <p className="text-xs text-slate-400 mb-1">Ending Balance</p>
+                      <p className="text-xl font-bold text-white">{formatCurrency(bank.balance)}</p>
+                    </div>
+
+                    {/* Statement period + transaction count */}
+                    {meta && (
+                      <div className="grid grid-cols-2 gap-2 mb-4 bg-arcana-navy/60 rounded-lg px-3 py-2">
+                        <div>
+                          <p className="text-[9px] text-slate-500 uppercase tracking-wide mb-0.5">Transactions</p>
+                          <p className="text-sm font-semibold text-white">{meta.imported.toLocaleString()}</p>
                         </div>
                         <div>
-                          <p className="text-sm font-semibold text-white">{bank.institutionName}</p>
-                          <p className="text-xs text-slate-400">···{bank.displayMask}</p>
+                          <p className="text-[9px] text-slate-500 uppercase tracking-wide mb-0.5">Period</p>
+                          <p className="text-[10px] text-slate-300">{meta.periodStart} → {meta.periodEnd}</p>
                         </div>
                       </div>
+                    )}
 
-                      <div className="mb-4">
-                        <p className="text-xs text-slate-400 mb-1">Ending Balance</p>
-                        <p className="text-xl font-bold text-white">{formatCurrency(bank.balance)}</p>
-                      </div>
-
-                      <div className="flex gap-2">
-                        {/* View statement */}
+                    <div className="flex gap-2">
+                      {viewerUrl ? (
                         <a
-                          href={`/statement-viewer/${encodeURIComponent(username)}/${encodeURIComponent(bank.shareableId.replace(/[^a-zA-Z0-9_\-]/g, "_"))}`}
+                          href={viewerUrl}
                           className="flex-1 flex items-center justify-center gap-1 py-2 rounded-lg text-xs font-medium bg-violet-900/30 border border-violet-700/30 text-violet-300 hover:bg-violet-800/40 transition-colors"
                         >
                           <Eye className="w-3 h-3" />
                           View Statement
                         </a>
-                        {/* Expand transactions */}
-                        <button
-                          type="button"
-                          onClick={() => toggleExpand(bank.bankId)}
-                          className="flex items-center justify-center gap-1 px-3 py-2 rounded-lg text-xs font-medium bg-arcana-navy text-slate-300 hover:bg-arcana-border transition-colors"
-                          title="Recent transactions"
-                        >
-                          {expandedBankId === bank.bankId
-                            ? <ChevronUp className="w-3 h-3" />
-                            : <ChevronDown className="w-3 h-3" />}
-                        </button>
-                      </div>
+                      ) : (
+                        <div className="flex-1" />
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          // Remove this bank from localStorage
+                          setStatementBanks((prev) => {
+                            const next = prev.filter((b) => b.bankId !== bank.bankId);
+                            try { localStorage.setItem(LS_KEY, JSON.stringify(next)); } catch { /* quota */ }
+                            return next;
+                          });
+                        }}
+                        className="flex items-center justify-center gap-1 px-3 py-2 rounded-lg text-xs text-slate-500 hover:text-red-400 hover:bg-red-900/20 transition-colors"
+                        title="Remove from this section"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
                     </div>
-
-                    {expandedBankId === bank.bankId && (
-                      <div className="border-t border-arcana-border px-5 py-4">
-                        <p className="text-xs font-medium text-slate-400 mb-3">
-                          Recent Transactions
-                          <span className="ml-1 text-slate-500">({totalTxns} loaded)</span>
-                        </p>
-                        {txnData.items.length === 0 ? (
-                          <p className="text-xs text-slate-500 text-center py-4">No transactions found</p>
-                        ) : (
-                          <div className="space-y-2">
-                            {txnData.items.map((txn) => (
-                              <div key={txn.transactionId} className="flex items-center justify-between py-2 border-b border-arcana-border last:border-b-0">
-                                <div className="min-w-0 flex-1">
-                                  <p className="text-sm text-white truncate">{txn.title}</p>
-                                  <p className="text-[10px] text-slate-500">
-                                    {formatDate(txn.date)} · {CATEGORY_LABELS[txn.category]}
-                                  </p>
-                                </div>
-                                <p className={`text-sm font-medium ml-3 ${txn.transactionType === "income" ? "text-green-400" : "text-red-400"}`}>
-                                  {txn.transactionType === "income" ? "+" : "−"}{formatCurrency(txn.amount)}
-                                </p>
-                              </div>
-                            ))}
-                            <a href={`/transactions?bank=${bank.bankId}`} className="block text-center text-xs text-arcana-sky hover:text-blue-400 pt-2 transition-colors">
-                              View all transactions →
-                            </a>
-                          </div>
-                        )}
-                      </div>
-                    )}
                   </div>
-                );
-              })}
-            </div>
+                </div>
+              );
+            })}
           </div>
-        );
-      })()}
+        </div>
+      )}
 
       {/* ── Depository / Bank Accounts ───────────────────────────── */}
       <div>
@@ -812,8 +834,27 @@ export default function MyBanksPage() {
           onClose={() => setShowUploadModal(false)}
           onSuccess={(result: ModalBuildResult) => {
             setShowUploadModal(false);
+            addStatementBank(
+              {
+                bankId:          result.bank.bankId,
+                workspaceId:     "ws-001",
+                institutionName: result.bank.institutionName,
+                accountId:       `stmt-${result.bank.displayMask}-${Date.now()}`,
+                displayMask:     result.bank.displayMask,
+                shareableId:     `${result.bank.institutionName.toLowerCase().replace(/\s+/g, "-")}-${result.bank.displayMask}`,
+                balance:         result.bank.balance,
+                createdAt:       new Date().toISOString(),
+                updatedAt:       new Date().toISOString(),
+              },
+              {
+                imported:    result.imported,
+                periodStart: result.periodStart,
+                periodEnd:   result.periodEnd,
+                filename:    result.filename,
+                username:    result.username,
+              }
+            );
             bump();
-            console.info(`[UploadBank] created ${result.bank.institutionName} with ${result.imported} txns`);
           }}
         />
       )}
