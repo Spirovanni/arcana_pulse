@@ -2,6 +2,10 @@ import { getToken } from "next-auth/jwt";
 import { NextRequest, NextResponse } from "next/server";
 import { rateLimit } from "@/lib/rateLimit";
 
+// ---------------------------------------------------------------------------
+// Route configuration
+// ---------------------------------------------------------------------------
+
 const PUBLIC_PATHS = [
   "/sign-in",
   "/sign-up",
@@ -13,21 +17,38 @@ const PUBLIC_PATHS = [
   "/accept-invite",
 ];
 
-// Per-route rate limit configs: [maxRequests, windowMs]
+// Routes that must be openly accessible to cross-origin clients (MCP tools, OAuth discovery)
+const CORS_OPEN_PATHS = ["/api/mcp", "/.well-known/"];
+
+// Per-route rate limit configs (first match wins)
 const RATE_LIMITS: Array<{ test: (p: string) => boolean; limit: number; windowMs: number; label: string }> = [
   // Auth mutations — strictest (5 / min)
   {
-    test: (p) => p === "/sign-in" || p.startsWith("/api/auth/signin") || p.startsWith("/api/auth/callback"),
+    test: (p) =>
+      p === "/sign-in" ||
+      p.startsWith("/api/auth/signin") ||
+      p.startsWith("/api/auth/callback"),
     limit: 5,
     windowMs: 60_000,
     label: "auth",
   },
   // Sign-up, password reset (10 / min)
   {
-    test: (p) => p === "/sign-up" || p.startsWith("/api/auth/mfa") || p.startsWith("/forgot-password") || p.startsWith("/reset-password"),
+    test: (p) =>
+      p === "/sign-up" ||
+      p.startsWith("/api/auth/mfa") ||
+      p.startsWith("/forgot-password") ||
+      p.startsWith("/reset-password"),
     limit: 10,
     windowMs: 60_000,
     label: "auth-secondary",
+  },
+  // MCP endpoint — tighter than general API to deter abuse
+  {
+    test: (p) => p === "/api/mcp",
+    limit: 30,
+    windowMs: 60_000,
+    label: "mcp",
   },
   // General API (100 / min)
   {
@@ -37,6 +58,10 @@ const RATE_LIMITS: Array<{ test: (p: string) => boolean; limit: number; windowMs
     label: "api",
   },
 ];
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
 
 function getIp(request: NextRequest): string {
   return (
@@ -60,15 +85,70 @@ function rateLimitedResponse(retryAfter: number): NextResponse {
   );
 }
 
+/**
+ * Validate the request Origin header for non-open API routes.
+ * Rejects requests whose origin does not match the configured app URL.
+ * Same-origin requests (no Origin header) are always allowed.
+ */
+function isCrossOriginAllowed(request: NextRequest, pathname: string): boolean {
+  // Open CORS paths skip origin validation
+  if (CORS_OPEN_PATHS.some((p) => pathname.startsWith(p))) return true;
+
+  const origin = request.headers.get("origin");
+  if (!origin) return true; // same-origin browser requests omit the header
+
+  const appUrl =
+    process.env.NEXTAUTH_URL ??
+    process.env.NEXT_PUBLIC_APP_URL ??
+    "http://localhost:3000";
+
+  try {
+    const appOrigin = new URL(appUrl).origin;
+    return origin === appOrigin;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Add CORS headers for open paths (MCP + well-known discovery).
+ */
+function applyCorsHeaders(response: NextResponse, pathname: string): NextResponse {
+  if (!CORS_OPEN_PATHS.some((p) => pathname.startsWith(p))) return response;
+
+  response.headers.set("Access-Control-Allow-Origin", "*");
+  response.headers.set(
+    "Access-Control-Allow-Methods",
+    "GET, POST, DELETE, OPTIONS"
+  );
+  response.headers.set(
+    "Access-Control-Allow-Headers",
+    "Content-Type, Authorization, MCP-Protocol-Version, MCP-Session-Id"
+  );
+  response.headers.set("Access-Control-Max-Age", "86400");
+  return response;
+}
+
+// ---------------------------------------------------------------------------
+// Main middleware
+// ---------------------------------------------------------------------------
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  const httpMethod = request.method;
 
-  // Allow static assets and Next.js internals through
+  // ── Static assets ─────────────────────────────────────────────────────────
   if (pathname.startsWith("/_next/") || pathname.startsWith("/favicon")) {
     return NextResponse.next();
   }
 
-  // Apply rate limiting before any auth check
+  // ── Preflight (OPTIONS) for CORS-open routes ──────────────────────────────
+  if (httpMethod === "OPTIONS" && CORS_OPEN_PATHS.some((p) => pathname.startsWith(p))) {
+    const preflight = new NextResponse(null, { status: 204 });
+    return applyCorsHeaders(preflight, pathname);
+  }
+
+  // ── Rate limiting (before auth) ───────────────────────────────────────────
   const ip = getIp(request);
   for (const rule of RATE_LIMITS) {
     if (rule.test(pathname)) {
@@ -76,39 +156,54 @@ export async function middleware(request: NextRequest) {
       if (!result.allowed) {
         return rateLimitedResponse(result.retryAfterSeconds);
       }
-      break; // apply only the first matching rule
+      break;
     }
   }
 
-  // Allow auth API routes through (NextAuth endpoints + custom sign-up)
-  if (pathname.startsWith("/api/auth/")) {
-    return NextResponse.next();
+  // ── CORS origin validation for non-open API routes ────────────────────────
+  if (pathname.startsWith("/api/") && !isCrossOriginAllowed(request, pathname)) {
+    return new NextResponse(
+      JSON.stringify({ error: "Cross-origin request not allowed" }),
+      { status: 403, headers: { "Content-Type": "application/json" } }
+    );
   }
 
-  // Cryptographically validate the JWT session token
+  // ── Auth API routes (NextAuth + custom sign-up) ───────────────────────────
+  if (pathname.startsWith("/api/auth/")) {
+    return applyCorsHeaders(NextResponse.next(), pathname);
+  }
+
+  // ── MCP endpoint — auth is handled inside the route handler ──────────────
+  if (pathname === "/api/mcp") {
+    return applyCorsHeaders(NextResponse.next(), pathname);
+  }
+
+  // ── Well-known discovery endpoints ───────────────────────────────────────
+  if (pathname.startsWith("/.well-known/")) {
+    return applyCorsHeaders(NextResponse.next(), pathname);
+  }
+
+  // ── Session validation ────────────────────────────────────────────────────
   const token = await getToken({ req: request });
 
   const isPublicPath = PUBLIC_PATHS.some((p) => pathname.startsWith(p)) || pathname === "/";
-  // Auth-only pages that authenticated users should be bounced away from
   const isAuthPage = PUBLIC_PATHS.some((p) => pathname.startsWith(p));
 
-  // Unauthenticated user trying to access protected route → redirect to sign-in
+  // Unauthenticated → sign-in
   if (!token && !isPublicPath) {
     const signInUrl = new URL("/sign-in", request.url);
     return NextResponse.redirect(signInUrl);
   }
 
-  // Authenticated user on /sign-in, /sign-up etc. → redirect to correct dashboard
-  // (but allow authenticated users to visit / landing page via logo click)
+  // Authenticated user on auth pages → redirect to appropriate dashboard
   if (token && isAuthPage) {
     let targetPath = "/dashboard";
     if (token.membershipType === "student") targetPath = "/intelligence/career";
     if (token.membershipType === "employer") targetPath = "/employer/dashboard";
-    const dashboardUrl = new URL(targetPath, request.url);
-    return NextResponse.redirect(dashboardUrl);
+    return NextResponse.redirect(new URL(targetPath, request.url));
   }
 
-  // Intercept pure /dashboard routes for special personas
+  // Persona-based dashboard redirect
   if (token && pathname === "/dashboard") {
     if (token.membershipType === "student") {
       return NextResponse.redirect(new URL("/intelligence/career", request.url));

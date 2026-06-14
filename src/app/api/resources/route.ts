@@ -4,6 +4,7 @@ import { requireAuth } from "@/lib/auth/withAuth";
 import { isAppwriteConfigured } from "@/lib/appwrite";
 import { getUserResources, createUserResource } from "@/lib/services/db/resources";
 import { logAuditEvent } from "@/lib/services/db/auditLog";
+import { validateResourceUrl } from "@/lib/security/urlSafety";
 
 // ---------------------------------------------------------------------------
 // Validation schema
@@ -76,6 +77,15 @@ export async function POST(request: NextRequest) {
   if (!parsed.success) {
     return NextResponse.json(
       { error: "Validation error", details: parsed.error.flatten() },
+      { status: 400 }
+    );
+  }
+
+  // SSRF / URL safety check (OWASP A10)
+  const urlCheck = validateResourceUrl(parsed.data.url);
+  if (!urlCheck.valid) {
+    return NextResponse.json(
+      { error: urlCheck.reason ?? "Invalid URL" },
       { status: 400 }
     );
   }
