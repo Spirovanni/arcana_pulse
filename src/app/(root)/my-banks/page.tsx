@@ -16,6 +16,9 @@ import {
   FileText,
   Upload,
   Download,
+  Eye,
+  Sparkles,
+  CheckCircle2,
 } from "lucide-react";
 import { usePlaidLink } from "react-plaid-link";
 import EmptyState from "@/components/EmptyState";
@@ -47,6 +50,16 @@ type ImportResult = {
   message: string;
 };
 
+type BuildResult = {
+  bank?: { bankId: string; institutionName: string; displayMask: string };
+  imported: number;
+  periodStart: string;
+  periodEnd: string;
+  message: string;
+  username: string;
+  filename: string;
+};
+
 export default function MyBanksPage() {
   const { data: session } = useSession();
   const [version, setVersion] = useState(0);
@@ -61,6 +74,8 @@ export default function MyBanksPage() {
   const [selectedBankForFile, setSelectedBankForFile] = useState<Record<string, string>>({});
   const [importingFile, setImportingFile] = useState<string | null>(null);
   const [importResults, setImportResults] = useState<Record<string, ImportResult>>({});
+  const [buildingFile, setBuildingFile] = useState<string | null>(null);
+  const [buildResults, setBuildResults] = useState<Record<string, BuildResult>>({});
 
   // Derive username from email
   const username = session?.user?.email?.split("@")[0]?.replace(/[^a-zA-Z0-9_]/g, "_") ?? "";
@@ -108,6 +123,35 @@ export default function MyBanksPage() {
       }));
     } finally {
       setImportingFile(null);
+    }
+  }
+
+  async function buildBankFromStatement(file: SavedFile) {
+    setBuildingFile(file.filename);
+    try {
+      const res = await fetch("/api/banks/build-from-statement", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          username: file.username,
+          filename: file.filename,
+          workspaceId: DEFAULT_WORKSPACE_ID,
+        }),
+      });
+      const data: BuildResult = await res.json();
+      setBuildResults((prev) => ({ ...prev, [file.filename]: data }));
+      bump(); // refresh bank list
+    } catch {
+      setBuildResults((prev) => ({
+        ...prev,
+        [file.filename]: {
+          imported: 0, periodStart: "", periodEnd: "",
+          message: "Build failed — check console for details",
+          username: file.username, filename: file.filename,
+        },
+      }));
+    } finally {
+      setBuildingFile(null);
     }
   }
 
@@ -498,70 +542,125 @@ export default function MyBanksPage() {
               Saved Statements
             </h2>
             <p className="text-xs text-slate-400 mt-0.5">
-              Previously uploaded statement files — select a bank and click Import to load transactions.
+              Build a full bank account with AI-categorised transactions, or view the statement, or import into an existing account.
             </p>
           </div>
           <div className="rounded-xl bg-arcana-surface border border-arcana-border overflow-hidden">
             <div className="divide-y divide-arcana-border">
               {savedFiles.map((file) => {
-                const result = importResults[file.filename];
+                const importResult = importResults[file.filename];
+                const buildResult = buildResults[file.filename];
                 const isImporting = importingFile === file.filename;
+                const isBuilding  = buildingFile === file.filename;
                 const bankId = selectedBankForFile[file.filename] ?? "";
                 const kb = (file.sizeBytes / 1024).toFixed(0);
                 const uploadedDate = new Date(file.uploadedAt).toLocaleDateString();
+
                 return (
-                  <div key={file.filename} className="p-4 flex flex-col sm:flex-row sm:items-center gap-3">
-                    {/* File info */}
-                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                  <div key={file.filename} className="p-4 flex flex-col gap-3">
+                    {/* File info row */}
+                    <div className="flex items-center gap-3">
                       <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-arcana-navy shrink-0">
                         <FileText className="w-4 h-4 text-arcana-sky" />
                       </div>
-                      <div className="min-w-0">
+                      <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-white truncate">{file.filename}</p>
                         <p className="text-[10px] text-slate-500">{kb} KB · uploaded {uploadedDate}</p>
                       </div>
+                      {/* View statement button */}
+                      <a
+                        href={`/statement-viewer/${encodeURIComponent(file.username)}/${encodeURIComponent(file.filename)}`}
+                        className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium bg-arcana-navy border border-arcana-border text-slate-300 hover:border-arcana-sky hover:text-white transition-all shrink-0"
+                      >
+                        <Eye className="w-3 h-3" />
+                        View
+                      </a>
                     </div>
 
-                    {/* Bank selector + import */}
-                    <div className="flex items-center gap-2 shrink-0">
-                      <select
-                        value={bankId}
-                        onChange={(e) =>
-                          setSelectedBankForFile((prev) => ({
-                            ...prev,
-                            [file.filename]: e.target.value,
-                          }))
-                        }
-                        className="text-xs rounded-lg bg-arcana-navy border border-arcana-border text-white px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-arcana-blue"
-                      >
-                        <option value="">Select bank…</option>
-                        {banks.map((b) => (
-                          <option key={b.bankId} value={b.bankId}>
-                            {b.institutionName} ···{b.displayMask}
-                          </option>
-                        ))}
-                      </select>
-                      <button
-                        type="button"
-                        disabled={!bankId || isImporting}
-                        onClick={() => importSavedFile(file)}
-                        className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium bg-arcana-blue text-white hover:bg-blue-600 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                      >
-                        {isImporting ? (
-                          <Loader2 className="w-3 h-3 animate-spin" />
-                        ) : (
-                          <Download className="w-3 h-3" />
+                    {/* Action row */}
+                    <div className="flex flex-col sm:flex-row gap-2 pl-12">
+                      {/* ── Build Bank with AI ── */}
+                      {buildResult?.bank ? (
+                        <div className="flex items-center gap-2 flex-1 px-3 py-2 rounded-lg bg-green-900/20 border border-green-700/40">
+                          <CheckCircle2 className="w-4 h-4 text-green-400 shrink-0" />
+                          <div className="min-w-0">
+                            <p className="text-xs font-medium text-green-400 truncate">
+                              {buildResult.bank.institutionName} ···{buildResult.bank.displayMask} created
+                            </p>
+                            <p className="text-[10px] text-green-600">{buildResult.imported} transactions imported with AI categories</p>
+                          </div>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          disabled={isBuilding || isImporting}
+                          onClick={() => buildBankFromStatement(file)}
+                          className="flex items-center justify-center gap-1.5 flex-1 px-3 py-2 rounded-lg text-xs font-medium bg-gradient-to-r from-violet-600 to-arcana-blue text-white hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {isBuilding ? (
+                            <>
+                              <Loader2 className="w-3 h-3 animate-spin" />
+                              AI categorising transactions…
+                            </>
+                          ) : (
+                            <>
+                              <Sparkles className="w-3 h-3" />
+                              Build Bank with AI
+                            </>
+                          )}
+                        </button>
+                      )}
+
+                      {/* ── Import into existing bank ── */}
+                      <div className="flex items-center gap-2 shrink-0">
+                        <select
+                          value={bankId}
+                          onChange={(e) =>
+                            setSelectedBankForFile((prev) => ({
+                              ...prev,
+                              [file.filename]: e.target.value,
+                            }))
+                          }
+                          className="text-xs rounded-lg bg-arcana-navy border border-arcana-border text-white px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-arcana-blue"
+                        >
+                          <option value="">Import into…</option>
+                          {banks.map((b) => (
+                            <option key={b.bankId} value={b.bankId}>
+                              {b.institutionName} ···{b.displayMask}
+                            </option>
+                          ))}
+                        </select>
+                        <button
+                          type="button"
+                          disabled={!bankId || isImporting || isBuilding}
+                          onClick={() => importSavedFile(file)}
+                          className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium bg-arcana-navy border border-arcana-border text-slate-300 hover:border-arcana-blue hover:text-white transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                        >
+                          {isImporting ? (
+                            <Loader2 className="w-3 h-3 animate-spin" />
+                          ) : (
+                            <Download className="w-3 h-3" />
+                          )}
+                          {isImporting ? "Importing…" : "Import"}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Status badges */}
+                    {(importResult || (buildResult && !buildResult.bank)) && (
+                      <div className="pl-12">
+                        {importResult && (
+                          <div className={`inline-flex items-center gap-1 text-[10px] font-medium px-2 py-1 rounded-md ${
+                            importResult.imported > 0 ? "bg-green-900/40 text-green-400" : "bg-slate-700 text-slate-400"
+                          }`}>
+                            {importResult.message}
+                          </div>
                         )}
-                        {isImporting ? "Importing…" : "Import"}
-                      </button>
-                    </div>
-
-                    {/* Result badge */}
-                    {result && (
-                      <div className={`text-[10px] font-medium px-2 py-1 rounded-md shrink-0 ${
-                        result.imported > 0 ? "bg-green-900/40 text-green-400" : "bg-slate-700 text-slate-400"
-                      }`}>
-                        {result.message || `${result.imported} imported`}
+                        {buildResult && !buildResult.bank && (
+                          <div className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-1 rounded-md bg-red-900/40 text-red-400">
+                            {buildResult.message}
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
