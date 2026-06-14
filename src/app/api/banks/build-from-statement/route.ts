@@ -117,41 +117,59 @@ export async function POST(request: NextRequest) {
   if (!auth.ok) return auth.response;
 
   const body = await request.json().catch(() => ({})) as {
+    // Mode A — inline CSV content sent directly from the browser (Vercel-safe)
+    csvContent?: string;
+    // Mode B — read from public/statements/{username}/{filename} (Saved Statements panel)
     username?: string;
     filename?: string;
+    // Common
     institutionName?: string;
     accountMask?: string;
     workspaceId?: string;
   };
 
-  const username = (body.username ?? "").replace(/[^a-zA-Z0-9_\-]/g, "_").slice(0, 64);
-  const filename = body.filename ?? "";
   const workspaceId = body.workspaceId ?? auth.workspaceId;
+  let content: string;
+  let filenameForHints: string;
 
-  if (!username || !filename) {
-    return NextResponse.json({ error: "username and filename are required" }, { status: 400 });
+  if (body.csvContent) {
+    // ── Mode A: inline content ──────────────────────────────────────────
+    content = body.csvContent;
+    filenameForHints = body.filename ?? "statement.csv";
+  } else {
+    // ── Mode B: read from disk ──────────────────────────────────────────
+    const username = (body.username ?? "").replace(/[^a-zA-Z0-9_\-]/g, "_").slice(0, 64);
+    const filename = body.filename ?? "";
+
+    if (!username || !filename) {
+      return NextResponse.json(
+        { error: "Provide either csvContent or both username and filename" },
+        { status: 400 }
+      );
+    }
+
+    filenameForHints = path.basename(filename);
+    const filePath = path.join(STATEMENTS_ROOT, username, filenameForHints);
+
+    if (!filePath.startsWith(STATEMENTS_ROOT) || !fs.existsSync(filePath)) {
+      return NextResponse.json({ error: `Statement file not found: ${filenameForHints}` }, { status: 404 });
+    }
+
+    content = fs.readFileSync(filePath, "utf-8");
   }
 
-  // Resolve and validate file path
-  const safeFile = path.basename(filename);
-  const filePath = path.join(STATEMENTS_ROOT, username, safeFile);
-  if (!filePath.startsWith(STATEMENTS_ROOT) || !fs.existsSync(filePath)) {
-    return NextResponse.json({ error: `Statement file not found: ${safeFile}` }, { status: 404 });
-  }
-
-  const content = fs.readFileSync(filePath, "utf-8");
   if (!content.trim()) {
     return NextResponse.json({ error: "File is empty" }, { status: 422 });
   }
 
   // Parse the CSV
-  const parsed = parseStatement(content, safeFile);
+  const parsed = parseStatement(content, filenameForHints);
   if (parsed.transactions.length === 0) {
     return NextResponse.json({ error: "No transactions could be parsed from this file" }, { status: 422 });
   }
 
   // Infer bank details
-  const hints = parseFilenameHints(safeFile);
+  const hints = parseFilenameHints(filenameForHints);
   const institutionName = body.institutionName ?? hints.institution;
   const accountMask     = body.accountMask     ?? hints.mask;
 
@@ -239,8 +257,8 @@ export async function POST(request: NextRequest) {
     periodEnd,
     currentBalance,
     categoryBreakdown,
-    filename: safeFile,
-    username,
+    filename: filenameForHints,
+    username: (body.username ?? "").replace(/[^a-zA-Z0-9_\-]/g, "_").slice(0, 64),
     message: `Created ${institutionName} ···${accountMask} and imported ${imported} transactions (${periodStart} → ${periodEnd}).`,
   });
 }

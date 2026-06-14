@@ -40,7 +40,6 @@ export interface BuildResult {
 }
 
 interface Props {
-  username: string;           // folder name for public/statements/{username}/
   onClose: () => void;
   onSuccess: (result: BuildResult) => void;
 }
@@ -130,7 +129,7 @@ function FileDropZone({
   );
 }
 
-export default function UploadBankModal({ username, onClose, onSuccess }: Props) {
+export default function UploadBankModal({ onClose, onSuccess }: Props) {
   const [csvFile, setCsvFile] = useState<File | null>(null);
   const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [institutionName, setInstitutionName] = useState("");
@@ -170,48 +169,28 @@ export default function UploadBankModal({ username, onClose, onSuccess }: Props)
   async function handleSubmit() {
     if (!csvFile) return;
     setError(null);
-    setStep("processing");
 
-    // Validate sizes
+    // Client-side validation
     if (csvFile.size > MAX_CSV_BYTES) {
       setError("CSV file exceeds the 10 MB limit.");
-      setStep("upload");
       return;
     }
     if (pdfFile && pdfFile.size > MAX_PDF_BYTES) {
       setError("PDF file exceeds the 25 MB limit.");
-      setStep("upload");
       return;
     }
 
+    setStep("processing");
+
     try {
-      // ── Step 1: Upload files ─────────────────────────────────────────────
-      setStatusMessage("Uploading statement files…");
+      // ── Step 1: Read CSV content in the browser ──────────────────────────
+      // We send the raw text to the API so no server-side file writes are
+      // needed — this works on Vercel's read-only filesystem.
+      setStatusMessage("Reading statement file…");
+      const csvContent = await csvFile.text();
 
-      const fd = new FormData();
-      fd.append("file", csvFile);
-      fd.append("bankId", "TEMP");     // required by existing upload API but we bypass bank lookup
-      fd.append("workspaceId", "ws-001");
-      fd.append("username", username); // used to save to public/statements/{username}/
-
-      // Use the raw save endpoint instead (we only need to persist the file)
-      const saveRes = await fetch("/api/banks/statements/save-file", {
-        method: "POST",
-        body: fd,
-      });
-
-      let savedFilename = csvFile.name;
-      if (saveRes.ok) {
-        const saved = await saveRes.json() as { filename?: string };
-        if (saved.filename) savedFilename = saved.filename;
-      }
-
-      // Also upload PDF if provided (just for storage, not parsed)
-      if (pdfFile) {
-        const pdfFd = new FormData();
-        pdfFd.append("file", pdfFile);
-        pdfFd.append("username", username);
-        await fetch("/api/banks/statements/save-file", { method: "POST", body: pdfFd });
+      if (!csvContent.trim()) {
+        throw new Error("The CSV file appears to be empty.");
       }
 
       // ── Step 2: AI categorisation + bank creation ────────────────────────
@@ -221,8 +200,8 @@ export default function UploadBankModal({ username, onClose, onSuccess }: Props)
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          username,
-          filename: savedFilename,
+          csvContent,                             // inline — no filesystem dependency
+          filename: csvFile.name,                 // used for institution/mask hints
           institutionName: institutionName || undefined,
           accountMask: accountMask || undefined,
           workspaceId: "ws-001",
@@ -369,10 +348,10 @@ export default function UploadBankModal({ username, onClose, onSuccess }: Props)
               {/* Progress steps */}
               <div className="w-full space-y-2 text-left bg-arcana-navy/50 rounded-xl px-4 py-3">
                 {[
-                  { label: "Save statement files", done: true },
+                  { label: "Read CSV file", done: true },
                   { label: "Parse transactions from CSV", done: statusMessage.includes("AI") },
                   { label: "AI categorisation with Gemini Flash", done: false },
-                  { label: "Create bank account", done: false },
+                  { label: "Create bank account + import", done: false },
                 ].map((s, i) => (
                   <div key={i} className="flex items-center gap-2">
                     {s.done ? (

@@ -809,11 +809,10 @@ export default function MyBanksPage() {
       {/* Upload Bank Info modal — creates a statement-linked bank with AI categories */}
       {showUploadModal && (
         <UploadBankModal
-          username={username}
           onClose={() => setShowUploadModal(false)}
           onSuccess={(result: ModalBuildResult) => {
             setShowUploadModal(false);
-            bump(); // re-render to show the new statement bank card
+            bump();
             console.info(`[UploadBank] created ${result.bank.institutionName} with ${result.imported} txns`);
           }}
         />
