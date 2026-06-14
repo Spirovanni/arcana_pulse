@@ -17,8 +17,22 @@ import { parseStatement } from "@/lib/services/statementParser";
 import { insertSyncedTransaction } from "@/lib/services/transactions";
 import { getBankById } from "@/lib/services/banks";
 import type { Category } from "@/lib/types";
+import fs from "fs";
+import path from "path";
 
 const MAX_FILE_BYTES = 10 * 1024 * 1024; // 10 MB
+const STATEMENTS_ROOT = path.join(process.cwd(), "public", "statements");
+
+function saveStatementFile(username: string, filename: string, content: string): void {
+  try {
+    const safe = username.replace(/[^a-zA-Z0-9_\-]/g, "_").slice(0, 64);
+    const dir = path.join(STATEMENTS_ROOT, safe);
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, path.basename(filename)), content, "utf-8");
+  } catch {
+    // Non-fatal: continue even if file save fails
+  }
+}
 
 export async function POST(request: NextRequest) {
   const auth = await requireAuth(request);
@@ -35,8 +49,7 @@ export async function POST(request: NextRequest) {
 
   const file = formData.get("file") as File | null;
   const bankId = formData.get("bankId") as string | null;
-  const authOk = auth as { ok: true; workspaceId: string };
-  const workspaceId = (formData.get("workspaceId") as string | null) ?? authOk.workspaceId;
+  const workspaceId = (formData.get("workspaceId") as string | null) ?? auth.workspaceId;
 
   if (!file || !bankId) {
     return NextResponse.json({ error: "file and bankId are required" }, { status: 400 });
@@ -67,6 +80,11 @@ export async function POST(request: NextRequest) {
   // PDFs: read as text and let parser extract what it can from text-layer PDFs.
   // Binary PDFs without a text layer will produce little output (noted in response).
   const content = await file.text();
+
+  // Persist the file for future reference / re-import
+  const rawEmail = auth.session.user.email ?? "";
+  const username = rawEmail.split("@")[0].replace(/[^a-zA-Z0-9_]/g, "_");
+  saveStatementFile(username, file.name, content);
 
   if (!content.trim()) {
     return NextResponse.json(

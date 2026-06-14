@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback, useEffect } from "react";
+import { useSession } from "next-auth/react";
 import {
   Landmark,
   Plus,
@@ -12,8 +13,9 @@ import {
   RefreshCw,
   TrendingUp,
   TrendingDown,
-  Minus,
+  FileText,
   Upload,
+  Download,
 } from "lucide-react";
 import { usePlaidLink } from "react-plaid-link";
 import EmptyState from "@/components/EmptyState";
@@ -31,7 +33,22 @@ import {
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { CATEGORY_LABELS } from "@/lib/constants";
 
+type SavedFile = {
+  filename: string;
+  username: string;
+  sizeBytes: number;
+  uploadedAt: string;
+};
+
+type ImportResult = {
+  imported: number;
+  duplicates: number;
+  skipped: number;
+  message: string;
+};
+
 export default function MyBanksPage() {
+  const { data: session } = useSession();
   const [version, setVersion] = useState(0);
   const bump = useCallback(() => setVersion((v) => v + 1), []);
 
@@ -39,12 +56,60 @@ export default function MyBanksPage() {
   const _ = version;
   const banks = getBanksByWorkspace(DEFAULT_WORKSPACE_ID);
 
+  // ── Saved statements state ──────────────────────────────────
+  const [savedFiles, setSavedFiles] = useState<SavedFile[]>([]);
+  const [selectedBankForFile, setSelectedBankForFile] = useState<Record<string, string>>({});
+  const [importingFile, setImportingFile] = useState<string | null>(null);
+  const [importResults, setImportResults] = useState<Record<string, ImportResult>>({});
+
+  // Derive username from email
+  const username = session?.user?.email?.split("@")[0]?.replace(/[^a-zA-Z0-9_]/g, "_") ?? "";
+
   const [expandedBankId, setExpandedBankId] = useState<string | null>(null);
   const [uploadingBank, setUploadingBank] = useState<{ bankId: string; bankName: string } | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [linkToken, setLinkToken] = useState<string | null>(null);
   const [linking, setLinking] = useState(false);
   const [syncingBankId, setSyncingBankId] = useState<string | null>(null);
+
+  // Fetch saved statement files for this user
+  useEffect(() => {
+    if (!username) return;
+    fetch(`/api/banks/statements/import-saved?username=${encodeURIComponent(username)}`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.files) setSavedFiles(data.files);
+      })
+      .catch(() => {});
+  }, [username, version]);
+
+  async function importSavedFile(file: SavedFile) {
+    const bankId = selectedBankForFile[file.filename];
+    if (!bankId) return;
+    setImportingFile(file.filename);
+    try {
+      const res = await fetch("/api/banks/statements/import-saved", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          username: file.username,
+          filename: file.filename,
+          bankId,
+          workspaceId: DEFAULT_WORKSPACE_ID,
+        }),
+      });
+      const data: ImportResult = await res.json();
+      setImportResults((prev) => ({ ...prev, [file.filename]: data }));
+      bump();
+    } catch {
+      setImportResults((prev) => ({
+        ...prev,
+        [file.filename]: { imported: 0, duplicates: 0, skipped: 0, message: "Import failed" },
+      }));
+    } finally {
+      setImportingFile(null);
+    }
+  }
 
   // Fetch a Plaid link token on mount
   useEffect(() => {
@@ -421,6 +486,89 @@ export default function MyBanksPage() {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* ── Saved Statements ───────────────────────────────────── */}
+      {savedFiles.length > 0 && (
+        <div className="space-y-4">
+          <div>
+            <h2 className="text-lg font-semibold text-white flex items-center gap-2">
+              <FileText className="w-5 h-5 text-arcana-sky" />
+              Saved Statements
+            </h2>
+            <p className="text-xs text-slate-400 mt-0.5">
+              Previously uploaded statement files — select a bank and click Import to load transactions.
+            </p>
+          </div>
+          <div className="rounded-xl bg-arcana-surface border border-arcana-border overflow-hidden">
+            <div className="divide-y divide-arcana-border">
+              {savedFiles.map((file) => {
+                const result = importResults[file.filename];
+                const isImporting = importingFile === file.filename;
+                const bankId = selectedBankForFile[file.filename] ?? "";
+                const kb = (file.sizeBytes / 1024).toFixed(0);
+                const uploadedDate = new Date(file.uploadedAt).toLocaleDateString();
+                return (
+                  <div key={file.filename} className="p-4 flex flex-col sm:flex-row sm:items-center gap-3">
+                    {/* File info */}
+                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                      <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-arcana-navy shrink-0">
+                        <FileText className="w-4 h-4 text-arcana-sky" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-white truncate">{file.filename}</p>
+                        <p className="text-[10px] text-slate-500">{kb} KB · uploaded {uploadedDate}</p>
+                      </div>
+                    </div>
+
+                    {/* Bank selector + import */}
+                    <div className="flex items-center gap-2 shrink-0">
+                      <select
+                        value={bankId}
+                        onChange={(e) =>
+                          setSelectedBankForFile((prev) => ({
+                            ...prev,
+                            [file.filename]: e.target.value,
+                          }))
+                        }
+                        className="text-xs rounded-lg bg-arcana-navy border border-arcana-border text-white px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-arcana-blue"
+                      >
+                        <option value="">Select bank…</option>
+                        {banks.map((b) => (
+                          <option key={b.bankId} value={b.bankId}>
+                            {b.institutionName} ···{b.displayMask}
+                          </option>
+                        ))}
+                      </select>
+                      <button
+                        type="button"
+                        disabled={!bankId || isImporting}
+                        onClick={() => importSavedFile(file)}
+                        className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium bg-arcana-blue text-white hover:bg-blue-600 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                      >
+                        {isImporting ? (
+                          <Loader2 className="w-3 h-3 animate-spin" />
+                        ) : (
+                          <Download className="w-3 h-3" />
+                        )}
+                        {isImporting ? "Importing…" : "Import"}
+                      </button>
+                    </div>
+
+                    {/* Result badge */}
+                    {result && (
+                      <div className={`text-[10px] font-medium px-2 py-1 rounded-md shrink-0 ${
+                        result.imported > 0 ? "bg-green-900/40 text-green-400" : "bg-slate-700 text-slate-400"
+                      }`}>
+                        {result.message || `${result.imported} imported`}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
         </div>
       )}
 

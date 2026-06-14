@@ -49,7 +49,15 @@ const CATEGORY_RULES: Array<{ pattern: RegExp; category: Category }> = [
   { pattern: /tuition|university|college|coursera|udemy|udacity|education|school|textbook/i, category: "education" },
   { pattern: /subscription|saas|monthly.fee|annual.fee|membership/i, category: "subscriptions" },
   { pattern: /airline|flight|hotel|airbnb|vrbo|travel|expedia|booking\.com|kayak/i, category: "travel" },
-  { pattern: /transfer|zelle|venmo|paypal|wire|ach/i, category: "transfer" },
+  { pattern: /transfer|zelle|venmo|wire|ach\s/i, category: "transfer" },
+  // Common merchants from Chase statements
+  { pattern: /planet.?fitness|gym|crossfit|equinox|24.?hour.?fitness|ymca/i, category: "healthcare" },
+  { pattern: /rocket.?money|mint|ynab|copilot|monarch/i, category: "subscriptions" },
+  { pattern: /costco|sam.?s.?club|bj.?s/i, category: "shopping" },
+  { pattern: /hacienda|empanada|taco|burrito|pizza|sushi|ramen|panda|wendys|in.?n.?out|jack.?in.?the.?box/i, category: "food" },
+  { pattern: /pump|76|circle.?k|arco|valero|mobil/i, category: "transportation" },
+  { pattern: /comcast|xfinity|spectrum|cox\s|frontier/i, category: "utilities" },
+  { pattern: /dicks.?sporting|rei|sports.?authority|bass.?pro/i, category: "shopping" },
 ];
 
 function inferCategory(title: string): Category {
@@ -111,8 +119,20 @@ function detectCsvColumns(header: string[]): {
 } | null {
   const h = header.map((s) => s.toLowerCase().trim().replace(/['"]/g, ""));
 
-  const dateIdx = h.findIndex((c) => /^date|^transaction.?date|^posted|^trans\.?date/i.test(c));
-  const descIdx = h.findIndex((c) => /description|memo|payee|merchant|narrative|details/i.test(c));
+  // Matches: "Date", "Posting Date", "Transaction Date", "Posted Date",
+  //          "Trans Date", "Value Date", "Settlement Date"
+  const dateIdx = h.findIndex((c) =>
+    /^date$|^posting.?date|^transaction.?date|^posted.?date|^trans\.?date|^value.?date|^settlement.?date/i.test(c)
+  );
+
+  // Matches: "Description", "Memo", "Payee", "Merchant", "Narrative", "Details"
+  // Chase uses "Description" as the 3rd column; "Details" is the DEBIT/CREDIT indicator — skip Details if Description exists
+  const descIdx = (() => {
+    const byDesc = h.findIndex((c) => /^description$|^memo$|^payee$|^merchant$|^narrative$/i.test(c));
+    if (byDesc !== -1) return byDesc;
+    // Fallback to "Details" only if no dedicated description column
+    return h.findIndex((c) => /details/i.test(c));
+  })();
 
   // Single "amount" column
   const amountIdx = h.findIndex((c) => /^amount$|^transaction.?amount|^debit\/credit/i.test(c));
