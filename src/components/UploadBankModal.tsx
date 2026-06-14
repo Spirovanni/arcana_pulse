@@ -28,7 +28,7 @@ export interface BuildResult {
     bankId: string;
     institutionName: string;
     displayMask: string;
-    balance: number;
+    balance?: number;
   };
   imported: number;
   duplicates: number;

@@ -35,7 +35,7 @@ import {
   getHoldingsByAccount,
   ACCOUNT_TYPE_LABELS,
 } from "@/lib/services/investments";
-import { formatCurrency, formatDate } from "@/lib/utils";
+import { formatCurrency, formatDate, makeArcId } from "@/lib/utils";
 import { CATEGORY_LABELS } from "@/lib/constants";
 import type { Bank } from "@/lib/types";
 
@@ -54,7 +54,7 @@ type ImportResult = {
 };
 
 type BuildResult = {
-  bank?: { bankId: string; institutionName: string; displayMask: string };
+  bank?: { bankId: string; institutionName: string; displayMask: string; balance?: number };
   imported: number;
   periodStart: string;
   periodEnd: string;
@@ -179,7 +179,30 @@ export default function MyBanksPage() {
       });
       const data: BuildResult = await res.json();
       setBuildResults((prev) => ({ ...prev, [file.filename]: data }));
-      bump(); // refresh bank list
+      // Also persist to localStorage if bank was created
+      if (data.bank) {
+        addStatementBank(
+          {
+            bankId:          data.bank.bankId,
+            workspaceId:     "ws-001",
+            institutionName: data.bank.institutionName,
+            accountId:       `stmt-${data.bank.displayMask}-${Date.now()}`,
+            displayMask:     data.bank.displayMask,
+            shareableId:     makeArcId(data.bank.institutionName, data.bank.displayMask),
+            balance:         data.bank.balance ?? 0,
+            createdAt:       new Date().toISOString(),
+            updatedAt:       new Date().toISOString(),
+          },
+          {
+            imported:    data.imported,
+            periodStart: data.periodStart,
+            periodEnd:   data.periodEnd,
+            filename:    file.filename,
+            username:    file.username,
+          }
+        );
+      }
+      bump();
     } catch {
       setBuildResults((prev) => ({
         ...prev,
@@ -424,18 +447,18 @@ export default function MyBanksPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {statementBanks.map((bank) => {
               const meta = stmtMeta[bank.bankId];
-              const viewerUrl = meta
-                ? `/statement-viewer/${encodeURIComponent(meta.username)}/${encodeURIComponent(meta.filename)}`
-                : null;
+              const accountUrl = `/my-banks/${bank.bankId}`;
+
               return (
-                <div key={bank.bankId} className="rounded-xl bg-arcana-surface border border-violet-800/40 relative overflow-hidden">
+                <div key={bank.bankId} className="rounded-xl bg-arcana-surface border border-violet-800/40 relative overflow-hidden group">
                   {/* AI badge ribbon */}
-                  <div className="absolute top-0 right-0 flex items-center gap-1 bg-gradient-to-l from-violet-600 to-arcana-blue text-white text-[9px] font-bold px-2 py-1 rounded-bl-lg">
+                  <div className="absolute top-0 right-0 flex items-center gap-1 bg-gradient-to-l from-violet-600 to-arcana-blue text-white text-[9px] font-bold px-2 py-1 rounded-bl-lg z-10">
                     <Sparkles className="w-2.5 h-2.5" />
                     AI Categorised
                   </div>
 
-                  <div className="p-5 pt-7">
+                  {/* Clickable card body → account page */}
+                  <a href={accountUrl} className="block p-5 pt-7 hover:bg-white/[0.02] transition-colors">
                     <div className="flex items-center gap-3 mb-4">
                       <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-violet-900/40 border border-violet-700/30">
                         <FileText className="w-5 h-5 text-violet-400" />
@@ -446,6 +469,13 @@ export default function MyBanksPage() {
                       </div>
                     </div>
 
+                    {/* ARC ID */}
+                    <div className="flex items-center gap-1.5 mb-3">
+                      <span className="text-[10px] font-mono font-bold tracking-wider text-violet-400 bg-violet-900/30 border border-violet-700/30 rounded px-2 py-0.5">
+                        {bank.shareableId}
+                      </span>
+                    </div>
+
                     <div className="mb-3">
                       <p className="text-xs text-slate-400 mb-1">Ending Balance</p>
                       <p className="text-xl font-bold text-white">{formatCurrency(bank.balance)}</p>
@@ -453,7 +483,7 @@ export default function MyBanksPage() {
 
                     {/* Statement period + transaction count */}
                     {meta && (
-                      <div className="grid grid-cols-2 gap-2 mb-4 bg-arcana-navy/60 rounded-lg px-3 py-2">
+                      <div className="grid grid-cols-2 gap-2 bg-arcana-navy/60 rounded-lg px-3 py-2">
                         <div>
                           <p className="text-[9px] text-slate-500 uppercase tracking-wide mb-0.5">Transactions</p>
                           <p className="text-sm font-semibold text-white">{meta.imported.toLocaleString()}</p>
@@ -464,35 +494,31 @@ export default function MyBanksPage() {
                         </div>
                       </div>
                     )}
+                  </a>
 
-                    <div className="flex gap-2">
-                      {viewerUrl ? (
-                        <a
-                          href={viewerUrl}
-                          className="flex-1 flex items-center justify-center gap-1 py-2 rounded-lg text-xs font-medium bg-violet-900/30 border border-violet-700/30 text-violet-300 hover:bg-violet-800/40 transition-colors"
-                        >
-                          <Eye className="w-3 h-3" />
-                          View Statement
-                        </a>
-                      ) : (
-                        <div className="flex-1" />
-                      )}
-                      <button
-                        type="button"
-                        onClick={() => {
-                          // Remove this bank from localStorage
-                          setStatementBanks((prev) => {
-                            const next = prev.filter((b) => b.bankId !== bank.bankId);
-                            try { localStorage.setItem(LS_KEY, JSON.stringify(next)); } catch { /* quota */ }
-                            return next;
-                          });
-                        }}
-                        className="flex items-center justify-center gap-1 px-3 py-2 rounded-lg text-xs text-slate-500 hover:text-red-400 hover:bg-red-900/20 transition-colors"
-                        title="Remove from this section"
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
-                    </div>
+                  {/* Footer: action row */}
+                  <div className="flex items-center gap-2 px-5 pb-4">
+                    <a
+                      href={accountUrl}
+                      className="flex-1 flex items-center justify-center gap-1 py-2 rounded-lg text-xs font-medium bg-violet-900/30 border border-violet-700/30 text-violet-300 hover:bg-violet-800/40 transition-colors"
+                    >
+                      <Eye className="w-3 h-3" />
+                      Open Account
+                    </a>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setStatementBanks((prev) => {
+                          const next = prev.filter((b) => b.bankId !== bank.bankId);
+                          try { localStorage.setItem(LS_KEY, JSON.stringify(next)); } catch { /* quota */ }
+                          return next;
+                        });
+                      }}
+                      className="flex items-center justify-center gap-1 px-3 py-2 rounded-lg text-xs text-slate-500 hover:text-red-400 hover:bg-red-900/20 transition-colors"
+                      title="Remove bank"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
                   </div>
                 </div>
               );
@@ -841,8 +867,8 @@ export default function MyBanksPage() {
                 institutionName: result.bank.institutionName,
                 accountId:       `stmt-${result.bank.displayMask}-${Date.now()}`,
                 displayMask:     result.bank.displayMask,
-                shareableId:     `${result.bank.institutionName.toLowerCase().replace(/\s+/g, "-")}-${result.bank.displayMask}`,
-                balance:         result.bank.balance,
+                shareableId:     makeArcId(result.bank.institutionName, result.bank.displayMask),
+                balance:         result.bank.balance ?? 0,
                 createdAt:       new Date().toISOString(),
                 updatedAt:       new Date().toISOString(),
               },

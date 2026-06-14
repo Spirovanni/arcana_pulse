@@ -27,3 +27,43 @@ export function toISODate(date: Date): string {
 export function cn(...inputs: (string | undefined | null | false)[]) {
   return twMerge(clsx(inputs));
 }
+
+// ── ARC-{ABBREV}-{MASK} naming ───────────────────────────────────────────────
+
+const INSTITUTION_ABBREVS: [RegExp, string][] = [
+  [/chase/i,                     "CHASE"],
+  [/bank\s*of\s*america|boa|bofa/i, "BOA"],
+  [/wells\s*fargo/i,             "WF"],
+  [/capital\s*one/i,             "CAPONE"],
+  [/american\s*express|amex/i,   "AMEX"],
+  [/navy\s*federal/i,            "NFCU"],
+  [/usaa/i,                      "USAA"],
+  [/discover/i,                  "DISC"],
+  [/citibank|citi/i,             "CITI"],
+  [/pnc/i,                       "PNC"],
+  [/u\.?s\.?\s*bank/i,           "USB"],
+  [/td\s*bank/i,                 "TD"],
+  [/regions/i,                   "RGNS"],
+  [/suntrust|truist/i,           "TRST"],
+  [/ally/i,                      "ALLY"],
+  [/charles\s*schwab/i,          "SCHW"],
+  [/fidelity/i,                  "FDLTY"],
+  [/vanguard/i,                  "VG"],
+];
+
+export function institutionAbbrev(name: string): string {
+  for (const [re, abbrev] of INSTITUTION_ABBREVS) {
+    if (re.test(name)) return abbrev;
+  }
+  // Fall back: take first letters of each word, max 6 chars, uppercase
+  return name
+    .split(/\s+/)
+    .map((w) => w[0] ?? "")
+    .join("")
+    .toUpperCase()
+    .slice(0, 6) || "BANK";
+}
+
+export function makeArcId(institutionName: string, mask: string): string {
+  return `ARC-${institutionAbbrev(institutionName)}-${mask}`;
+}
