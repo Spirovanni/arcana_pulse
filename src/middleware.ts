@@ -20,25 +20,32 @@ const PUBLIC_PATHS = [
 // Routes that must be openly accessible to cross-origin clients (MCP tools, OAuth discovery)
 const CORS_OPEN_PATHS = ["/api/mcp", "/.well-known/"];
 
-// Per-route rate limit configs (first match wins)
-const RATE_LIMITS: Array<{ test: (p: string) => boolean; limit: number; windowMs: number; label: string }> = [
-  // Auth mutations — strictest (5 / min)
+// Per-route rate limit configs (first match wins).
+// Note: method is checked by the caller — GET page navigations skip mutation limits.
+const RATE_LIMITS: Array<{
+  test: (p: string, method: string) => boolean;
+  limit: number;
+  windowMs: number;
+  label: string;
+}> = [
+  // Auth mutations — strictest (5 / min) — POST/PUT only, not GET page loads
   {
-    test: (p) =>
-      p === "/sign-in" ||
-      p.startsWith("/api/auth/signin") ||
-      p.startsWith("/api/auth/callback"),
+    test: (p, m) =>
+      m !== "GET" &&
+      (p.startsWith("/api/auth/signin") ||
+        p.startsWith("/api/auth/callback") ||
+        p === "/api/auth/register"),
     limit: 5,
     windowMs: 60_000,
     label: "auth",
   },
-  // Sign-up, password reset (10 / min)
+  // Sign-up, password reset (10 / min) — API mutations only
   {
-    test: (p) =>
-      p === "/sign-up" ||
-      p.startsWith("/api/auth/mfa") ||
-      p.startsWith("/forgot-password") ||
-      p.startsWith("/reset-password"),
+    test: (p, m) =>
+      m !== "GET" &&
+      (p.startsWith("/api/auth/mfa") ||
+        p.startsWith("/api/auth/forgot-password") ||
+        p.startsWith("/api/auth/reset-password")),
     limit: 10,
     windowMs: 60_000,
     label: "auth-secondary",
@@ -148,10 +155,16 @@ export async function middleware(request: NextRequest) {
     return applyCorsHeaders(preflight, pathname);
   }
 
-  // ── Rate limiting (before auth) ───────────────────────────────────────────
+  // ── Auth API routes pass through without CORS/rate-limit interference ────
+  // NextAuth handles its own CSRF + callback validation internally.
+  if (pathname.startsWith("/api/auth/")) {
+    return applyCorsHeaders(NextResponse.next(), pathname);
+  }
+
+  // ── Rate limiting (before auth check) ────────────────────────────────────
   const ip = getIp(request);
   for (const rule of RATE_LIMITS) {
-    if (rule.test(pathname)) {
+    if (rule.test(pathname, httpMethod)) {
       const result = rateLimit(`${rule.label}:${ip}`, rule.limit, rule.windowMs);
       if (!result.allowed) {
         return rateLimitedResponse(result.retryAfterSeconds);
@@ -166,11 +179,6 @@ export async function middleware(request: NextRequest) {
       JSON.stringify({ error: "Cross-origin request not allowed" }),
       { status: 403, headers: { "Content-Type": "application/json" } }
     );
-  }
-
-  // ── Auth API routes (NextAuth + custom sign-up) ───────────────────────────
-  if (pathname.startsWith("/api/auth/")) {
-    return applyCorsHeaders(NextResponse.next(), pathname);
   }
 
   // ── MCP endpoint — auth is handled inside the route handler ──────────────

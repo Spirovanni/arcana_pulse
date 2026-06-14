@@ -18,15 +18,21 @@ function h(key, value) {
 // - img-src: Google avatars, Appwrite storage
 const CSP = [
   "default-src 'self'",
-  "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.sentry-cdn.com https://browser.sentry-cdn.com",
-  "style-src 'self' 'unsafe-inline'",
-  "font-src 'self' data:",
+  // Next.js inline scripts + Sentry + Vercel feedback toolbar
+  "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.sentry-cdn.com https://browser.sentry-cdn.com https://vercel.live",
+  // Allow Google Fonts stylesheets
+  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+  // Allow Google Fonts files + local data URIs
+  "font-src 'self' data: https://fonts.gstatic.com",
   "img-src 'self' data: blob: https://lh3.googleusercontent.com https://cloud.appwrite.io",
-  "connect-src 'self' https://*.appwrite.io https://*.sentry.io https://o*.ingest.sentry.io https://cdn.plaid.com https://sandbox.plaid.com https://production.plaid.com https://api-sandbox.dwolla.com https://api.dwolla.com https://api.stripe.com https://js.stripe.com wss://realtime.ably.io",
-  "frame-src https://cdn.plaid.com https://js.stripe.com",
+  // connect-src: fixed Sentry ingest (o*.ingest wildcard is invalid CSP syntax)
+  "connect-src 'self' https://*.appwrite.io https://*.sentry.io https://ingest.sentry.io https://o4504.ingest.sentry.io https://cdn.plaid.com https://sandbox.plaid.com https://production.plaid.com https://api-sandbox.dwolla.com https://api.dwolla.com https://api.stripe.com https://js.stripe.com https://accounts.google.com wss://realtime.ably.io https://vercel.live",
+  "frame-src https://cdn.plaid.com https://js.stripe.com https://accounts.google.com",
+  // Sentry session replay uses blob workers
+  "worker-src blob: 'self'",
   "object-src 'none'",
   "base-uri 'self'",
-  "form-action 'self'",
+  "form-action 'self' https://accounts.google.com",
   "frame-ancestors 'none'",
   "upgrade-insecure-requests",
 ].join("; ");
