@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { plaidClient } from "@/lib/plaid";
 import { ProcessorTokenCreateRequestProcessorEnum } from "plaid";
-import { addBank, updateBank } from "@/lib/services/banks";
+import { addBank, updateBank, getBanksByWorkspace } from "@/lib/services/banks";
 import { dwollaClient } from "@/lib/dwolla";
 import { requireAuth } from "@/lib/auth/withAuth";
+import { getWorkspace } from "@/lib/services/workspace";
+import { canAddBankAccount } from "@/lib/planLimits";
 
 export async function POST(request: NextRequest) {
   const auth = await requireAuth(request, { requiredRole: "member", enforceWorkspace: false });
@@ -22,6 +24,16 @@ export async function POST(request: NextRequest) {
         { error: "publicToken and workspaceId are required" },
         { status: 400 }
       );
+    }
+
+    // ── Plan enforcement: check bank account limit ────────────────────────
+    const workspace = getWorkspace(workspaceId);
+    if (workspace) {
+      const existingBanks = getBanksByWorkspace(workspaceId);
+      const check = canAddBankAccount(workspace.plan, existingBanks.length);
+      if (!check.allowed) {
+        return NextResponse.json({ error: check.reason, planLimit: true }, { status: 403 });
+      }
     }
 
     // Exchange public token for access token

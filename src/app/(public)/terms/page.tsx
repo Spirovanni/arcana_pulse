@@ -103,6 +103,18 @@ const SECTIONS = [
     ],
   },
   {
+    id: "billing",
+    title: "Billing & Subscriptions",
+    body: [
+      "Arcana Pulse offers a free Starter plan and paid Pro and Team plans billed monthly or annually. Prices are listed on the Pricing page and may change with 30 days notice.",
+      "Subscriptions renew automatically at the end of each billing period. You may cancel at any time in Settings → Billing; cancellation takes effect at the end of the current period.",
+      "Annual subscriptions are discounted by 20% compared to the monthly rate. Annual plans are non-refundable after the first 7 days unless required by law.",
+      "If a payment fails, we will retry for up to 14 days before downgrading your workspace to the Starter plan.",
+      "Refund requests outside the 7-day window are handled on a case-by-case basis. Contact billing@arcanapulse.com to request a refund.",
+      "All prices are in USD. Stripe processes payments. We do not store your credit card information.",
+    ],
+  },
+  {
     id: "governing-law",
     title: "Governing Law & Disputes",
     body: [
@@ -158,7 +170,7 @@ export default function TermsPage() {
             <span className="text-[9px] uppercase tracking-[3px] text-primary font-bold">Legal</span>
             <h1 className="text-4xl lg:text-5xl font-light tracking-tight">Terms of Service</h1>
             <p className="text-secondary text-sm">
-              Effective date: <span className="text-on-surface">April 19, 2026</span> · Last updated: April 19, 2026
+              Effective date: <span className="text-on-surface">April 19, 2026</span> · Last updated: June 14, 2026
             </p>
             <p className="text-secondary leading-relaxed max-w-2xl">
               Please read these Terms carefully before using Arcana Pulse. By accessing or using our services, you agree to be bound by these Terms.

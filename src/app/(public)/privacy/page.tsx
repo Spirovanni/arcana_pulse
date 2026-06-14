@@ -143,7 +143,7 @@ export default function PrivacyPage() {
             <span className="text-[9px] uppercase tracking-[3px] text-primary font-bold">Legal</span>
             <h1 className="text-4xl lg:text-5xl font-light tracking-tight">Privacy Policy</h1>
             <p className="text-secondary text-sm">
-              Effective date: <span className="text-on-surface">April 19, 2026</span> · Last updated: April 19, 2026
+              Effective date: <span className="text-on-surface">April 19, 2026</span> · Last updated: June 14, 2026
             </p>
             <p className="text-secondary leading-relaxed max-w-2xl">
               Arcana Pulse is committed to protecting your privacy. This policy explains what data we collect, why we collect it, how it's used, and the rights you have over your information.

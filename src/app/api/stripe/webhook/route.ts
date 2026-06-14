@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getStripe, isSandboxBilling } from "@/lib/stripe";
 import { updateWorkspace } from "@/lib/services/workspace";
+import {
+  sendSubscriptionWelcomeEmail,
+  sendSubscriptionCancelledEmail,
+} from "@/lib/services/email";
 import type { WorkspacePlan } from "@/lib/types";
 import type Stripe from "stripe";
 
@@ -62,6 +66,13 @@ async function handleEvent(event: Stripe.Event) {
       const plan = sess.metadata?.plan as WorkspacePlan | undefined;
       if (workspaceId && plan && plan !== "starter") {
         applyPlan(workspaceId, plan);
+        // Send welcome email via customer email from Stripe session
+        if (sess.customer_email && plan) {
+          const planLabel = plan.charAt(0).toUpperCase() + plan.slice(1);
+          sendSubscriptionWelcomeEmail(sess.customer_email, "there", planLabel).catch(
+            (err) => console.error("[stripe/webhook] welcome email failed:", err)
+          );
+        }
       }
       break;
     }
@@ -86,6 +97,15 @@ async function handleEvent(event: Stripe.Event) {
       const workspaceId = sub.metadata?.workspaceId;
       if (workspaceId) {
         applyPlan(workspaceId, "starter");
+        // Notify the customer that their subscription ended
+        const cancelledAt = sub.canceled_at
+          ? new Date(sub.canceled_at * 1000).toISOString()
+          : new Date().toISOString();
+        if (sub.metadata?.email) {
+          sendSubscriptionCancelledEmail(sub.metadata.email, "there", cancelledAt).catch(
+            (err) => console.error("[stripe/webhook] cancellation email failed:", err)
+          );
+        }
       }
       break;
     }

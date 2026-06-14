@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { createInvite, canInvite } from "@/lib/services/members";
+import { createInvite, canInvite, getMembersByWorkspace } from "@/lib/services/members";
 import { sendEmail } from "@/lib/services/email";
+import { getWorkspace } from "@/lib/services/workspace";
+import { canAddWorkspaceMember } from "@/lib/planLimits";
 import type { UserRole } from "@/lib/types";
 
 export async function POST(request: NextRequest) {
@@ -21,6 +23,16 @@ export async function POST(request: NextRequest) {
   const validRoles: UserRole[] = ["admin", "member", "viewer"];
   if (!validRoles.includes(role)) {
     return NextResponse.json({ error: "Invalid role. Must be admin, member, or viewer" }, { status: 400 });
+  }
+
+  // ── Plan enforcement: member limit ──────────────────────────────────────
+  const workspace = getWorkspace(workspaceId);
+  if (workspace) {
+    const currentMembers = getMembersByWorkspace(workspaceId);
+    const check = canAddWorkspaceMember(workspace.plan, currentMembers.length);
+    if (!check.allowed) {
+      return NextResponse.json({ error: check.reason, planLimit: true }, { status: 403 });
+    }
   }
 
   const userId = session.user.userId;

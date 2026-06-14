@@ -48,9 +48,24 @@ const FAQ = [
   },
 ];
 
+const ANNUAL_DISCOUNT = 0.20; // 20% off
+
+function getDisplayPrice(monthlyPrice: number, annual: boolean): { amount: number; label: string; savings?: string } {
+  if (monthlyPrice === 0) return { amount: 0, label: "Free" };
+  if (!annual) return { amount: monthlyPrice / 100, label: `$${monthlyPrice / 100}` };
+  const discounted = Math.round(monthlyPrice * (1 - ANNUAL_DISCOUNT)) / 100;
+  const yearlyTotal = Math.round(discounted * 12);
+  return {
+    amount: discounted,
+    label: `$${discounted.toFixed(0)}`,
+    savings: `$${yearlyTotal}/yr — save $${Math.round((monthlyPrice / 100) * 12 - yearlyTotal)}`,
+  };
+}
+
 export default function PricingPage() {
   const router = useRouter();
   const [openFaq, setOpenFaq] = useState<number | null>(null);
+  const [annual, setAnnual] = useState(false);
 
   return (
     <div className="min-h-screen text-on-surface overflow-x-hidden">
@@ -89,7 +104,7 @@ export default function PricingPage() {
 
         {/* ── Hero ── */}
         <motion.div
-          className="text-center mb-16"
+          className="text-center mb-12"
           initial={{ opacity: 0, y: 24 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
@@ -107,74 +122,116 @@ export default function PricingPage() {
           </p>
         </motion.div>
 
+        {/* ── Annual / Monthly toggle ── */}
+        <motion.div
+          className="flex items-center justify-center gap-4 mb-12"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.4, delay: 0.2 }}
+        >
+          <span className={`text-xs uppercase tracking-[2px] font-bold transition-colors ${!annual ? "text-on-surface" : "text-secondary"}`}>
+            Monthly
+          </span>
+          <button
+            type="button"
+            onClick={() => setAnnual((v) => !v)}
+            className={`relative w-12 h-6 rounded-full transition-colors ${annual ? "bg-primary" : "bg-outline/40"}`}
+            aria-label="Toggle annual billing"
+          >
+            <span
+              className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-white shadow transition-transform ${annual ? "translate-x-6" : "translate-x-0"}`}
+            />
+          </button>
+          <span className={`text-xs uppercase tracking-[2px] font-bold transition-colors ${annual ? "text-on-surface" : "text-secondary"}`}>
+            Annual
+          </span>
+          {annual && (
+            <span className="px-2 py-0.5 rounded-full bg-arcana-success/20 text-arcana-success text-[10px] font-black uppercase tracking-[2px]">
+              Save 20%
+            </span>
+          )}
+        </motion.div>
+
         {/* ── Plan cards ── */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-20">
-          {PLANS.map((plan, i) => (
-            <motion.div
-              key={plan.id}
-              className={`relative rounded-sm border p-8 flex flex-col gap-6 bg-gradient-to-b ${PLAN_GRADIENTS[plan.id as PlanId]} ${
-                plan.highlighted
-                  ? "border-primary/50 shadow-[0_0_40px_rgba(var(--color-primary-rgb),0.15)]"
-                  : "border-outline/40"
-              }`}
-              initial={{ opacity: 0, y: 32 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: i * 0.1 }}
-            >
-              {plan.highlighted && (
-                <span className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 rounded-full text-[9px] font-black uppercase tracking-[3px] bg-primary text-on-primary shadow-lg">
-                  Most Popular
-                </span>
-              )}
-
-              {/* Icon + Name */}
-              <div className="flex items-center gap-3">
-                <span className={plan.highlighted ? "text-primary" : "text-secondary"}>
-                  {PLAN_ICONS[plan.id as PlanId]}
-                </span>
-                <span className="text-sm font-black uppercase tracking-[2px] text-on-surface">
-                  {plan.name}
-                </span>
-              </div>
-
-              {/* Price */}
-              <div>
-                <div className="flex items-baseline gap-1.5 mb-1">
-                  <span className="text-5xl font-extralight text-on-surface tracking-tight">
-                    {plan.price === 0 ? "Free" : `$${plan.price / 100}`}
-                  </span>
-                  {plan.price > 0 && (
-                    <span className="text-sm text-secondary">/ month</span>
-                  )}
-                </div>
-                <p className="text-xs text-secondary leading-relaxed">{plan.description}</p>
-              </div>
-
-              {/* Features */}
-              <ul className="flex-1 space-y-3">
-                {plan.features.map((f) => (
-                  <li key={f} className="flex items-start gap-2.5 text-xs text-on-surface/80">
-                    <Check className="w-3.5 h-3.5 text-arcana-success flex-shrink-0 mt-0.5" />
-                    {f}
-                  </li>
-                ))}
-              </ul>
-
-              {/* CTA */}
-              <button
-                type="button"
-                onClick={() => router.push(plan.id === "starter" ? "/sign-up" : `/sign-up?plan=${plan.id}`)}
-                className={`w-full py-3 rounded-sm text-[11px] font-black uppercase tracking-[2px] flex items-center justify-center gap-2 transition-all ${
+          {PLANS.map((plan, i) => {
+            const display = getDisplayPrice(plan.price, annual);
+            return (
+              <motion.div
+                key={plan.id}
+                className={`relative rounded-sm border p-8 flex flex-col gap-6 bg-gradient-to-b ${PLAN_GRADIENTS[plan.id as PlanId]} ${
                   plan.highlighted
-                    ? "btn-metallic hover:opacity-90"
-                    : "border border-outline/60 text-secondary hover:border-primary/40 hover:text-primary"
+                    ? "border-primary/50 shadow-[0_0_40px_rgba(var(--color-primary-rgb),0.15)]"
+                    : "border-outline/40"
                 }`}
+                initial={{ opacity: 0, y: 32 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: i * 0.1 }}
               >
-                {plan.id === "starter" ? "Start Free" : "Get Started"}
-                <ArrowRight className="w-3.5 h-3.5" />
-              </button>
-            </motion.div>
-          ))}
+                {plan.highlighted && (
+                  <span className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 rounded-full text-[9px] font-black uppercase tracking-[3px] bg-primary text-on-primary shadow-lg">
+                    Most Popular
+                  </span>
+                )}
+
+                {/* Icon + Name */}
+                <div className="flex items-center gap-3">
+                  <span className={plan.highlighted ? "text-primary" : "text-secondary"}>
+                    {PLAN_ICONS[plan.id as PlanId]}
+                  </span>
+                  <span className="text-sm font-black uppercase tracking-[2px] text-on-surface">
+                    {plan.name}
+                  </span>
+                </div>
+
+                {/* Price */}
+                <div>
+                  <div className="flex items-baseline gap-1.5 mb-1">
+                    <span className="text-5xl font-extralight text-on-surface tracking-tight">
+                      {display.amount === 0 ? "Free" : display.label}
+                    </span>
+                    {plan.price > 0 && (
+                      <span className="text-sm text-secondary">/ mo</span>
+                    )}
+                  </div>
+                  {display.savings && (
+                    <p className="text-[10px] text-arcana-success font-bold uppercase tracking-wider mb-1">
+                      {display.savings}
+                    </p>
+                  )}
+                  <p className="text-xs text-secondary leading-relaxed">{plan.description}</p>
+                </div>
+
+                {/* Features */}
+                <ul className="flex-1 space-y-3">
+                  {plan.features.map((f) => (
+                    <li key={f} className="flex items-start gap-2.5 text-xs text-on-surface/80">
+                      <Check className="w-3.5 h-3.5 text-arcana-success flex-shrink-0 mt-0.5" />
+                      {f}
+                    </li>
+                  ))}
+                </ul>
+
+                {/* CTA */}
+                <button
+                  type="button"
+                  onClick={() => router.push(
+                    plan.id === "starter"
+                      ? "/sign-up"
+                      : `/sign-up?plan=${plan.id}${annual ? "&billing=annual" : ""}`
+                  )}
+                  className={`w-full py-3 rounded-sm text-[11px] font-black uppercase tracking-[2px] flex items-center justify-center gap-2 transition-all ${
+                    plan.highlighted
+                      ? "btn-metallic hover:opacity-90"
+                      : "border border-outline/60 text-secondary hover:border-primary/40 hover:text-primary"
+                  }`}
+                >
+                  {plan.id === "starter" ? "Start Free" : "Get Started"}
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </button>
+              </motion.div>
+            );
+          })}
         </div>
 
         {/* ── Trust bar ── */}
