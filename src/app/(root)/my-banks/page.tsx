@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useEffect } from "react";
 import { useSession } from "next-auth/react";
+import { useSearchParams } from "next/navigation";
 import {
   Landmark,
   Plus,
@@ -80,8 +81,11 @@ export default function MyBanksPage() {
   const [buildingFile, setBuildingFile] = useState<string | null>(null);
   const [buildResults, setBuildResults] = useState<Record<string, BuildResult>>({});
 
-  // Upload Bank Info modal
-  const [showUploadModal, setShowUploadModal] = useState(false);
+  // Upload Bank Info modal — auto-opens when ?upload=1 is in the URL
+  const searchParams = useSearchParams();
+  const [showUploadModal, setShowUploadModal] = useState(
+    () => searchParams.get("upload") === "1"
+  );
 
   // Statement-linked banks — persisted in localStorage so they survive page refreshes
   // (server-side in-memory store doesn't persist across Vercel serverless invocations)

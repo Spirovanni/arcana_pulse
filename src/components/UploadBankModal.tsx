@@ -204,7 +204,7 @@ export default function UploadBankModal({ onClose, onSuccess }: Props) {
           filename: csvFile.name,                 // used for institution/mask hints
           institutionName: institutionName || undefined,
           accountMask: accountMask || undefined,
-          workspaceId: "ws-001",
+          // omit workspaceId — the API derives it from the authenticated session
         }),
       });
 

@@ -83,48 +83,58 @@ export default function BankDetailPage() {
   const [stmtData, setStmtData] = useState<StatementData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [needsReimport, setNeedsReimport] = useState(false);
   const [filterCategory, setFilterCategory] = useState("all");
   const [search, setSearch] = useState("");
   const [sortDesc, setSortDesc] = useState(true);
 
-  // Load bank + meta from localStorage (fallback display data)
-  useEffect(() => {
+  // Load bank + meta from localStorage synchronously so they're available for fetchData
+  const localBank = (() => {
     try {
       const raw = localStorage.getItem(LS_KEY);
-      const rawMeta = localStorage.getItem(LS_META);
-      if (raw) {
-        const banks: Bank[] = JSON.parse(raw);
-        const found = banks.find((b) => b.bankId === bankId);
-        if (found) setBank(found);
-      }
-      if (rawMeta) {
-        const allMeta: Record<string, StmtMeta> = JSON.parse(rawMeta);
-        if (allMeta[bankId]) setMeta(allMeta[bankId]);
-      }
-    } catch { /* ignore */ }
-  }, [bankId]);
+      if (!raw) return null;
+      const banks: Bank[] = JSON.parse(raw);
+      return banks.find((b) => b.bankId === bankId) ?? null;
+    } catch { return null; }
+  })();
 
-  // Fetch live data from Appwrite APIs
+  const localMeta = (() => {
+    try {
+      const raw = localStorage.getItem(LS_META);
+      if (!raw) return null;
+      const allMeta: Record<string, StmtMeta> = JSON.parse(raw);
+      return allMeta[bankId] ?? null;
+    } catch { return null; }
+  })();
+
+  useEffect(() => {
+    if (localBank) setBank(localBank);
+    if (localMeta) setMeta(localMeta);
+  }, [bankId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Single fetch — loads from Appwrite, falls back to CSV, then flags re-import
   const fetchData = useCallback(async () => {
     setLoading(true);
     setError(null);
+    setNeedsReimport(false);
     try {
-      // Fetch bank from Appwrite (GET /api/banks/[bankId])
+      // 1. Try live bank from Appwrite
       const bankRes = await fetch(`/api/banks/${bankId}`);
       if (bankRes.ok) {
-        const liveBank = await bankRes.json() as Bank;
-        setBank(liveBank);
+        setBank(await bankRes.json() as Bank);
       }
 
-      // Fetch all transactions for this bank (paginated, up to 5000)
+      // 2. Fetch all transactions (paginated)
       const PAGE = 500;
       let page = 1;
       let allTxns: StatementTransaction[] = [];
+      let appwriteWorking = false;
       while (true) {
         const txnRes = await fetch(
-          `/api/transactions?bankId=${bankId}&workspaceId=ws-001&pageSize=${PAGE}&page=${page}`
+          `/api/transactions?bankId=${bankId}&pageSize=${PAGE}&page=${page}`
         );
         if (!txnRes.ok) break;
+        appwriteWorking = true;
         const data = await txnRes.json() as {
           items: StatementTransaction[];
           total: number;
@@ -136,7 +146,7 @@ export default function BankDetailPage() {
       }
 
       if (allTxns.length > 0) {
-        // Build StatementData from live Appwrite transactions
+        // Build summary from Appwrite transactions
         let totalIncome = 0;
         let totalExpenses = 0;
         const categoryBreakdown: Record<string, { count: number; total: number }> = {};
@@ -151,36 +161,45 @@ export default function BankDetailPage() {
           categoryBreakdown[cat].count++;
           categoryBreakdown[cat].total += t.amount;
 
-          // Normalize date string for sorting
           const d = t.date?.substring(0, 10) ?? "";
           if (d) dates.push(d);
         }
         dates.sort();
 
         setStmtData({
-          institutionName: "",
-          accountMask: "",
+          institutionName: localBank?.institutionName ?? "",
+          accountMask: localBank?.displayMask ?? "",
           periodStart: dates[0] ?? "",
           periodEnd: dates[dates.length - 1] ?? "",
-          currentBalance: 0,
+          currentBalance: localBank?.balance ?? 0,
           totalIncome,
           totalExpenses,
           transactions: allTxns,
           categoryBreakdown,
         });
-      } else if (meta) {
-        // Fallback: parse from CSV file (used when Appwrite isn't configured)
+      } else if (appwriteWorking) {
+        // Appwrite is up but no transactions for this bank ID.
+        // This bank was created before database persistence was added — flag re-import.
+        setNeedsReimport(true);
+      } else if (localMeta) {
+        // Appwrite not reachable — try CSV fallback (for local dev)
         const csvRes = await fetch(
-          `/api/banks/statement-data?username=${encodeURIComponent(meta.username)}&filename=${encodeURIComponent(meta.filename)}`
+          `/api/banks/statement-data?username=${encodeURIComponent(localMeta.username)}&filename=${encodeURIComponent(localMeta.filename)}`
         );
-        if (csvRes.ok) setStmtData(await csvRes.json() as StatementData);
+        if (csvRes.ok) {
+          setStmtData(await csvRes.json() as StatementData);
+        } else {
+          setNeedsReimport(true);
+        }
+      } else {
+        setNeedsReimport(true);
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load transactions");
     } finally {
       setLoading(false);
     }
-  }, [bankId, meta]);
+  }, [bankId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
@@ -205,6 +224,24 @@ export default function BankDetailPage() {
     .sort((a, b) => b[1].total - a[1].total)
     .slice(0, 8);
 
+  // Helper: remove this bank from localStorage and go back to upload
+  function removeAndReimport() {
+    try {
+      const rawBanks = localStorage.getItem(LS_KEY);
+      if (rawBanks) {
+        const banks: Bank[] = JSON.parse(rawBanks);
+        localStorage.setItem(LS_KEY, JSON.stringify(banks.filter((b) => b.bankId !== bankId)));
+      }
+      const rawMeta = localStorage.getItem(LS_META);
+      if (rawMeta) {
+        const allMeta: Record<string, StmtMeta> = JSON.parse(rawMeta);
+        delete allMeta[bankId];
+        localStorage.setItem(LS_META, JSON.stringify(allMeta));
+      }
+    } catch { /* ignore */ }
+    window.location.href = "/my-banks?upload=1";
+  }
+
   if (!bank && !loading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
@@ -216,8 +253,30 @@ export default function BankDetailPage() {
     );
   }
 
+  // Re-import banner: shown when Appwrite has the bank but no transactions stored
+  const ReimportBanner = needsReimport ? (
+    <div className="rounded-xl bg-amber-900/20 border border-amber-700/40 p-5 flex flex-col sm:flex-row items-start sm:items-center gap-4">
+      <AlertCircle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5 sm:mt-0" />
+      <div className="flex-1">
+        <p className="text-sm font-medium text-amber-300">Transactions not found in database</p>
+        <p className="text-xs text-amber-500 mt-0.5">
+          This account was created before database persistence was enabled. Re-importing your CSV will save the transactions to Appwrite so they appear here and in your dashboards.
+        </p>
+      </div>
+      <button
+        type="button"
+        onClick={removeAndReimport}
+        className="shrink-0 px-4 py-2 rounded-lg bg-amber-600 hover:bg-amber-500 text-white text-xs font-semibold transition-colors"
+      >
+        Remove &amp; Re-import CSV
+      </button>
+    </div>
+  ) : null;
+
   return (
     <div className="space-y-6">
+      {ReimportBanner}
+
       {/* ── Breadcrumb ───────────────────────────────────────────────────── */}
       <div className="flex items-center justify-between">
         <Link href="/my-banks" className="flex items-center gap-1 text-sm text-slate-400 hover:text-white transition-colors">
