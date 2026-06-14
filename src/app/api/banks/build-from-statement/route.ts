@@ -21,8 +21,10 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth/withAuth";
 import { parseStatement } from "@/lib/services/statementParser";
-import { insertSyncedTransaction } from "@/lib/services/transactions";
-import { addBank } from "@/lib/services/banks";
+// Use Appwrite DB services for real persistence
+import { addBank } from "@/lib/services/db/banks";
+import { insertSyncedTransaction } from "@/lib/services/db/transactions";
+import { isAppwriteConfigured, getDatabase, DATABASE_ID, COLLECTIONS, Query } from "@/lib/appwrite";
 import { completeForFeature } from "@/lib/ai-router";
 import type { Category } from "@/lib/types";
 import fs from "fs";
@@ -202,42 +204,7 @@ export async function POST(request: NextRequest) {
     category: (aiCategories[i] ?? t.category) as Category,
   }));
 
-  // ── Create the bank account ───────────────────────────────────────────────
-  const bank = addBank({
-    workspaceId,
-    institutionName,
-    accountId: `stmt-${accountMask}-${Date.now()}`,
-    displayMask: accountMask,
-    shareableId: `${institutionName.toLowerCase().replace(/\s+/g, "-")}-${accountMask}`,
-    balance: currentBalance,
-  });
-
-  // ── Import transactions ──────────────────────────────────────────────────
-  const seen = new Set<string>();
-  let imported = 0;
-  let duplicates = 0;
-
-  for (const txn of transactions) {
-    if (seen.has(txn.externalReference)) { duplicates++; continue; }
-    seen.add(txn.externalReference);
-
-    const syncType: "income" | "expense" =
-      txn.transactionType === "income" ? "income" : "expense";
-
-    insertSyncedTransaction({
-      workspaceId,
-      bankId: bank.bankId,
-      title: txn.title,
-      amount: txn.amount,
-      transactionType: syncType,
-      category: txn.category,
-      date: txn.date,
-      externalReference: txn.externalReference,
-    });
-    imported++;
-  }
-
-  // ── Build category breakdown for UI ──────────────────────────────────────
+  // ── Build category breakdown (always from parsed data) ──────────────────
   const categoryBreakdown: Record<string, { count: number; total: number }> = {};
   for (const txn of transactions) {
     if (!categoryBreakdown[txn.category]) {
@@ -247,18 +214,122 @@ export async function POST(request: NextRequest) {
     categoryBreakdown[txn.category].total += txn.amount;
   }
 
+  // ── ARC ID (matches existing bank naming convention) ─────────────────────
+  const { makeArcId } = await import("@/lib/utils");
+  const shareableId = makeArcId(institutionName, accountMask);
+
+  // ── Deduplicate by externalReference (client-side, before any DB calls) ──
+  const seen = new Map<string, typeof transactions[0]>();
+  for (const txn of transactions) {
+    if (!seen.has(txn.externalReference)) seen.set(txn.externalReference, txn);
+  }
+  const uniqueTxns = Array.from(seen.values());
+  const clientDups = transactions.length - uniqueTxns.length;
+
+  // ── Persist to Appwrite if configured; fall back to in-memory otherwise ──
+  const useAppwrite = isAppwriteConfigured();
+
+  let bank: Awaited<ReturnType<typeof addBank>>;
+  let imported = 0;
+  let dbDuplicates = 0;
+
+  if (useAppwrite) {
+    // Create the bank in Appwrite
+    bank = await addBank({
+      workspaceId,
+      institutionName,
+      accountId: `stmt-${accountMask}-${Date.now()}`,
+      displayMask: accountMask,
+      shareableId,
+      balance: currentBalance,
+    });
+
+    // Fetch externalReferences already in the DB for this bank (dedup check)
+    // — one query instead of 1,500 individual checks
+    const existingRefs = new Set<string>();
+    try {
+      const existing = await getDatabase().listDocuments(
+        DATABASE_ID,
+        COLLECTIONS.transactions,
+        [Query.equal("bankId", bank.bankId), Query.limit(5000)]
+      );
+      for (const doc of existing.documents) {
+        if (doc.externalReference) existingRefs.add(doc.externalReference as string);
+      }
+    } catch { /* New bank — no existing refs */ }
+
+    const toInsert = uniqueTxns.filter((t) => !existingRefs.has(t.externalReference));
+    dbDuplicates = uniqueTxns.length - toInsert.length;
+
+    // Parallel batch insert (50 concurrent) — dramatically faster than sequential
+    const BATCH = 50;
+    for (let i = 0; i < toInsert.length; i += BATCH) {
+      const chunk = toInsert.slice(i, i + BATCH);
+      await Promise.allSettled(
+        chunk.map((txn) =>
+          insertSyncedTransaction({
+            workspaceId,
+            bankId: bank.bankId,
+            title: txn.title,
+            amount: txn.amount,
+            transactionType: txn.transactionType === "income" ? "income" : "expense",
+            category: txn.category,
+            aiCategory: txn.category,   // store AI-assigned value in dedicated field
+            date: txn.date,
+            externalReference: txn.externalReference,
+          })
+        )
+      );
+      imported += chunk.length;
+    }
+  } else {
+    // Fallback: in-memory (development without Appwrite)
+    const { addBank: addBankMock } = await import("@/lib/services/banks");
+    const { insertSyncedTransaction: insertMock } = await import("@/lib/services/transactions");
+
+    bank = addBankMock({
+      workspaceId,
+      institutionName,
+      accountId: `stmt-${accountMask}-${Date.now()}`,
+      displayMask: accountMask,
+      shareableId,
+      balance: currentBalance,
+    });
+
+    for (const txn of uniqueTxns) {
+      insertMock({
+        workspaceId,
+        bankId: bank.bankId,
+        title: txn.title,
+        amount: txn.amount,
+        transactionType: txn.transactionType === "income" ? "income" : "expense",
+        category: txn.category,
+        date: txn.date,
+        externalReference: txn.externalReference,
+      });
+      imported++;
+    }
+  }
+
   return NextResponse.json({
-    bank,
+    bank: {
+      bankId:          bank.bankId,
+      institutionName: bank.institutionName,
+      displayMask:     bank.displayMask,
+      shareableId:     bank.shareableId,
+      balance:         bank.balance,
+    },
     imported,
-    duplicates,
+    duplicates: clientDups + dbDuplicates,
     skipped: parsed.skipped,
     totalTransactions: transactions.length,
     periodStart,
     periodEnd,
     currentBalance,
     categoryBreakdown,
+    persistedTo: useAppwrite ? "appwrite" : "memory",
     filename: filenameForHints,
     username: (body.username ?? "").replace(/[^a-zA-Z0-9_\-]/g, "_").slice(0, 64),
-    message: `Created ${institutionName} ···${accountMask} and imported ${imported} transactions (${periodStart} → ${periodEnd}).`,
+    message: `Created ${institutionName} ···${accountMask} and imported ${imported} transactions into Appwrite (${periodStart} → ${periodEnd}).`,
   });
 }

@@ -87,7 +87,7 @@ export default function BankDetailPage() {
   const [search, setSearch] = useState("");
   const [sortDesc, setSortDesc] = useState(true);
 
-  // Load bank + meta from localStorage
+  // Load bank + meta from localStorage (fallback display data)
   useEffect(() => {
     try {
       const raw = localStorage.getItem(LS_KEY);
@@ -104,26 +104,83 @@ export default function BankDetailPage() {
     } catch { /* ignore */ }
   }, [bankId]);
 
-  // Fetch full statement data from API
+  // Fetch live data from Appwrite APIs
   const fetchData = useCallback(async () => {
-    if (!meta) return;
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(
-        `/api/banks/statement-data?username=${encodeURIComponent(meta.username)}&filename=${encodeURIComponent(meta.filename)}`
-      );
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({})) as { error?: string };
-        throw new Error(err.error ?? `HTTP ${res.status}`);
+      // Fetch bank from Appwrite (GET /api/banks/[bankId])
+      const bankRes = await fetch(`/api/banks/${bankId}`);
+      if (bankRes.ok) {
+        const liveBank = await bankRes.json() as Bank;
+        setBank(liveBank);
       }
-      setStmtData(await res.json() as StatementData);
+
+      // Fetch all transactions for this bank (paginated, up to 5000)
+      const PAGE = 500;
+      let page = 1;
+      let allTxns: StatementTransaction[] = [];
+      while (true) {
+        const txnRes = await fetch(
+          `/api/transactions?bankId=${bankId}&workspaceId=ws-001&pageSize=${PAGE}&page=${page}`
+        );
+        if (!txnRes.ok) break;
+        const data = await txnRes.json() as {
+          items: StatementTransaction[];
+          total: number;
+          totalPages: number;
+        };
+        allTxns = allTxns.concat(data.items ?? []);
+        if (page >= (data.totalPages ?? 1)) break;
+        page++;
+      }
+
+      if (allTxns.length > 0) {
+        // Build StatementData from live Appwrite transactions
+        let totalIncome = 0;
+        let totalExpenses = 0;
+        const categoryBreakdown: Record<string, { count: number; total: number }> = {};
+        const dates: string[] = [];
+
+        for (const t of allTxns) {
+          if (t.transactionType === "income") totalIncome += t.amount;
+          else totalExpenses += t.amount;
+
+          const cat = t.category as string;
+          if (!categoryBreakdown[cat]) categoryBreakdown[cat] = { count: 0, total: 0 };
+          categoryBreakdown[cat].count++;
+          categoryBreakdown[cat].total += t.amount;
+
+          // Normalize date string for sorting
+          const d = t.date?.substring(0, 10) ?? "";
+          if (d) dates.push(d);
+        }
+        dates.sort();
+
+        setStmtData({
+          institutionName: "",
+          accountMask: "",
+          periodStart: dates[0] ?? "",
+          periodEnd: dates[dates.length - 1] ?? "",
+          currentBalance: 0,
+          totalIncome,
+          totalExpenses,
+          transactions: allTxns,
+          categoryBreakdown,
+        });
+      } else if (meta) {
+        // Fallback: parse from CSV file (used when Appwrite isn't configured)
+        const csvRes = await fetch(
+          `/api/banks/statement-data?username=${encodeURIComponent(meta.username)}&filename=${encodeURIComponent(meta.filename)}`
+        );
+        if (csvRes.ok) setStmtData(await csvRes.json() as StatementData);
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load transactions");
     } finally {
       setLoading(false);
     }
-  }, [meta]);
+  }, [bankId, meta]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
@@ -356,10 +413,6 @@ export default function BankDetailPage() {
             <div className="flex flex-col items-center gap-2 py-12 text-center px-4">
               <AlertCircle className="w-6 h-6 text-red-400" />
               <p className="text-sm text-red-300">{error}</p>
-              <p className="text-xs text-slate-500">
-                The statement file was uploaded inline and may not be stored on the server.
-                Use the <strong>Saved Statements</strong> panel on My Banks to view transactions from files stored in the statements folder.
-              </p>
             </div>
           ) : transactions.length === 0 ? (
             <p className="text-center text-slate-500 text-sm py-12">
