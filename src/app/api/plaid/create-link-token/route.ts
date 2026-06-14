@@ -1,11 +1,16 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { plaidClient } from "@/lib/plaid";
 import { CountryCode, Products } from "plaid";
+import { requireAuth } from "@/lib/auth/withAuth";
 
-export async function POST() {
+export async function POST(request: NextRequest) {
+  const auth = await requireAuth(request, { requiredRole: "member", enforceWorkspace: false });
+  if (!auth.ok) return auth.response;
+  const { session } = auth;
+
   try {
     const response = await plaidClient.linkTokenCreate({
-      user: { client_user_id: "usr-001" },
+      user: { client_user_id: session.user.userId },
       client_name: "Arcana Pulse",
       products: [Products.Auth, Products.Transactions, Products.Investments],
       country_codes: [CountryCode.Us],

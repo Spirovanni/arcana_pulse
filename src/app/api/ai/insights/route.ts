@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { generateInsights } from "@/lib/services/ai/insights";
+import { requireAuth } from "@/lib/auth/withAuth";
 
 export async function GET(request: NextRequest) {
-  try {
-    const workspaceId =
-      request.nextUrl.searchParams.get("workspaceId") ?? "ws-001";
+  const auth = await requireAuth(request, { requiredRole: "viewer" });
+  if (!auth.ok) return auth.response;
+  const { workspaceId } = auth;
 
+  try {
     const insights = await generateInsights(workspaceId);
 
     return NextResponse.json({ insights });

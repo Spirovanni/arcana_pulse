@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isAppwriteConfigured } from "@/lib/appwrite";
 import { getBudgetsByWorkspace, upsertBudget } from "@/lib/services/db/budgets";
+import { requireAuth } from "@/lib/auth/withAuth";
 import type { BudgetSource, Category } from "@/lib/types";
 
 const VALID_CATEGORIES: Set<string> = new Set([
@@ -11,6 +12,10 @@ const VALID_CATEGORIES: Set<string> = new Set([
 const VALID_SOURCES: Set<string> = new Set(["ai", "user"]);
 
 export async function GET(request: NextRequest) {
+  const auth = await requireAuth(request, { requiredRole: "viewer" });
+  if (!auth.ok) return auth.response;
+  const { workspaceId } = auth;
+
   if (!isAppwriteConfigured()) {
     return NextResponse.json(
       { error: "Appwrite is not configured" },
@@ -19,9 +24,6 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const workspaceId =
-      request.nextUrl.searchParams.get("workspaceId") ?? "ws-001";
-
     const budgets = await getBudgetsByWorkspace(workspaceId);
 
     return NextResponse.json({ budgets });
@@ -33,6 +35,10 @@ export async function GET(request: NextRequest) {
 }
 
 export async function PUT(request: NextRequest) {
+  const auth = await requireAuth(request, { requiredRole: "member" });
+  if (!auth.ok) return auth.response;
+  const { workspaceId } = auth;
+
   if (!isAppwriteConfigured()) {
     return NextResponse.json(
       { error: "Appwrite is not configured" },
@@ -42,16 +48,15 @@ export async function PUT(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { workspaceId, category, amount, source } = body as {
-      workspaceId?: string;
+    const { category, amount, source } = body as {
       category?: string;
       amount?: number;
       source?: string;
     };
 
-    if (!workspaceId || !category || amount == null || !source) {
+    if (!category || amount == null || !source) {
       return NextResponse.json(
-        { error: "workspaceId, category, amount, and source are required" },
+        { error: "category, amount, and source are required" },
         { status: 400 }
       );
     }

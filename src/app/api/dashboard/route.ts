@@ -2,18 +2,20 @@ import { NextRequest, NextResponse } from "next/server";
 import { isAppwriteConfigured } from "@/lib/appwrite";
 import * as dbBanks from "@/lib/services/db/banks";
 import * as dbTransactions from "@/lib/services/db/transactions";
+import { requireAuth } from "@/lib/auth/withAuth";
 import type { DashboardMetrics, AccountDistribution } from "@/lib/types";
 
 export async function GET(request: NextRequest) {
+  const auth = await requireAuth(request, { requiredRole: "viewer" });
+  if (!auth.ok) return auth.response;
+  const { workspaceId } = auth;
+
   if (!isAppwriteConfigured()) {
     return NextResponse.json(
       { error: "Appwrite not configured" },
       { status: 503 }
     );
   }
-
-  const workspaceId =
-    request.nextUrl.searchParams.get("workspaceId") ?? "ws-001";
 
   const [
     banks,

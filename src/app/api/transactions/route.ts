@@ -1,12 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { isAppwriteConfigured } from "@/lib/appwrite";
 import * as dbTransactions from "@/lib/services/db/transactions";
 import { logAuditEvent } from "@/lib/services/db/auditLog";
+import { requireAuth } from "@/lib/auth/withAuth";
 import type { TransactionFilter } from "@/lib/types";
 
 export async function GET(request: NextRequest) {
+  const auth = await requireAuth(request, { requiredRole: "viewer" });
+  if (!auth.ok) return auth.response;
+  const { session, workspaceId } = auth;
+
   if (!isAppwriteConfigured()) {
     return NextResponse.json(
       { error: "Appwrite not configured" },
@@ -15,9 +18,7 @@ export async function GET(request: NextRequest) {
   }
 
   const sp = request.nextUrl.searchParams;
-  const filter: TransactionFilter = {
-    workspaceId: sp.get("workspaceId") ?? "ws-001",
-  };
+  const filter: TransactionFilter = { workspaceId };
 
   if (sp.get("bankId")) filter.bankId = sp.get("bankId")!;
   if (sp.get("transactionType"))
@@ -35,15 +36,15 @@ export async function GET(request: NextRequest) {
   const page = parseInt(sp.get("page") ?? "1", 10);
   const pageSize = parseInt(sp.get("pageSize") ?? "10", 10);
 
-  const result = await dbTransactions.listTransactions(filter, {
-    page,
-    pageSize,
-  });
-
+  const result = await dbTransactions.listTransactions(filter, { page, pageSize });
   return NextResponse.json(result);
 }
 
 export async function POST(request: NextRequest) {
+  const auth = await requireAuth(request, { requiredRole: "member" });
+  if (!auth.ok) return auth.response;
+  const { session, workspaceId } = auth;
+
   if (!isAppwriteConfigured()) {
     return NextResponse.json(
       { error: "Appwrite not configured" },
@@ -52,16 +53,15 @@ export async function POST(request: NextRequest) {
   }
 
   const body = await request.json();
-  const { userId = "usr-001", ...input } = body;
+  const input = { ...body, workspaceId };
 
   try {
-    const txn = await dbTransactions.createTransaction(input, userId);
+    const txn = await dbTransactions.createTransaction(input, session.user.userId);
 
-    const session = await getServerSession(authOptions);
     void logAuditEvent({
-      workspaceId: input.workspaceId ?? "ws-001",
-      userId: session?.user?.userId ?? userId,
-      userEmail: session?.user?.email ?? "",
+      workspaceId,
+      userId: session.user.userId,
+      userEmail: session.user.email,
       action: "transaction_create",
       targetEntity: "transaction",
       targetId: txn.transactionId,

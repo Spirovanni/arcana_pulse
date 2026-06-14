@@ -6,12 +6,17 @@ import {
   updateGoal,
   deleteGoal,
 } from "@/lib/services/db/goals";
+import { requireAuth } from "@/lib/auth/withAuth";
 import type { GoalPriority, GoalStatus } from "@/lib/types";
 
 const VALID_PRIORITIES: Set<string> = new Set(["low", "medium", "high"]);
 const VALID_STATUSES: Set<string> = new Set(["active", "completed", "paused"]);
 
 export async function GET(request: NextRequest) {
+  const auth = await requireAuth(request, { requiredRole: "viewer" });
+  if (!auth.ok) return auth.response;
+  const { workspaceId } = auth;
+
   if (!isAppwriteConfigured()) {
     return NextResponse.json(
       { error: "Appwrite is not configured" },
@@ -20,9 +25,6 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const workspaceId =
-      request.nextUrl.searchParams.get("workspaceId") ?? "ws-001";
-
     const goals = await getGoalsByWorkspace(workspaceId);
 
     return NextResponse.json({ goals });
@@ -34,6 +36,10 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const auth = await requireAuth(request, { requiredRole: "member" });
+  if (!auth.ok) return auth.response;
+  const { workspaceId } = auth;
+
   if (!isAppwriteConfigured()) {
     return NextResponse.json(
       { error: "Appwrite is not configured" },
@@ -43,9 +49,8 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { workspaceId, name, targetAmount, targetDate, priority, monthlyContribution } =
+    const { name, targetAmount, targetDate, priority, monthlyContribution } =
       body as {
-        workspaceId?: string;
         name?: string;
         targetAmount?: number;
         targetDate?: string;
@@ -92,6 +97,9 @@ export async function POST(request: NextRequest) {
 }
 
 export async function PUT(request: NextRequest) {
+  const auth = await requireAuth(request, { requiredRole: "member" });
+  if (!auth.ok) return auth.response;
+
   if (!isAppwriteConfigured()) {
     return NextResponse.json(
       { error: "Appwrite is not configured" },
@@ -151,6 +159,9 @@ export async function PUT(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
+  const auth = await requireAuth(request, { requiredRole: "member" });
+  if (!auth.ok) return auth.response;
+
   if (!isAppwriteConfigured()) {
     return NextResponse.json(
       { error: "Appwrite is not configured" },

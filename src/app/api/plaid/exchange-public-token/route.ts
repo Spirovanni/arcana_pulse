@@ -3,11 +3,16 @@ import { plaidClient } from "@/lib/plaid";
 import { ProcessorTokenCreateRequestProcessorEnum } from "plaid";
 import { addBank, updateBank } from "@/lib/services/banks";
 import { dwollaClient } from "@/lib/dwolla";
+import { requireAuth } from "@/lib/auth/withAuth";
 
 export async function POST(request: NextRequest) {
+  const auth = await requireAuth(request, { requiredRole: "member", enforceWorkspace: false });
+  if (!auth.ok) return auth.response;
+  const { session } = auth;
+
   try {
     const body = await request.json();
-    const { publicToken, workspaceId } = body as {
+    const { publicToken, workspaceId = auth.workspaceId } = body as {
       publicToken: string;
       workspaceId: string;
     };

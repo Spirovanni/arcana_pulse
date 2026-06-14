@@ -1,0 +1,161 @@
+name: Security Scanning
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+  schedule:
+    # Run weekly on Monday at 08:00 UTC for continuous dependency monitoring
+    - cron: "0 8 * * 1"
+
+permissions:
+  contents: read
+  security-events: write
+  actions: read
+
+jobs:
+  # ─── Dependency Vulnerability Audit ───────────────────────────────────────
+  dependency-audit:
+    name: Dependency Vulnerability Audit
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+
+      - name: npm audit (high + critical only)
+        run: npm audit --audit-level=high
+        # Fail the build only on high or critical vulnerabilities.
+        # Run `npm audit fix` locally to resolve and update the lock file.
+
+      - name: Upload audit report
+        if: always()
+        run: npm audit --json > npm-audit.json || true
+
+      - name: Store audit artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: npm-audit-report
+          path: npm-audit.json
+          retention-days: 30
+
+  # ─── CodeQL Static Analysis ───────────────────────────────────────────────
+  codeql:
+    name: CodeQL Analysis
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [javascript-typescript]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+          queries: security-extended,security-and-quality
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Build (for CodeQL autobuild)
+        run: npm run build || true
+        env:
+          # Provide stubs so build succeeds without real credentials
+          NEXTAUTH_SECRET: ci-placeholder
+          NEXTAUTH_URL: http://localhost:3000
+          NEXT_PUBLIC_APPWRITE_ENDPOINT: https://cloud.appwrite.io/v1
+          NEXT_PUBLIC_APPWRITE_PROJECT: ci-placeholder
+          APPWRITE_DATABASE_ID: ci-placeholder
+          APPWRITE_API_KEY: ci-placeholder
+          ENCRYPTION_KEY: ci-placeholder-32chars-xxxxxxxxxxxx
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:${{ matrix.language }}"
+
+  # ─── Dependency Review (PRs only) ─────────────────────────────────────────
+  dependency-review:
+    name: Dependency Review
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Dependency Review
+        uses: actions/dependency-review-action@v4
+        with:
+          # Block PRs that introduce high or critical vulnerabilities
+          fail-on-severity: high
+          # Flag packages with restrictive or unknown licenses
+          deny-licenses: GPL-2.0, GPL-3.0, AGPL-3.0
+
+  # ─── Secret Scanning (Gitleaks) ──────────────────────────────────────────
+  secret-scan:
+    name: Secret Scanning
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout (full history for secret scan)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run Gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # ─── OWASP Dependency Check ───────────────────────────────────────────────
+  owasp-check:
+    name: OWASP Dependency Check
+    runs-on: ubuntu-latest
+    # Run only on schedule and main-branch pushes to keep PR feedback fast
+    if: github.event_name == 'schedule' || github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run OWASP Dependency Check
+        uses: dependency-check/Dependency-Check_Action@main
+        with:
+          project: "arcana_pulse"
+          path: "."
+          format: "HTML"
+          out: "reports/owasp"
+          args: >
+            --enableRetired
+            --suppression owasp-suppressions.xml
+
+      - name: Upload OWASP Report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: owasp-dependency-report
+          path: reports/owasp
+          retention-days: 30
