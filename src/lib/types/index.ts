@@ -563,3 +563,50 @@ export interface McpToken {
   expiresAt?: string;
 }
 
+// ─── Admin / Platform ─────────────────────────────────────────────────
+
+export interface FeatureFlag {
+  flagId: string;
+  key: string;
+  label: string;
+  description: string;
+  enabled: boolean;
+  rolloutPercentage: number;
+  updatedAt: string;
+  updatedBy: string;
+}
+
+export interface PlatformMetrics {
+  totalUsers: number;
+  activeWorkspaces: number;
+  totalTransactionVolume: number;
+  totalTransactionCount: number;
+  totalRevenue: number;
+  newUsersLast30Days: number;
+  generatedAt: string;
+}
+
+export interface AdminUser {
+  userId: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  membershipType: MembershipType;
+  workspaceId: string;
+  createdAt: string;
+  emailVerified: boolean;
+}
+
+export interface SupportTicket {
+  ticketId: string;
+  userId: string;
+  userEmail: string;
+  subject: string;
+  body: string;
+  status: "open" | "in_progress" | "resolved" | "closed";
+  priority: "low" | "medium" | "high" | "critical";
+  createdAt: string;
+  updatedAt: string;
+  resolvedAt?: string;
+}
+

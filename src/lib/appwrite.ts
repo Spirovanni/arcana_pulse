@@ -37,6 +37,8 @@ export const COLLECTIONS = {
   workspaceInvites: "workspaceInvites",
   resources: "resources",
   mcpTokens: "mcpTokens",
+  featureFlags: "featureFlags",
+  supportTickets: "supportTickets",
 } as const;
 
 // ---------------------------------------------------------------------------

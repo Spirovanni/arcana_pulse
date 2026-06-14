@@ -17,6 +17,7 @@ export const NAV_ITEMS: NavItem[] = [
   { label: "Notifications", href: "/notifications", icon: "Bell" },
   { label: "Pricing", href: "/pricing", icon: "CreditCard" },
   { label: "Settings", href: "/settings", icon: "Settings" },
+  { label: "Admin", href: "/admin", icon: "Shield" },
 ];
 
 export const CATEGORY_LABELS: Record<Category, string> = {
