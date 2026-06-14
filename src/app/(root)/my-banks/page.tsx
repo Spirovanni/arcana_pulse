@@ -13,9 +13,11 @@ import {
   TrendingUp,
   TrendingDown,
   Minus,
+  Upload,
 } from "lucide-react";
 import { usePlaidLink } from "react-plaid-link";
 import EmptyState from "@/components/EmptyState";
+import StatementUpload from "@/components/StatementUpload";
 import {
   getBanksByWorkspace,
   DEFAULT_WORKSPACE_ID,
@@ -38,6 +40,7 @@ export default function MyBanksPage() {
   const banks = getBanksByWorkspace(DEFAULT_WORKSPACE_ID);
 
   const [expandedBankId, setExpandedBankId] = useState<string | null>(null);
+  const [uploadingBank, setUploadingBank] = useState<{ bankId: string; bankName: string } | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [linkToken, setLinkToken] = useState<string | null>(null);
   const [linking, setLinking] = useState(false);
@@ -318,6 +321,14 @@ export default function MyBanksPage() {
                   <div className="flex gap-2 mt-4">
                     <button
                       type="button"
+                      onClick={() => setUploadingBank({ bankId: bank.bankId, bankName: bank.institutionName })}
+                      className="flex items-center justify-center gap-1 px-3 py-2 rounded-lg text-xs font-medium bg-arcana-navy text-slate-300 hover:bg-arcana-border transition-colors"
+                      title="Upload a bank statement (CSV or PDF)"
+                    >
+                      <Upload className="w-3 h-3" />
+                    </button>
+                    <button
+                      type="button"
                       onClick={() => toggleExpand(bank.bankId)}
                       className="flex-1 flex items-center justify-center gap-1 py-2 rounded-lg text-xs font-medium bg-arcana-navy text-slate-300 hover:bg-arcana-border transition-colors"
                     >
@@ -411,6 +422,20 @@ export default function MyBanksPage() {
             );
           })}
         </div>
+      )}
+
+      {uploadingBank && (
+        <StatementUpload
+          bankId={uploadingBank.bankId}
+          bankName={uploadingBank.bankName}
+          onClose={() => setUploadingBank(null)}
+          onSuccess={(imported) => {
+            setUploadingBank(null);
+            bump(); // refresh transaction counts
+            // Brief toast could go here — for now bump re-renders the page
+            console.info(`[StatementUpload] imported ${imported} transactions`);
+          }}
+        />
       )}
     </div>
   );
