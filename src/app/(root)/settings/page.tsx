@@ -7,6 +7,7 @@ import { signOut } from "next-auth/react";
 import TeamSettings from "@/components/TeamSettings";
 import BillingSettings from "@/components/BillingSettings";
 import Image from "next/image";
+import { formatDate } from "@/lib/utils";
 import type { AuditLogEntry } from "@/lib/services/db/auditLog";
 
 type MfaView = "idle" | "setup" | "confirm" | "recovery";
@@ -186,7 +187,7 @@ export default function SettingsPage() {
                 </span>
               ),
             },
-            { label: "Created", value: new Date(workspace.createdAt).toLocaleDateString() },
+            { label: "Created", value: formatDate(workspace.createdAt) },
           ].map(({ label, value }, i, arr) => (
             <div
               key={label}

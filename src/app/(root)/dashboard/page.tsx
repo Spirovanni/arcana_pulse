@@ -28,7 +28,7 @@ import { computeDashboardMetrics } from "@/lib/services/dashboard";
 import { getDividendSummary } from "@/lib/services/investments";
 import { DEFAULT_WORKSPACE_ID } from "@/lib/services/workspace";
 import { CATEGORY_LABELS } from "@/lib/constants";
-import { formatCurrency, cn } from "@/lib/utils";
+import { formatCurrency, cn, formatDate } from "@/lib/utils";
 import InsightCards from "@/components/InsightCards";
 import CashFlowForecastWidget from "@/components/CashFlowForecast";
 import BudgetRecommendations from "@/components/BudgetRecommendations";
@@ -358,7 +358,7 @@ export default function DashboardPage() {
                       {CATEGORY_LABELS[txn.category] || txn.category}
                     </td>
                     <td className="py-4 text-secondary/60 text-xs font-mono">
-                      {new Date(txn.date).toLocaleDateString()}
+                      {formatDate(txn.date)}
                     </td>
                     <td className={cn(
                       "py-4 text-right pr-4 font-mono text-sm",

@@ -217,7 +217,7 @@ export default function IncomePage() {
                         </span>
                       </td>
                       <td className="px-5 py-3 text-slate-300">{txn.category}</td>
-                      <td className="px-5 py-3 text-slate-400">{new Date(txn.date).toLocaleDateString()}</td>
+                      <td className="px-5 py-3 text-slate-400">{formatDate(txn.date)}</td>
                       <td className="px-5 py-3">
                         <span className={cn(
                           "inline-block px-2 py-0.5 rounded text-xs font-medium",

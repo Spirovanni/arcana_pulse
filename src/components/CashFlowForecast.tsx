@@ -2,7 +2,7 @@
 
 import { AlertTriangle, Repeat, RefreshCw, BarChart3 } from "lucide-react";
 import { ProgressFill } from "@/components/ProgressBar";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, formatDate } from "@/lib/utils";
 import { CATEGORY_LABELS } from "@/lib/constants";
 import type { CashFlowForecast as CashFlowForecastType, Category } from "@/lib/types";
 
@@ -111,7 +111,7 @@ export default function CashFlowForecast({ data, loading, onRefresh }: CashFlowF
                       <div>
                         <p className="text-xs text-on-surface font-medium">{expense.title}</p>
                         <p className="text-[10px] text-secondary font-mono mt-0.5">
-                          {CATEGORY_LABELS[expense.category as Category] ?? expense.category} · {new Date(expense.expectedDate).toLocaleDateString()}
+                          {CATEGORY_LABELS[expense.category as Category] ?? expense.category} · {formatDate(expense.expectedDate)}
                         </p>
                       </div>
                     </div>
@@ -153,7 +153,7 @@ export default function CashFlowForecast({ data, loading, onRefresh }: CashFlowF
                         {pattern.transactionType === "income" ? "+" : "-"}{formatCurrency(pattern.averageAmount)}
                       </p>
                       <p className="text-[10px] text-secondary font-mono">
-                        Next {new Date(pattern.nextExpected).toLocaleDateString()}
+                        Next {formatDate(pattern.nextExpected)}
                       </p>
                     </div>
                   </div>

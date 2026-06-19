@@ -12,12 +12,14 @@ export function generateId(prefix: string): string {
   return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
 }
 
-export function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString("en-US", {
+export function formatDate(iso: string, options?: Intl.DateTimeFormatOptions): string {
+  const defaults: Intl.DateTimeFormatOptions = {
     month: "short",
     day: "numeric",
     year: "numeric",
-  });
+    timeZone: "UTC",
+  };
+  return new Date(iso).toLocaleDateString("en-US", options ? { timeZone: "UTC", ...options } : defaults);
 }
 
 export function toISODate(date: Date): string {

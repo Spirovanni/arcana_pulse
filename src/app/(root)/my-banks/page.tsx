@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, Suspense } from "react";
 import { useSession } from "next-auth/react";
 import { useSearchParams } from "next/navigation";
 import {
@@ -64,7 +64,7 @@ type BuildResult = {
   filename: string;
 };
 
-export default function MyBanksPage() {
+function MyBanksPageContent() {
   const { data: session } = useSession();
   const [version, setVersion] = useState(0);
   const bump = useCallback(() => setVersion((v) => v + 1), []);
@@ -728,7 +728,7 @@ export default function MyBanksPage() {
                 const isBuilding  = buildingFile === file.filename;
                 const bankId = selectedBankForFile[file.filename] ?? "";
                 const kb = (file.sizeBytes / 1024).toFixed(0);
-                const uploadedDate = new Date(file.uploadedAt).toLocaleDateString();
+                const uploadedDate = formatDate(file.uploadedAt);
 
                 return (
                   <div key={file.filename} className="p-4 flex flex-col gap-3">
@@ -889,5 +889,17 @@ export default function MyBanksPage() {
         />
       )}
     </div>
+  );
+}
+
+export default function MyBanksPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    }>
+      <MyBanksPageContent />
+    </Suspense>
   );
 }

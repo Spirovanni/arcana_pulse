@@ -14,7 +14,7 @@ import {
 } from "@/lib/services/transactions";
 import { getBanksByWorkspace, DEFAULT_WORKSPACE_ID } from "@/lib/services/workspace";
 import { CATEGORY_LABELS } from "@/lib/constants";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, formatDate } from "@/lib/utils";
 import type {
   Transaction,
   TransactionType,
@@ -263,7 +263,7 @@ function TransactionsContent() {
                     {CATEGORY_LABELS[txn.category]}
                   </td>
                   <td className="px-5 py-3 text-slate-400">
-                    {new Date(txn.date).toLocaleDateString()}
+                    {formatDate(txn.date)}
                   </td>
                   <td className="px-5 py-3">
                     <span

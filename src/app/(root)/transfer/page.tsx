@@ -23,7 +23,7 @@ import {
   getTransfersByWorkspace,
 } from "@/lib/services/transfers";
 import { TRANSFER_STATUS_LABELS } from "@/lib/constants";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, formatDate } from "@/lib/utils";
 import EmptyState from "@/components/EmptyState";
 import type { Transfer, TransferStatus } from "@/lib/types";
 
@@ -568,7 +568,7 @@ export default function TransferPage() {
                           <div className="flex items-center gap-2 mt-1">
                             <StatusBadge status={xfr.status} />
                             <span className="text-[10px] text-slate-500">
-                              {new Date(xfr.createdAt).toLocaleDateString()}
+                              {formatDate(xfr.createdAt)}
                             </span>
                           </div>
                         </div>

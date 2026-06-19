@@ -26,7 +26,7 @@ import {
   ReferenceLine,
 } from "recharts";
 import { DEFAULT_WORKSPACE_ID } from "@/lib/services/workspace";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, formatDate } from "@/lib/utils";
 import { getTotalInvestmentBalance } from "@/lib/services/investments";
 import { runMonteCarloForGoals } from "@/lib/services/monte-carlo";
 import type { MonteCarloResult } from "@/lib/services/monte-carlo";
@@ -457,7 +457,7 @@ export default function GoalsPage() {
                   <div className="flex flex-wrap gap-4 text-xs text-slate-500">
                     <span>
                       Target:{" "}
-                      {new Date(goal.targetDate).toLocaleDateString("en-US", {
+                      {formatDate(goal.targetDate, {
                         month: "short",
                         year: "numeric",
                       })}
@@ -612,7 +612,7 @@ export default function GoalsPage() {
                       <p className="text-sm font-semibold text-white">{goal.name}</p>
                       <p className="text-xs text-slate-500 mt-0.5">
                         Target: {formatCurrency(goal.targetAmount)} by{" "}
-                        {new Date(goal.targetDate).toLocaleDateString("en-US", { month: "short", year: "numeric" })}
+                        {formatDate(goal.targetDate, { month: "short", year: "numeric" })}
                       </p>
                     </div>
                     <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-sm font-bold ${probBg} ${probColor}`}>
@@ -681,7 +681,7 @@ export default function GoalsPage() {
                     <div className="mt-3 flex items-start gap-2 bg-primary/5 border border-primary/15 rounded-lg px-3 py-2">
                       <TrendingUp className="w-3.5 h-3.5 text-primary mt-0.5 shrink-0" />
                       <p className="text-[11px] text-slate-300 leading-relaxed">
-                        To reach this goal by {new Date(goal.targetDate).toLocaleDateString("en-US", { month: "short", year: "numeric" })} at 7% returns,
+                        To reach this goal by {formatDate(goal.targetDate, { month: "short", year: "numeric" })} at 7% returns,
                         contribute <span className="text-primary font-semibold">{formatCurrency(mc.suggestedContribution)}/mo</span>
                         {goal.monthlyContribution > 0 && (
                           <span className="text-slate-500">

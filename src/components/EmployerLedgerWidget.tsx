@@ -3,7 +3,7 @@
 import { useMemo } from "react";
 import { Transaction } from "@/lib/types";
 import { Building2, ArrowUpRight, ArrowDownRight, Clock, CheckCircle2 } from "lucide-react";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, formatDate } from "@/lib/utils";
 
 
 export function EmployerLedgerWidget({ transactions }: { transactions: Transaction[] }) {
@@ -31,7 +31,7 @@ export function EmployerLedgerWidget({ transactions }: { transactions: Transacti
                  </div>
                  <div className="flex flex-col">
                    <span className="text-sm font-medium text-slate-200">{txn.title}</span>
-                   <span className="text-xs text-slate-500 uppercase tracking-widest">{txn.category} • {new Date(txn.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span>
+                   <span className="text-xs text-slate-500 uppercase tracking-widest">{txn.category} • {formatDate(txn.date, { month: 'short', day: 'numeric' })}</span>
                  </div>
                </div>
                

@@ -13,7 +13,7 @@ import {
   sumByType,
 } from "@/lib/services/transactions";
 import { DEFAULT_WORKSPACE_ID } from "@/lib/services/workspace";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, formatDate } from "@/lib/utils";
 import type {
   Transaction,
   CreateTransactionInput,
@@ -177,7 +177,7 @@ export default function ExpensePage() {
                     {txn.category}
                   </td>
                   <td className="px-5 py-3 text-slate-400">
-                    {new Date(txn.date).toLocaleDateString()}
+                    {formatDate(txn.date)}
                   </td>
                   <td className="px-5 py-3">
                     <span

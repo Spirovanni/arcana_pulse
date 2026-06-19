@@ -64,7 +64,7 @@ import {
 import type { DividendSummary, DividendRecord, DividendYield } from "@/lib/services/investments";
 import { analyzeTaxLossHarvesting } from "@/lib/services/tlh";
 import { DEFAULT_WORKSPACE_ID } from "@/lib/services/workspace";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, formatDate } from "@/lib/utils";
 import PlanGate from "@/components/PlanGate";
 import type { SavingsGoal } from "@/lib/types";
 import { BarChart, Bar } from "recharts";
@@ -618,7 +618,7 @@ export default function PortfolioPage() {
     const d = new Date(iso);
     return selectedPeriod === "1D"
       ? d.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })
-      : d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+      : formatDate(iso, { month: "short", day: "numeric" });
   }
 
   return (
@@ -1011,7 +1011,7 @@ export default function PortfolioPage() {
                           </span>
                         </td>
                         <td className="px-4 py-3 text-slate-500 text-xs whitespace-nowrap">
-                          {new Date(o.submittedAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                          {formatDate(o.submittedAt, { month: "short", day: "numeric" })}
                         </td>
                       </tr>
                     ))}
@@ -1309,7 +1309,7 @@ export default function PortfolioPage() {
                     <td className="px-4 py-3 text-slate-300 tabular-nums">{y.yieldOnCost.toFixed(2)}%</td>
                     <td className="px-4 py-3 text-slate-400 capitalize">{y.frequency}</td>
                     <td className="px-4 py-3 text-slate-400 tabular-nums text-xs">
-                      <span>{new Date(y.nextEstimatedDate).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
+                      <span>{formatDate(y.nextEstimatedDate, { month: "short", day: "numeric" })}</span>
                       <span className="ml-1 text-teal-500">~{formatCurrency(y.nextEstimatedAmount)}</span>
                     </td>
                     <td className="px-4 py-3">
@@ -1342,7 +1342,7 @@ export default function PortfolioPage() {
                 {dividendHistory.map((d) => (
                   <tr key={d.investmentTransactionId} className="border-b border-arcana-border/50 hover:bg-arcana-navy/30 transition-colors">
                     <td className="px-4 py-3 text-slate-400 text-xs tabular-nums">
-                      {new Date(d.date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                      {formatDate(d.date, { month: "short", day: "numeric", year: "numeric" })}
                     </td>
                     <td className="px-4 py-3">
                       <span className="font-mono font-bold text-slate-200 text-xs">{d.ticker}</span>
@@ -1429,7 +1429,7 @@ export default function PortfolioPage() {
                         {goal.targetDate && (
                           <p className="text-xs text-slate-500 mt-0.5 flex items-center gap-1">
                             <CalendarDays className="w-3 h-3" />
-                            {new Date(goal.targetDate).toLocaleDateString("en-US", { month: "short", year: "numeric" })}
+                            {formatDate(goal.targetDate, { month: "short", year: "numeric" })}
                             {daysLeft != null && <span>· {daysLeft} days left</span>}
                           </p>
                         )}

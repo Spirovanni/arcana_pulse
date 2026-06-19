@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { Bell, X, CheckCheck, AlertTriangle, Zap, TrendingUp, Target, BarChart3 } from "lucide-react";
 import Link from "next/link";
 import type { Notification, NotificationType } from "@/lib/services/notifications";
-import { cn } from "@/lib/utils";
+import { cn, formatDate } from "@/lib/utils";
 
 const TYPE_ICON: Record<NotificationType, React.ComponentType<{ className?: string }>> = {
   large_transaction: AlertTriangle,
@@ -149,7 +149,7 @@ export default function NotificationBell({ workspaceId }: { workspaceId: string 
                     </div>
                     <p className="text-[10px] text-secondary/70 mt-0.5 leading-relaxed line-clamp-2">{n.body}</p>
                     <p className="text-[9px] text-secondary/40 mt-1 font-mono">
-                      {new Date(n.createdAt).toLocaleDateString()}
+                      {formatDate(n.createdAt)}
                     </p>
                   </div>
                 </div>
