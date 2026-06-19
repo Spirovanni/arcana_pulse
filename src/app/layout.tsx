@@ -7,9 +7,9 @@ import "./globals.css";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Arcana Pulse | Arcana Credit Union",
+  title: "Arcana Pulse",
   description:
-    "Your financial cockpit — connect accounts, track transactions, manage income and expenses, and move money.",
+    "Your financial cockpit — connect accounts, track transactions, manage income and expenses, and manage your investment strategy.",
 };
 
 export default function RootLayout({
