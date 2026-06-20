@@ -118,3 +118,9 @@ export const dwollaCircuit = new CircuitBreaker({
   resetTimeoutMs: 30_000,
   halfOpenAttempts: 1,
 });
+
+export const alpacaCircuit = new CircuitBreaker({
+  failureThreshold: 3,
+  resetTimeoutMs: 30_000,
+  halfOpenAttempts: 1,
+});

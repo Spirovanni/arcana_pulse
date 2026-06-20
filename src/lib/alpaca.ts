@@ -5,6 +5,9 @@
  */
 
 import { env } from "@/lib/env";
+import { alpacaCircuit } from "./resilience/circuit-breaker";
+import { withRetry } from "./resilience/retry";
+import * as Sentry from "@sentry/nextjs";
 
 // ─── Base URLs ────────────────────────────────────────────────────────────────
 
@@ -52,25 +55,42 @@ export class AlpacaAPIError extends Error {
 // ─── Core fetch helpers ───────────────────────────────────────────────────────
 
 async function alpacaFetch(url: string, init: RequestInit = {}): Promise<Response> {
-  const res = await fetch(url, {
-    ...init,
-    headers: {
-      ...authHeaders(),
-      ...(init.headers ?? {}),
-    },
-    // Next.js: don't cache trading data
-    cache: "no-store",
-  });
+  return alpacaCircuit.execute(() =>
+    withRetry(
+      async () => {
+        const res = await fetch(url, {
+          ...init,
+          headers: {
+            ...authHeaders(),
+            ...(init.headers ?? {}),
+          },
+          // Next.js: don't cache trading data
+          cache: "no-store",
+        });
 
-  if (!res.ok) {
-    const body = await res.text().catch(() => "");
-    throw new AlpacaAPIError(
-      `Alpaca API error ${res.status}: ${body}`,
-      res.status
-    );
-  }
+        if (!res.ok) {
+          const body = await res.text().catch(() => "");
+          throw new AlpacaAPIError(
+            `Alpaca API error ${res.status}: ${body}`,
+            res.status
+          );
+        }
 
-  return res;
+        return res;
+      },
+      {
+        maxRetries: 3,
+        baseDelayMs: 200,
+        maxDelayMs: 5000,
+        onRetry: (attempt, error) => {
+          Sentry.captureMessage(`Alpaca retry ${attempt} for ${url}`, {
+            level: "warning",
+            extra: { error: error.message, url },
+          });
+        },
+      }
+    )
+  );
 }
 
 export async function alpacaGet<T>(path: string): Promise<T> {
