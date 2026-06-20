@@ -71,6 +71,7 @@ export interface Workspace {
   ownerUserId: string;
   plan: WorkspacePlan;
   status: WorkspaceStatus;
+  tradingPaused?: boolean;
   createdAt: string;
   updatedAt: string;
 }

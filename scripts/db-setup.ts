@@ -105,6 +105,13 @@ async function setupWorkspaces() {
     ["active", "suspended"],
     true
   );
+  await db.createBooleanAttribute(
+    DATABASE_ID,
+    "workspaces",
+    "tradingPaused",
+    false,
+    false
+  );
 
   await wait();
 
