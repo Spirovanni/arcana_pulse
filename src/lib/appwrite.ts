@@ -40,7 +40,9 @@ export const COLLECTIONS = {
   featureFlags: "featureFlags",
   supportTickets: "supportTickets",
   investmentAccounts: "investmentAccounts",
+  paperOrders: "paperOrders",
 } as const;
+
 
 // ---------------------------------------------------------------------------
 // Client factory

@@ -586,6 +586,48 @@ async function setupSessions() {
 }
 
 // ---------------------------------------------------------------------------
+// Collection: paperOrders
+// ---------------------------------------------------------------------------
+
+async function setupPaperOrders() {
+  console.log("\n[paperOrders]");
+  await createCollection("paperOrders", "Paper Orders");
+
+  await db.createStringAttribute(DATABASE_ID, "paperOrders", "workspaceId", 36, true);
+  await db.createStringAttribute(DATABASE_ID, "paperOrders", "strategyId", 36, false);
+  await db.createStringAttribute(DATABASE_ID, "paperOrders", "submittedBy", 36, true);
+  await db.createEnumAttribute(DATABASE_ID, "paperOrders", "side", ["buy", "sell"], true);
+  await db.createStringAttribute(DATABASE_ID, "paperOrders", "symbol", 32, true);
+  await db.createFloatAttribute(DATABASE_ID, "paperOrders", "qty", false);
+  await db.createFloatAttribute(DATABASE_ID, "paperOrders", "notional", false);
+  await db.createEnumAttribute(DATABASE_ID, "paperOrders", "orderType", ["market", "limit"], true);
+  await db.createEnumAttribute(DATABASE_ID, "paperOrders", "timeInForce", ["day", "gtc", "ioc", "fok"], true);
+  await db.createStringAttribute(DATABASE_ID, "paperOrders", "clientOrderId", 128, true);
+  await db.createStringAttribute(DATABASE_ID, "paperOrders", "alpacaOrderId", 128, false);
+  await db.createEnumAttribute(DATABASE_ID, "paperOrders", "status", ["pending_confirmation", "submitted", "filled", "canceled", "rejected"], true);
+  await db.createDatetimeAttribute(DATABASE_ID, "paperOrders", "confirmedAt", false);
+
+  await wait(2000);
+
+  await db.createIndex(
+    DATABASE_ID,
+    "paperOrders",
+    "idx_workspace",
+    IndexType.Key,
+    ["workspaceId"],
+    [OrderBy.Asc]
+  );
+  await db.createIndex(
+    DATABASE_ID,
+    "paperOrders",
+    "idx_workspace_status",
+    IndexType.Key,
+    ["workspaceId", "status"],
+    [OrderBy.Asc, OrderBy.Asc]
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------------
 
@@ -602,6 +644,7 @@ async function main() {
   await setupTransactions();
   await setupTransfers();
   await setupSessions();
+  await setupPaperOrders();
 
   console.log("\nDone — all collections, attributes, and indexes created.");
 }
@@ -610,3 +653,4 @@ main().catch((err) => {
   console.error("Migration failed:", err);
   process.exit(1);
 });
+
