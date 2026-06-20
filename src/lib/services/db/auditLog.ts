@@ -17,7 +17,17 @@ export type AuditAction =
   | "bank_link"
   | "bank_remove"
   | "settings_change"
-  | "export_data";
+  | "export_data"
+  | "strategy_create"
+  | "strategy_update"
+  | "backtest_run"
+  | "paper_order_submit"
+  | "paper_order_cancel"
+  | "alert_rule_created"
+  | "alert_rule_deleted"
+  | "alert_sent"
+  | "risk_limit_breach";
+
 
 export interface AuditEvent {
   workspaceId: string;

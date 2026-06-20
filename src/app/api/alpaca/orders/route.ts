@@ -1,6 +1,8 @@
 export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { alpacaGet, alpacaPost, isAlpacaConfigured, AlpacaConfigError } from "@/lib/alpaca";
+import { requireAuth } from "@/lib/auth/withAuth";
+import { logAuditEvent } from "@/lib/services/db/auditLog";
 import type { AlpacaOrder, PlaceOrderInput } from "@/lib/types";
 
 interface RawOrder {
@@ -45,8 +47,16 @@ function mapOrder(raw: RawOrder): AlpacaOrder {
   };
 }
 
+// Allowed liquid equities and ETFs for paper trading simulation
+const ALLOWED_SYMBOLS = ["AAPL", "MSFT", "GOOG", "GOOGL", "AMZN", "NVDA", "TSLA", "META", "NFLX", "SPY", "QQQ", "IWM"];
+const MAX_NOTIONAL_LIMIT = 10000;
+const MAX_MARKET_QTY_LIMIT = 500;
+
 // GET — list orders
 export async function GET(req: NextRequest) {
+  const auth = await requireAuth(req, { requiredRole: "member" });
+  if (!auth.ok) return auth.response;
+
   if (!isAlpacaConfigured()) {
     return NextResponse.json({ configured: false, orders: [] }, { status: 200 });
   }
@@ -72,12 +82,18 @@ export async function GET(req: NextRequest) {
 
 // POST — place a new paper order
 export async function POST(req: NextRequest) {
+  const auth = await requireAuth(req, { requiredRole: "member" });
+  if (!auth.ok) return auth.response;
+  const { workspaceId, session } = auth;
+  const userId = session.user.userId;
+  const userEmail = session.user.email;
+
   if (!isAlpacaConfigured()) {
     return NextResponse.json({ error: "Alpaca not configured" }, { status: 400 });
   }
 
   try {
-    const body = (await req.json()) as PlaceOrderInput;
+    const body = (await req.json()) as PlaceOrderInput & { confirmed?: boolean; workspaceId?: string; clientOrderId?: string };
 
     // Basic validation
     if (!body.symbol || !body.qty || !body.side || !body.type || !body.timeInForce) {
@@ -87,20 +103,123 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Quantity must be positive" }, { status: 400 });
     }
 
+    // Workspace scoping check
+    if (body.workspaceId && body.workspaceId !== workspaceId) {
+      return NextResponse.json({ error: "Access to this workspace is not permitted" }, { status: 403 });
+    }
+
+    const symbolUpper = body.symbol.toUpperCase();
+
+    // 1. Symbol Allow-List Controls
+    if (!ALLOWED_SYMBOLS.includes(symbolUpper)) {
+      void logAuditEvent({
+        workspaceId,
+        userId,
+        userEmail,
+        action: "risk_limit_breach",
+        targetEntity: "alpaca_order",
+        metadata: {
+          symbol: body.symbol,
+          side: body.side,
+          qty: body.qty,
+          limitType: "symbol_scope",
+          attemptedValue: symbolUpper,
+          limitValue: ALLOWED_SYMBOLS.join(", "),
+          reason: "Symbol is not in the allow-list"
+        }
+      });
+      return NextResponse.json({ error: `Symbol ${body.symbol} is not allow-listed for paper trading` }, { status: 400 });
+    }
+
+    // 2. Position Sizing & Notional Limits Controls
+    let estimatedNotional = 0;
+    let limitReason = "";
+    if (body.type === "limit") {
+      if (!body.limitPrice) {
+        return NextResponse.json({ error: "Limit price is required for limit orders" }, { status: 400 });
+      }
+      estimatedNotional = body.qty * body.limitPrice;
+      if (estimatedNotional > MAX_NOTIONAL_LIMIT) {
+        limitReason = `Notional value $${estimatedNotional} exceeds max limit of $${MAX_NOTIONAL_LIMIT}`;
+      }
+    } else if (body.type === "market") {
+      if (body.qty > MAX_MARKET_QTY_LIMIT) {
+        limitReason = `Market order quantity ${body.qty} exceeds safe ceiling of ${MAX_MARKET_QTY_LIMIT} shares`;
+      }
+    }
+
+    if (limitReason) {
+      void logAuditEvent({
+        workspaceId,
+        userId,
+        userEmail,
+        action: "risk_limit_breach",
+        targetEntity: "alpaca_order",
+        metadata: {
+          symbol: symbolUpper,
+          side: body.side,
+          qty: body.qty,
+          limitType: "position_sizing",
+          attemptedValue: body.type === "limit" ? estimatedNotional : body.qty,
+          limitValue: body.type === "limit" ? MAX_NOTIONAL_LIMIT : MAX_MARKET_QTY_LIMIT,
+          reason: limitReason
+        }
+      });
+      return NextResponse.json({ error: limitReason }, { status: 400 });
+    }
+
+    // 3. User Confirmation Gate
+    if (body.confirmed !== true) {
+      return NextResponse.json({
+        error: "confirmation required",
+        message: "This order requires explicit user confirmation.",
+        orderDetails: {
+          symbol: symbolUpper,
+          qty: body.qty,
+          side: body.side,
+          type: body.type,
+          timeInForce: body.timeInForce,
+          limitPrice: body.limitPrice,
+          stopPrice: body.stopPrice,
+          estimatedNotional: body.type === "limit" ? body.qty * (body.limitPrice ?? 0) : undefined,
+        }
+      }, { status: 422 });
+    }
+
+    const clientOrderId = body.clientOrderId || `pco-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
     const alpacaBody: Record<string, unknown> = {
-      symbol: body.symbol.toUpperCase(),
+      symbol: symbolUpper,
       qty: body.qty.toString(),
       side: body.side,
       type: body.type,
       time_in_force: body.timeInForce,
+      client_order_id: clientOrderId,
     };
 
     if (body.limitPrice) alpacaBody.limit_price = body.limitPrice.toString();
     if (body.stopPrice) alpacaBody.stop_price = body.stopPrice.toString();
 
     const raw = await alpacaPost<RawOrder>("/v2/orders", alpacaBody);
+    const mapped = mapOrder(raw);
 
-    return NextResponse.json({ configured: true, order: mapOrder(raw) }, { status: 201 });
+    // 4. Audit Log Entry
+    void logAuditEvent({
+      workspaceId,
+      userId,
+      userEmail,
+      action: "paper_order_submit",
+      targetEntity: "alpaca_order",
+      targetId: mapped.orderId,
+      metadata: {
+        symbol: mapped.symbol,
+        side: mapped.side,
+        qty: mapped.qty,
+        clientOrderId: mapped.clientOrderId,
+        notional: mapped.notional,
+      }
+    });
+
+    return NextResponse.json({ configured: true, order: mapped }, { status: 201 });
   } catch (err) {
     if (err instanceof AlpacaConfigError) {
       return NextResponse.json({ error: "Alpaca not configured" }, { status: 400 });
@@ -110,3 +229,4 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
+
