@@ -127,3 +127,7 @@ Desktop.ini
 # - PRDs and architecture docs
 # - package-lock.json / pnpm-lock.yaml / yarn.lock
 # --------------------------------------------------
+
+# Beads / Dolt files (added by bd init)
+.dolt/
+.beads-credential-key

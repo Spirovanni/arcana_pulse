@@ -1,7 +1,7 @@
 {
   "database": "dolt",
   "backend": "dolt",
-  "dolt_mode": "server",
+  "dolt_mode": "embedded",
   "dolt_database": "arcana_pulse",
   "project_id": "de03feef-0511-4b3e-94b5-2bd69d5fb8b5"
 }
