@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { alpacaGet, alpacaPost, isAlpacaConfigured, AlpacaConfigError } from "@/lib/alpaca";
 import { requireAuth } from "@/lib/auth/withAuth";
 import { isAppwriteConfigured } from "@/lib/appwrite";
+import { getWorkspace } from "@/lib/services/db/workspace";
 import { createPaperOrder, getPaperOrderByClientOrderId, updatePaperOrder } from "@/lib/services/db/paperOrders";
 import { logAuditEvent } from "@/lib/services/db/auditLog";
 import type { AlpacaOrder, PlaceOrderInput } from "@/lib/types";
@@ -118,6 +119,28 @@ export async function POST(req: NextRequest) {
     // Workspace scoping check
     if (body.workspaceId && body.workspaceId !== workspaceId) {
       return NextResponse.json({ error: "Access to this workspace is not permitted" }, { status: 403 });
+    }
+
+    // Workspace trading pause (kill-switch) check
+    const ws = await getWorkspace(workspaceId);
+    if (ws?.tradingPaused === true) {
+      void logAuditEvent({
+        workspaceId,
+        userId,
+        userEmail,
+        action: "risk_limit_breach",
+        targetEntity: "alpaca_order",
+        metadata: {
+          symbol: body.symbol,
+          side: body.side,
+          qty: body.qty,
+          limitType: "kill_switch",
+          attemptedValue: "true",
+          limitValue: "false",
+          reason: "Workspace trading is currently paused by administrator"
+        }
+      });
+      return NextResponse.json({ error: "Paper trading is currently paused for this workspace." }, { status: 403 });
     }
 
     const symbolUpper = body.symbol.toUpperCase();

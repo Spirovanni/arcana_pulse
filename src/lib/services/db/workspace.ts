@@ -18,6 +18,7 @@ function toWorkspace(doc: Models.Document & Record<string, any>): Workspace {
     ownerUserId: doc.ownerUserId,
     plan: doc.plan as WorkspacePlan,
     status: doc.status,
+    tradingPaused: doc.tradingPaused ?? false,
     createdAt: doc.$createdAt,
     updatedAt: doc.$updatedAt,
   };
@@ -59,7 +60,7 @@ export async function getWorkspace(
 
 export async function updateWorkspace(
   workspaceId: string,
-  updates: { name?: string; plan?: WorkspacePlan }
+  updates: { name?: string; plan?: WorkspacePlan; tradingPaused?: boolean }
 ): Promise<Workspace> {
   const doc = await getDatabase().updateDocument(
     DATABASE_ID,
