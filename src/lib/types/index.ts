@@ -610,3 +610,45 @@ export interface SupportTicket {
   resolvedAt?: string;
 }
 
+// ─── Paperclip (Paper Trading Orders) ──────────────────────────
+
+export type PaperOrderStatus =
+  | "pending_confirmation"
+  | "submitted"
+  | "filled"
+  | "canceled"
+  | "rejected";
+
+export interface PaperOrder {
+  orderId: string;
+  workspaceId: string;
+  strategyId?: string;
+  submittedBy: string;
+  side: AlpacaOrderSide;
+  symbol: string;
+  qty?: number;
+  notional?: number;
+  orderType: "market" | "limit";
+  timeInForce: AlpacaTimeInForce;
+  clientOrderId: string;
+  alpacaOrderId?: string;
+  status: PaperOrderStatus;
+  confirmedAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreatePaperOrderInput {
+  workspaceId: string;
+  strategyId?: string;
+  submittedBy: string;
+  side: AlpacaOrderSide;
+  symbol: string;
+  qty?: number;
+  notional?: number;
+  orderType: "market" | "limit";
+  timeInForce: AlpacaTimeInForce;
+  clientOrderId: string;
+  status: PaperOrderStatus;
+  confirmedAt?: string;
+}

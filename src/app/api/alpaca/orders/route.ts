@@ -2,6 +2,8 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { alpacaGet, alpacaPost, isAlpacaConfigured, AlpacaConfigError } from "@/lib/alpaca";
 import { requireAuth } from "@/lib/auth/withAuth";
+import { isAppwriteConfigured } from "@/lib/appwrite";
+import { createPaperOrder, getPaperOrderByClientOrderId, updatePaperOrder } from "@/lib/services/db/paperOrders";
 import { logAuditEvent } from "@/lib/services/db/auditLog";
 import type { AlpacaOrder, PlaceOrderInput } from "@/lib/types";
 
@@ -92,15 +94,25 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Alpaca not configured" }, { status: 400 });
   }
 
-  try {
-    const body = (await req.json()) as PlaceOrderInput & { confirmed?: boolean; workspaceId?: string; clientOrderId?: string };
+  if (!isAppwriteConfigured()) {
+    return NextResponse.json({ error: "Appwrite not configured" }, { status: 503 });
+  }
 
+  const body = (await req.json()) as PlaceOrderInput & { confirmed?: boolean; workspaceId?: string; clientOrderId?: string; strategyId?: string };
+
+  // Generate or get clientOrderId early so it persists correctly
+  const clientOrderId = body.clientOrderId || `pco-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+
+  try {
     // Basic validation
     if (!body.symbol || !body.qty || !body.side || !body.type || !body.timeInForce) {
       return NextResponse.json({ error: "Missing required order fields" }, { status: 400 });
     }
     if (body.qty <= 0) {
       return NextResponse.json({ error: "Quantity must be positive" }, { status: 400 });
+    }
+    if (body.type !== "market" && body.type !== "limit") {
+      return NextResponse.json({ error: "Only market and limit orders are supported" }, { status: 400 });
     }
 
     // Workspace scoping check
@@ -170,6 +182,24 @@ export async function POST(req: NextRequest) {
 
     // 3. User Confirmation Gate
     if (body.confirmed !== true) {
+      // Persist order in the database under pending_confirmation
+      let existingOrder = await getPaperOrderByClientOrderId(clientOrderId);
+      if (!existingOrder) {
+        await createPaperOrder({
+          workspaceId,
+          submittedBy: userId,
+          side: body.side,
+          symbol: symbolUpper,
+          qty: body.qty,
+          notional: body.type === "limit" && body.limitPrice ? body.qty * body.limitPrice : undefined,
+          orderType: body.type,
+          timeInForce: body.timeInForce,
+          clientOrderId,
+          status: "pending_confirmation",
+          strategyId: body.strategyId,
+        });
+      }
+
       return NextResponse.json({
         error: "confirmation required",
         message: "This order requires explicit user confirmation.",
@@ -181,12 +211,18 @@ export async function POST(req: NextRequest) {
           timeInForce: body.timeInForce,
           limitPrice: body.limitPrice,
           stopPrice: body.stopPrice,
-          estimatedNotional: body.type === "limit" ? body.qty * (body.limitPrice ?? 0) : undefined,
+          estimatedNotional: body.type === "limit" && body.limitPrice ? body.qty * body.limitPrice : undefined,
+          clientOrderId,
         }
       }, { status: 422 });
     }
 
-    const clientOrderId = body.clientOrderId || `pco-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    // 4. Place Alpaca Order
+    let existingOrder = await getPaperOrderByClientOrderId(clientOrderId);
+    if (existingOrder && existingOrder.workspaceId !== workspaceId) {
+      return NextResponse.json({ error: "Access to this order is not permitted" }, { status: 403 });
+    }
+
     const alpacaBody: Record<string, unknown> = {
       symbol: symbolUpper,
       qty: body.qty.toString(),
@@ -202,7 +238,34 @@ export async function POST(req: NextRequest) {
     const raw = await alpacaPost<RawOrder>("/v2/orders", alpacaBody);
     const mapped = mapOrder(raw);
 
-    // 4. Audit Log Entry
+    // 5. Update local paperOrders document
+    if (existingOrder) {
+      await updatePaperOrder(existingOrder.orderId, {
+        status: "submitted",
+        alpacaOrderId: mapped.orderId,
+        confirmedAt: new Date().toISOString(),
+      });
+    } else {
+      const newOrder = await createPaperOrder({
+        workspaceId,
+        submittedBy: userId,
+        side: body.side,
+        symbol: symbolUpper,
+        qty: body.qty,
+        notional: body.type === "limit" && body.limitPrice ? body.qty * body.limitPrice : undefined,
+        orderType: body.type,
+        timeInForce: body.timeInForce,
+        clientOrderId,
+        status: "submitted",
+        confirmedAt: new Date().toISOString(),
+        strategyId: body.strategyId,
+      });
+      await updatePaperOrder(newOrder.orderId, {
+        alpacaOrderId: mapped.orderId,
+      });
+    }
+
+    // 6. Audit Log Entry
     void logAuditEvent({
       workspaceId,
       userId,
@@ -221,6 +284,17 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ configured: true, order: mapped }, { status: 201 });
   } catch (err) {
+    if (clientOrderId) {
+      try {
+        const order = await getPaperOrderByClientOrderId(clientOrderId);
+        if (order && order.status === "pending_confirmation") {
+          await updatePaperOrder(order.orderId, { status: "rejected" });
+        }
+      } catch (dbErr) {
+        console.error("Failed to mark order as rejected in database:", dbErr);
+      }
+    }
+
     if (err instanceof AlpacaConfigError) {
       return NextResponse.json({ error: "Alpaca not configured" }, { status: 400 });
     }
