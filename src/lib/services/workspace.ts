@@ -18,7 +18,7 @@ export function getWorkspace(workspaceId: string): Workspace | null {
 
 export function updateWorkspace(
   workspaceId: string,
-  updates: { name?: string; plan?: WorkspacePlan }
+  updates: { name?: string; plan?: WorkspacePlan; tradingPaused?: boolean }
 ): Workspace {
   if (workspace.workspaceId !== workspaceId) {
     throw new Error(`Workspace ${workspaceId} not found`);

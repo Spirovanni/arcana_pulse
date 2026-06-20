@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, Suspense } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { getWorkspace, getCurrentUser, DEFAULT_WORKSPACE_ID } from "@/lib/services/workspace";
 import { ShieldCheck, ShieldOff, Copy, Check, Clock, Activity, Download, Trash2, AlertTriangle } from "lucide-react";
 import { signOut } from "next-auth/react";
@@ -35,6 +35,9 @@ export default function SettingsPage() {
   const workspace = getWorkspace(DEFAULT_WORKSPACE_ID);
   const user = getCurrentUser();
 
+  const [workspaceState, setWorkspaceState] = useState(workspace);
+  const [toggleLoading, setToggleLoading] = useState(false);
+
   const [mfaEnabled, setMfaEnabled] = useState(false);
   const [mfaView, setMfaView] = useState<MfaView>("idle");
   const [qrDataUrl, setQrDataUrl] = useState("");
@@ -53,7 +56,44 @@ export default function SettingsPage() {
   const [deleteError, setDeleteError] = useState("");
   const [exportLoading, setExportLoading] = useState(false);
 
-  if (!workspace) return null;
+  useEffect(() => {
+    if (!workspace) return;
+    fetch(`/api/workspace?id=${workspace.workspaceId}`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (data && data.workspace) {
+          setWorkspaceState(data.workspace);
+        }
+      })
+      .catch((err) => console.error("Failed to fetch workspace settings:", err));
+  }, [workspace?.workspaceId]);
+
+  if (!workspace || !workspaceState) return null;
+
+  async function handleToggleTrading() {
+    if (!workspaceState) return;
+    setToggleLoading(true);
+    try {
+      const newPausedState = !workspaceState.tradingPaused;
+      const res = await fetch("/api/workspace", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          workspaceId: workspaceState.workspaceId,
+          tradingPaused: newPausedState,
+        }),
+      });
+      const updated = await res.json();
+      if (!res.ok) throw new Error(updated.error ?? "Failed to update workspace");
+      setWorkspaceState(updated);
+    } catch (err) {
+      console.error(err);
+      alert(err instanceof Error ? err.message : "Failed to toggle paper trading status");
+    } finally {
+      setToggleLoading(false);
+    }
+  }
+
 
   async function startSetup() {
     setMfaError("");
@@ -197,6 +237,40 @@ export default function SettingsPage() {
               <span className="text-sm text-on-surface">{value}</span>
             </div>
           ))}
+        </div>
+      </div>
+
+      {/* Paper Trading Controls */}
+      <div className="rounded-sm bg-surface-container-high border border-outline p-6">
+        <div className="flex items-center gap-2 mb-4">
+          <ShieldCheck className="h-4 w-4 text-primary" />
+          <h3 className="text-[9px] uppercase tracking-[2px] text-secondary font-bold">Paper Trading Risk Controls</h3>
+        </div>
+        <p className="text-xs text-secondary mb-5">
+          Workspace-wide controls to halt paper execution simulated orders.
+        </p>
+
+        <div className="flex items-center justify-between gap-4 py-4 border-t border-outline/40">
+          <div>
+            <p className="text-sm text-on-surface font-medium">Paper Trading Status</p>
+            <p className="text-xs text-secondary mt-0.5">
+              {workspaceState.tradingPaused
+                ? "Trading is currently PAUSED. Submitting new paper orders is disabled."
+                : "Trading is ACTIVE. Workspace members can submit paper orders."}
+            </p>
+          </div>
+          <button
+            type="button"
+            disabled={!["owner", "admin"].includes(user.role) || toggleLoading}
+            onClick={handleToggleTrading}
+            className={`flex-shrink-0 px-4 py-2.5 rounded-sm border text-[10px] uppercase tracking-[1px] font-bold transition-all ${
+              workspaceState.tradingPaused
+                ? "bg-green-500/10 border-green-500/30 text-arcana-success hover:bg-green-500/20"
+                : "bg-red-500/10 border-red-500/30 text-arcana-danger hover:bg-red-500/20"
+            } disabled:opacity-40`}
+          >
+            {toggleLoading ? "Updating..." : workspaceState.tradingPaused ? "Resume Trading" : "Pause Trading"}
+          </button>
         </div>
       </div>
 

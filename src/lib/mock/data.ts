@@ -15,6 +15,7 @@ export const mockWorkspace: Workspace = {
   ownerUserId: "usr-001",
   plan: "starter",
   status: "active",
+  tradingPaused: false,
   createdAt: "2026-01-15T10:00:00Z",
   updatedAt: "2026-03-14T10:00:00Z",
 };
