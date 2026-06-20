@@ -3,3 +3,4 @@
 {"id":"int-12365be9","kind":"field_change","created_at":"2026-06-20T20:54:25.365957Z","actor":"Spirovanni","issue_id":"arcana_pulse-dzq.3","extra":{"field":"status","new_value":"closed","old_value":"in_progress","reason":"Closed"}}
 {"id":"int-4c4692e5","kind":"field_change","created_at":"2026-06-20T20:57:51.932117Z","actor":"Spirovanni","issue_id":"arcana_pulse-dzq.4","extra":{"field":"status","new_value":"closed","old_value":"in_progress","reason":"Closed"}}
 {"id":"int-66301937","kind":"field_change","created_at":"2026-06-20T21:00:59.905685Z","actor":"Spirovanni","issue_id":"arcana_pulse-dzq.5","extra":{"field":"status","new_value":"closed","old_value":"in_progress","reason":"Closed"}}
+{"id":"int-501f8580","kind":"field_change","created_at":"2026-06-20T21:03:10.686171Z","actor":"Spirovanni","issue_id":"arcana_pulse-dzq.6","extra":{"field":"status","new_value":"closed","old_value":"in_progress","reason":"Closed"}}
