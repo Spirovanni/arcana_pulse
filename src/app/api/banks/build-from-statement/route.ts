@@ -281,7 +281,7 @@ async function handlePost(
     const BATCH = 50;
     for (let i = 0; i < toInsert.length; i += BATCH) {
       const chunk = toInsert.slice(i, i + BATCH);
-      await Promise.allSettled(
+      const results = await Promise.allSettled(
         chunk.map((txn) =>
           insertSyncedTransaction({
             workspaceId,
@@ -296,7 +296,7 @@ async function handlePost(
           })
         )
       );
-      imported += chunk.length;
+      imported += results.filter((r) => r.status === "fulfilled").length;
     }
   } else {
     // Fallback: in-memory

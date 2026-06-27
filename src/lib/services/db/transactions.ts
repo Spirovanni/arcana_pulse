@@ -188,18 +188,16 @@ export interface SyncedTransactionInput {
 export async function insertSyncedTransaction(
   input: SyncedTransactionInput
 ): Promise<Transaction> {
-  // Check for duplicate scoped to this bank so the same CSV can be re-imported
-  // to a different (or re-created) bank without being silently skipped.
+  // Dedup by externalReference (single-field index works without a compound index).
+  // Only skip creation if the found document belongs to THIS same bank — otherwise
+  // allow the same reference to exist under a different bank (e.g. re-import after
+  // the account was recreated).
   const existing = await getDatabase().listDocuments(
     DATABASE_ID,
     COLLECTIONS.transactions,
-    [
-      Query.equal("bankId", input.bankId),
-      Query.equal("externalReference", input.externalReference),
-      Query.limit(1),
-    ]
+    [Query.equal("externalReference", input.externalReference), Query.limit(1)]
   );
-  if (existing.documents.length > 0) {
+  if (existing.documents.length > 0 && existing.documents[0].bankId === input.bankId) {
     return toTransaction(existing.documents[0]);
   }
 
