@@ -118,13 +118,30 @@ export async function POST(request: NextRequest) {
   const auth = await requireAuth(request);
   if (!auth.ok) return auth.response;
 
+  try {
+    return await handlePost(request, auth);
+  } catch (err: unknown) {
+    const msg =
+      err instanceof Error ? err.message : String(err);
+    // Log the full error server-side so it appears in Vercel logs
+    console.error("[build-from-statement] Unhandled error:", err);
+    return NextResponse.json(
+      { error: msg || "Internal server error" },
+      { status: 500 }
+    );
+  }
+}
+
+// ── Extracted handler (throws — outer catch converts to 500 JSON) ────────────
+
+async function handlePost(
+  request: NextRequest,
+  auth: Awaited<ReturnType<typeof requireAuth>> & { ok: true }
+) {
   const body = await request.json().catch(() => ({})) as {
-    // Mode A — inline CSV content sent directly from the browser (Vercel-safe)
     csvContent?: string;
-    // Mode B — read from public/statements/{username}/{filename} (Saved Statements panel)
     username?: string;
     filename?: string;
-    // Common
     institutionName?: string;
     accountMask?: string;
     workspaceId?: string;
@@ -135,11 +152,9 @@ export async function POST(request: NextRequest) {
   let filenameForHints: string;
 
   if (body.csvContent) {
-    // ── Mode A: inline content ──────────────────────────────────────────
     content = body.csvContent;
     filenameForHints = body.filename ?? "statement.csv";
   } else {
-    // ── Mode B: read from disk ──────────────────────────────────────────
     const username = (body.username ?? "").replace(/[^a-zA-Z0-9_\-]/g, "_").slice(0, 64);
     const filename = body.filename ?? "";
 
@@ -181,10 +196,9 @@ export async function POST(request: NextRequest) {
   const periodEnd   = dates[dates.length - 1];
 
   // Derive current balance from the last known balance in the CSV
-  // Chase includes a "Balance" column — extract from raw content
   const balanceMatch = content.split("\n")
     .filter((l) => l.includes(","))
-    .slice(1, 3) // second line (first data row = most recent)
+    .slice(1, 3)
     .map((l) => {
       const cols = l.split(",");
       return parseFloat(cols[5] ?? "");
@@ -192,19 +206,16 @@ export async function POST(request: NextRequest) {
     .find((n) => !isNaN(n));
   const currentBalance = balanceMatch ?? 0;
 
-  // ── AI Categorisation ─────────────────────────────────────────────────────
-  // Send all descriptions to Gemini Flash in one call (it handles large payloads)
-  // Fall back to regex categories from the parser if AI fails
+  // ── AI Categorisation ──────────────────────────────────────────────────────
   const descriptions = parsed.transactions.map((t) => t.title);
   const aiCategories = await aiCategorise(descriptions);
 
-  // Merge AI categories back (fallback to parser's regex category if AI didn't provide one)
   const transactions = parsed.transactions.map((t, i) => ({
     ...t,
     category: (aiCategories[i] ?? t.category) as Category,
   }));
 
-  // ── Build category breakdown (always from parsed data) ──────────────────
+  // ── Category breakdown ─────────────────────────────────────────────────────
   const categoryBreakdown: Record<string, { count: number; total: number }> = {};
   for (const txn of transactions) {
     if (!categoryBreakdown[txn.category]) {
@@ -214,11 +225,11 @@ export async function POST(request: NextRequest) {
     categoryBreakdown[txn.category].total += txn.amount;
   }
 
-  // ── ARC ID (matches existing bank naming convention) ─────────────────────
+  // ── ARC ID ─────────────────────────────────────────────────────────────────
   const { makeArcId } = await import("@/lib/utils");
   const shareableId = makeArcId(institutionName, accountMask);
 
-  // ── Deduplicate by externalReference (client-side, before any DB calls) ──
+  // ── Client-side dedup ──────────────────────────────────────────────────────
   const seen = new Map<string, typeof transactions[0]>();
   for (const txn of transactions) {
     if (!seen.has(txn.externalReference)) seen.set(txn.externalReference, txn);
@@ -226,15 +237,18 @@ export async function POST(request: NextRequest) {
   const uniqueTxns = Array.from(seen.values());
   const clientDups = transactions.length - uniqueTxns.length;
 
-  // ── Persist to Appwrite if configured; fall back to in-memory otherwise ──
+  // ── Persist ────────────────────────────────────────────────────────────────
   const useAppwrite = isAppwriteConfigured();
+  console.log(`[build-from-statement] useAppwrite=${useAppwrite} workspaceId=${workspaceId} txns=${uniqueTxns.length}`);
+  console.log(`[build-from-statement] COLLECTIONS.banks=${process.env.APPWRITE_BANK_COLLECTION_ID ?? "banks"} COLLECTIONS.transactions=${process.env.APPWRITE_TRANSACTION_COLLECTION_ID ?? "transactions"}`);
 
   let bank: Awaited<ReturnType<typeof addBank>>;
   let imported = 0;
   let dbDuplicates = 0;
 
   if (useAppwrite) {
-    // Create the bank in Appwrite
+    // Create the bank
+    console.log("[build-from-statement] Creating bank in Appwrite…");
     bank = await addBank({
       workspaceId,
       institutionName,
@@ -243,9 +257,9 @@ export async function POST(request: NextRequest) {
       shareableId,
       balance: currentBalance,
     });
+    console.log(`[build-from-statement] Bank created: ${bank.bankId}`);
 
-    // Fetch externalReferences already in the DB for this bank (dedup check)
-    // — one query instead of 1,500 individual checks
+    // Fetch existing refs for dedup
     const existingRefs = new Set<string>();
     try {
       const existing = await getDatabase().listDocuments(
@@ -261,7 +275,9 @@ export async function POST(request: NextRequest) {
     const toInsert = uniqueTxns.filter((t) => !existingRefs.has(t.externalReference));
     dbDuplicates = uniqueTxns.length - toInsert.length;
 
-    // Parallel batch insert (50 concurrent) — dramatically faster than sequential
+    console.log(`[build-from-statement] Inserting ${toInsert.length} transactions…`);
+
+    // Parallel batch insert (50 concurrent)
     const BATCH = 50;
     for (let i = 0; i < toInsert.length; i += BATCH) {
       const chunk = toInsert.slice(i, i + BATCH);
@@ -274,7 +290,7 @@ export async function POST(request: NextRequest) {
             amount: txn.amount,
             transactionType: txn.transactionType === "income" ? "income" : "expense",
             category: txn.category,
-            aiCategory: txn.category,   // store AI-assigned value in dedicated field
+            aiCategory: txn.category,
             date: txn.date,
             externalReference: txn.externalReference,
           })
@@ -283,7 +299,7 @@ export async function POST(request: NextRequest) {
       imported += chunk.length;
     }
   } else {
-    // Fallback: in-memory (development without Appwrite)
+    // Fallback: in-memory
     const { addBank: addBankMock } = await import("@/lib/services/banks");
     const { insertSyncedTransaction: insertMock } = await import("@/lib/services/transactions");
 
@@ -333,3 +349,5 @@ export async function POST(request: NextRequest) {
     message: `Created ${institutionName} ···${accountMask} and imported ${imported} transactions into Appwrite (${periodStart} → ${periodEnd}).`,
   });
 }
+
+
