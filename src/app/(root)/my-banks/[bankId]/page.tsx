@@ -224,21 +224,7 @@ export default function BankDetailPage() {
     .sort((a, b) => b[1].total - a[1].total)
     .slice(0, 8);
 
-  // Helper: remove this bank from localStorage and go back to upload
-  function removeAndReimport() {
-    try {
-      const rawBanks = localStorage.getItem(LS_KEY);
-      if (rawBanks) {
-        const banks: Bank[] = JSON.parse(rawBanks);
-        localStorage.setItem(LS_KEY, JSON.stringify(banks.filter((b) => b.bankId !== bankId)));
-      }
-      const rawMeta = localStorage.getItem(LS_META);
-      if (rawMeta) {
-        const allMeta: Record<string, StmtMeta> = JSON.parse(rawMeta);
-        delete allMeta[bankId];
-        localStorage.setItem(LS_META, JSON.stringify(allMeta));
-      }
-    } catch { /* ignore */ }
+  function goReimport() {
     window.location.href = "/my-banks?upload=1";
   }
 
@@ -258,17 +244,17 @@ export default function BankDetailPage() {
     <div className="rounded-xl bg-amber-900/20 border border-amber-700/40 p-5 flex flex-col sm:flex-row items-start sm:items-center gap-4">
       <AlertCircle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5 sm:mt-0" />
       <div className="flex-1">
-        <p className="text-sm font-medium text-amber-300">Transactions not found in database</p>
+        <p className="text-sm font-medium text-amber-300">No transactions found for this account</p>
         <p className="text-xs text-amber-500 mt-0.5">
-          This account was created before database persistence was enabled. Re-importing your CSV will save the transactions to Appwrite so they appear here and in your dashboards.
+          Upload your CSV statement to import transactions — they&apos;ll appear here and across your dashboards.
         </p>
       </div>
       <button
         type="button"
-        onClick={removeAndReimport}
+        onClick={goReimport}
         className="shrink-0 px-4 py-2 rounded-lg bg-amber-600 hover:bg-amber-500 text-white text-xs font-semibold transition-colors"
       >
-        Remove &amp; Re-import CSV
+        Upload CSV
       </button>
     </div>
   ) : null;
