@@ -16,6 +16,9 @@ import {
   BarChart3,
   Calendar,
   Search,
+  Tag,
+  X,
+  Check,
 } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { CATEGORY_LABELS } from "@/lib/constants";
@@ -32,6 +35,7 @@ interface StmtMeta {
 }
 
 interface StatementTransaction {
+  transactionId?: string;   // present when loaded from Appwrite
   date: string;
   title: string;
   amount: number;
@@ -65,12 +69,149 @@ const CATEGORY_COLORS: Record<string, string> = {
   travel:         "#14b8a6",
   salary:         "#22c55e",
   investment:     "#6366f1",
+  freelance:      "#f59e0b",
+  refund:         "#34d399",
+  other_income:   "#a3e635",
   transfer:       "#94a3b8",
   other:          "#64748b",
 };
 
 const LS_KEY  = "arcana:statement-banks";
 const LS_META = "arcana:statement-banks-meta";
+
+// ── Recategorise Modal ────────────────────────────────────────────────────────
+
+function RecategoriseModal({
+  txn,
+  onClose,
+  onSaved,
+}: {
+  txn: StatementTransaction;
+  onClose: () => void;
+  onSaved: (transactionId: string, newCategory: Category) => void;
+}) {
+  const [selected, setSelected] = useState<Category>(txn.category);
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  async function save() {
+    if (!txn.transactionId) return;
+    setSaving(true);
+    setErr(null);
+    try {
+      const res = await fetch(
+        `/api/transactions/${txn.transactionId}/override-category`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ category: selected }),
+        }
+      );
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({})) as { error?: string };
+        throw new Error(data.error ?? `Error ${res.status}`);
+      }
+      onSaved(txn.transactionId, selected);
+      onClose();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Failed to save");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ background: "rgba(0,0,0,0.65)", backdropFilter: "blur(4px)" }}
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div className="w-full max-w-sm rounded-2xl bg-arcana-surface border border-arcana-border shadow-2xl overflow-hidden">
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-arcana-border">
+          <div className="flex items-center gap-2">
+            <Tag className="w-4 h-4 text-arcana-sky" />
+            <h2 className="text-sm font-semibold text-white">Recategorise</h2>
+          </div>
+          <button type="button" onClick={onClose} className="text-slate-400 hover:text-white transition-colors">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        <div className="px-5 py-4 space-y-4">
+          {/* Transaction summary */}
+          <div className="rounded-lg bg-arcana-navy/60 px-4 py-3 space-y-1.5">
+            <p className="text-sm font-medium text-white leading-snug">{txn.title}</p>
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-slate-500">{formatDate(txn.date)}</p>
+              <p className={`text-sm font-semibold tabular-nums ${
+                txn.transactionType === "income" ? "text-green-400" : "text-red-400"
+              }`}>
+                {txn.transactionType === "income" ? "+" : "−"}{formatCurrency(txn.amount)}
+              </p>
+            </div>
+          </div>
+
+          {/* Category grid */}
+          <div className="space-y-1.5">
+            <p className="text-[10px] font-medium text-slate-500 uppercase tracking-wider">Choose a category</p>
+            <div className="grid grid-cols-2 gap-1.5 max-h-60 overflow-y-auto pr-1">
+              {(Object.entries(CATEGORY_LABELS) as [Category, string][]).map(([cat, label]) => (
+                <button
+                  key={cat}
+                  type="button"
+                  onClick={() => setSelected(cat)}
+                  className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-left transition-all ${
+                    selected === cat
+                      ? "bg-arcana-blue/20 border border-arcana-blue text-white"
+                      : "bg-arcana-navy/40 border border-arcana-border text-slate-400 hover:border-arcana-blue/40 hover:text-slate-300"
+                  }`}
+                >
+                  <span
+                    className="w-2 h-2 rounded-full shrink-0"
+                    style={{ backgroundColor: CATEGORY_COLORS[cat] ?? "#64748b" }}
+                  />
+                  <span className="truncate flex-1">{label}</span>
+                  {selected === cat && <Check className="w-3 h-3 text-arcana-sky shrink-0" />}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {err && <p className="text-xs text-red-400">{err}</p>}
+
+          {!txn.transactionId && (
+            <p className="text-xs text-amber-500 leading-relaxed">
+              This transaction was loaded from a local file. Re-import the CSV to enable recategorisation.
+            </p>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="px-5 py-4 border-t border-arcana-border flex gap-3">
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex-1 py-2 rounded-lg text-xs text-slate-400 hover:text-white border border-arcana-border transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            disabled={!txn.transactionId || saving || selected === txn.category}
+            onClick={save}
+            className="flex-1 py-2 rounded-lg text-xs font-semibold bg-arcana-blue hover:bg-blue-600 text-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
+          >
+            {saving
+              ? <><Loader2 className="w-3.5 h-3.5 animate-spin" />Saving…</>
+              : <><Check className="w-3.5 h-3.5" />Save</>
+            }
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
@@ -87,6 +228,7 @@ export default function BankDetailPage() {
   const [filterCategory, setFilterCategory] = useState("all");
   const [search, setSearch] = useState("");
   const [sortDesc, setSortDesc] = useState(true);
+  const [selectedTxn, setSelectedTxn] = useState<StatementTransaction | null>(null);
 
   // Load bank + meta from localStorage synchronously so they're available for fetchData
   const localBank = (() => {
@@ -178,8 +320,6 @@ export default function BankDetailPage() {
           categoryBreakdown,
         });
       } else if (appwriteWorking) {
-        // Appwrite is up but no transactions for this bank ID.
-        // This bank was created before database persistence was added — flag re-import.
         setNeedsReimport(true);
       } else if (localMeta) {
         // Appwrite not reachable — try CSV fallback (for local dev)
@@ -202,6 +342,19 @@ export default function BankDetailPage() {
   }, [bankId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => { fetchData(); }, [fetchData]);
+
+  // Update a single transaction's category in local state after a successful save
+  function handleCategorySaved(transactionId: string, newCategory: Category) {
+    setStmtData((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        transactions: prev.transactions.map((t) =>
+          t.transactionId === transactionId ? { ...t, category: newCategory } : t
+        ),
+      };
+    });
+  }
 
   // Filtered + sorted transactions
   const transactions = (stmtData?.transactions ?? [])
@@ -239,7 +392,7 @@ export default function BankDetailPage() {
     );
   }
 
-  // Re-import banner: shown when Appwrite has the bank but no transactions stored
+  // Re-import banner
   const ReimportBanner = needsReimport ? (
     <div className="rounded-xl bg-amber-900/20 border border-amber-700/40 p-5 flex flex-col sm:flex-row items-start sm:items-center gap-4">
       <AlertCircle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5 sm:mt-0" />
@@ -302,7 +455,6 @@ export default function BankDetailPage() {
 
       {/* ── Account header ───────────────────────────────────────────────── */}
       <div className="rounded-xl bg-arcana-surface border border-violet-800/40 overflow-hidden">
-        {/* Gradient top bar */}
         <div className="h-1 w-full bg-gradient-to-r from-violet-600 to-arcana-blue" />
         <div className="p-6">
           <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
@@ -466,24 +618,30 @@ export default function BankDetailPage() {
           ) : (
             <div className="divide-y divide-arcana-border">
               {transactions.map((txn, i) => (
-                <div
+                <button
                   key={`${txn.externalReference}-${i}`}
-                  className="grid grid-cols-[1fr_auto_auto_auto] gap-4 items-center px-5 py-3 hover:bg-arcana-navy/30 transition-colors"
+                  type="button"
+                  onClick={() => setSelectedTxn(txn)}
+                  className="w-full grid grid-cols-[1fr_auto_auto_auto] gap-4 items-center px-5 py-3 hover:bg-arcana-navy/40 transition-colors text-left group"
                 >
                   <span className="text-sm text-white truncate pr-2">{txn.title}</span>
                   <span className="text-xs text-slate-400 whitespace-nowrap">{formatDate(txn.date)}</span>
                   <span className="flex items-center gap-1 shrink-0">
-                    <span className="w-2 h-2 rounded-full" style={{ backgroundColor: CATEGORY_COLORS[txn.category] ?? "#64748b" }} />
+                    <span
+                      className="w-2 h-2 rounded-full"
+                      style={{ backgroundColor: CATEGORY_COLORS[txn.category] ?? "#64748b" }}
+                    />
                     <span className="text-[10px] text-slate-400 hidden sm:inline">
                       {CATEGORY_LABELS[txn.category] ?? txn.category}
                     </span>
+                    <Tag className="w-3 h-3 text-slate-700 group-hover:text-slate-500 transition-colors hidden sm:inline ml-0.5" />
                   </span>
                   <span className={`text-sm font-medium text-right tabular-nums whitespace-nowrap ${
                     txn.transactionType === "income" ? "text-green-400" : "text-red-400"
                   }`}>
                     {txn.transactionType === "income" ? "+" : "−"}{formatCurrency(txn.amount)}
                   </span>
-                </div>
+                </button>
               ))}
             </div>
           )}
@@ -494,6 +652,7 @@ export default function BankDetailPage() {
               <div className="grid grid-cols-[1fr_auto_auto_auto] gap-4 items-center">
                 <span className="text-xs text-slate-400">
                   {transactions.length.toLocaleString()} transaction{transactions.length !== 1 ? "s" : ""}
+                  <span className="text-slate-600 ml-1.5">· click any row to recategorise</span>
                 </span>
                 <span /><span />
                 <span className={`text-sm font-bold text-right tabular-nums ${
@@ -509,6 +668,15 @@ export default function BankDetailPage() {
           )}
         </div>
       </div>
+
+      {/* ── Recategorise modal ───────────────────────────────────────────── */}
+      {selectedTxn && (
+        <RecategoriseModal
+          txn={selectedTxn}
+          onClose={() => setSelectedTxn(null)}
+          onSaved={handleCategorySaved}
+        />
+      )}
     </div>
   );
 }
