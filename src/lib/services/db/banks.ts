@@ -5,8 +5,7 @@ import {
   Query,
 } from "@/lib/appwrite";
 import type { Bank } from "@/lib/types";
-import type { Models } from "node-appwrite";
-import { generateId } from "@/lib/utils";
+import type { Models, ID } from "node-appwrite";
 import { encryptSafe, decryptSafe } from "@/lib/crypto";
 
 // ---------------------------------------------------------------------------
@@ -79,10 +78,11 @@ export interface AddBankInput {
 }
 
 export async function addBank(input: AddBankInput): Promise<Bank> {
+  const { ID } = await import("node-appwrite");
   const doc = await getDatabase().createDocument(
     DATABASE_ID,
     COLLECTIONS.banks,
-    generateId("bnk"),
+    ID.unique(),
     {
       workspaceId: input.workspaceId,
       institutionName: input.institutionName,

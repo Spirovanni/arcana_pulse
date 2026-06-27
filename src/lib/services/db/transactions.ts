@@ -5,7 +5,7 @@ import {
   Query,
 } from "@/lib/appwrite";
 import { CATEGORY_LABELS } from "@/lib/constants";
-import { generateId } from "@/lib/utils";
+import { ID } from "node-appwrite";
 import type {
   Transaction,
   TransactionFilter,
@@ -149,7 +149,7 @@ export async function createTransaction(
   const doc = await getDatabase().createDocument(
     DATABASE_ID,
     COLLECTIONS.transactions,
-    generateId("txn"),
+    ID.unique(),
     {
       workspaceId: input.workspaceId,
       bankId: input.bankId ?? null,
@@ -201,7 +201,7 @@ export async function insertSyncedTransaction(
   const doc = await getDatabase().createDocument(
     DATABASE_ID,
     COLLECTIONS.transactions,
-    generateId("txn"),
+    ID.unique(),
     {
       workspaceId: input.workspaceId,
       bankId: input.bankId,
