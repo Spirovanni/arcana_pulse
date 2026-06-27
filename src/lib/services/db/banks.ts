@@ -5,7 +5,7 @@ import {
   Query,
 } from "@/lib/appwrite";
 import type { Bank } from "@/lib/types";
-import type { Models, ID } from "node-appwrite";
+import type { Models } from "node-appwrite";
 import { encryptSafe, decryptSafe } from "@/lib/crypto";
 
 // ---------------------------------------------------------------------------
@@ -96,6 +96,26 @@ export async function addBank(input: AddBankInput): Promise<Bank> {
     }
   );
   return toBank(doc);
+}
+
+/**
+ * Returns the existing bank for this workspace+shareableId, or creates a new one.
+ * Prevents duplicate-document errors when re-uploading the same statement.
+ */
+export async function getOrCreateBank(input: AddBankInput): Promise<Bank> {
+  const result = await getDatabase().listDocuments(
+    DATABASE_ID,
+    COLLECTIONS.banks,
+    [
+      Query.equal("workspaceId", input.workspaceId),
+      Query.equal("shareableId", input.shareableId),
+      Query.limit(1),
+    ]
+  );
+  if (result.documents.length > 0) {
+    return toBank(result.documents[0]);
+  }
+  return addBank(input);
 }
 
 // ---------------------------------------------------------------------------

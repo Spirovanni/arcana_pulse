@@ -22,7 +22,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth/withAuth";
 import { parseStatement } from "@/lib/services/statementParser";
 // Use Appwrite DB services for real persistence
-import { addBank } from "@/lib/services/db/banks";
+import { getOrCreateBank } from "@/lib/services/db/banks";
 import { insertSyncedTransaction } from "@/lib/services/db/transactions";
 import { isAppwriteConfigured, getDatabase, DATABASE_ID, COLLECTIONS, Query } from "@/lib/appwrite";
 import { completeForFeature } from "@/lib/ai-router";
@@ -242,14 +242,14 @@ async function handlePost(
   console.log(`[build-from-statement] useAppwrite=${useAppwrite} workspaceId=${workspaceId} txns=${uniqueTxns.length}`);
   console.log(`[build-from-statement] COLLECTIONS.banks=${process.env.APPWRITE_BANK_COLLECTION_ID ?? "banks"} COLLECTIONS.transactions=${process.env.APPWRITE_TRANSACTION_COLLECTION_ID ?? "transactions"}`);
 
-  let bank: Awaited<ReturnType<typeof addBank>>;
+  let bank: Awaited<ReturnType<typeof getOrCreateBank>>;
   let imported = 0;
   let dbDuplicates = 0;
 
   if (useAppwrite) {
     // Create the bank
     console.log("[build-from-statement] Creating bank in Appwrite…");
-    bank = await addBank({
+    bank = await getOrCreateBank({
       workspaceId,
       institutionName,
       accountId: `stmt-${accountMask}-${Date.now()}`,
