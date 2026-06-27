@@ -372,6 +372,15 @@ async function setupTransactions() {
     36,
     true
   );
+  // AI categorisation fields (optional — added after initial schema)
+  await db.createStringAttribute(
+    DATABASE_ID,
+    "transactions",
+    "aiCategory",
+    32,
+    false
+  );
+  await db.createFloatAttribute(DATABASE_ID, "transactions", "aiConfidence", false);
 
   await wait(2000); // more attributes → longer wait for Appwrite
 

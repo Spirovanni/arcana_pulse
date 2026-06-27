@@ -192,37 +192,67 @@ export async function insertSyncedTransaction(
   // Only skip creation if the found document belongs to THIS same bank — otherwise
   // allow the same reference to exist under a different bank (e.g. re-import after
   // the account was recreated).
-  const existing = await getDatabase().listDocuments(
-    DATABASE_ID,
-    COLLECTIONS.transactions,
-    [Query.equal("externalReference", input.externalReference), Query.limit(1)]
-  );
-  if (existing.documents.length > 0 && existing.documents[0].bankId === input.bankId) {
-    return toTransaction(existing.documents[0]);
+  try {
+    const existing = await getDatabase().listDocuments(
+      DATABASE_ID,
+      COLLECTIONS.transactions,
+      [Query.equal("externalReference", input.externalReference), Query.limit(1)]
+    );
+    if (existing.documents.length > 0 && existing.documents[0].bankId === input.bankId) {
+      return toTransaction(existing.documents[0]);
+    }
+  } catch {
+    // idx_external_ref may not yet exist — fall through and let unique constraint catch dupes
   }
 
-  const doc = await getDatabase().createDocument(
-    DATABASE_ID,
-    COLLECTIONS.transactions,
-    ID.unique(),
-    {
-      workspaceId: input.workspaceId,
-      bankId: input.bankId,
-      sourceType: "synced",
-      transactionType: input.transactionType,
-      title: input.title,
-      category: input.category,
-      amount: input.amount,
-      date: input.date,
-      status: "posted",
-      note: input.note ?? "",
-      externalReference: input.externalReference,
-      ...(input.aiCategory ? { aiCategory: input.aiCategory } : {}),
-      ...(input.aiConfidence != null ? { aiConfidence: input.aiConfidence } : {}),
-      createdBy: "system",
+  const coreData = {
+    workspaceId: input.workspaceId,
+    bankId: input.bankId,
+    sourceType: "synced",
+    transactionType: input.transactionType,
+    title: input.title,
+    category: input.category,
+    amount: input.amount,
+    date: input.date,
+    status: "posted",
+    note: input.note ?? "",
+    externalReference: input.externalReference,
+    createdBy: "system",
+  };
+
+  const withAi = {
+    ...coreData,
+    ...(input.aiCategory ? { aiCategory: input.aiCategory } : {}),
+    ...(input.aiConfidence != null ? { aiConfidence: input.aiConfidence } : {}),
+  };
+
+  try {
+    const doc = await getDatabase().createDocument(
+      DATABASE_ID,
+      COLLECTIONS.transactions,
+      ID.unique(),
+      withAi
+    );
+    return toTransaction(doc);
+  } catch (err: unknown) {
+    // If Appwrite rejects because aiCategory/aiConfidence attributes don't exist yet
+    // (schema not migrated), retry with only the core fields.
+    const msg = err instanceof Error ? err.message : String(err);
+    if (
+      (withAi.aiCategory !== undefined || withAi.aiConfidence !== undefined) &&
+      (msg.includes("aiCategory") || msg.includes("aiConfidence") ||
+       msg.toLowerCase().includes("unknown attribute"))
+    ) {
+      const doc = await getDatabase().createDocument(
+        DATABASE_ID,
+        COLLECTIONS.transactions,
+        ID.unique(),
+        coreData
+      );
+      return toTransaction(doc);
     }
-  );
-  return toTransaction(doc);
+    throw err;
+  }
 }
 
 // ---------------------------------------------------------------------------
