@@ -9,29 +9,10 @@ import type {
   CreateTransactionInput,
   UpdateTransactionInput,
 } from "@/lib/types";
-import { CATEGORY_LABELS } from "@/lib/constants";
+import { CATEGORY_HIERARCHY } from "@/lib/constants";
 
-const INCOME_CATEGORIES: Category[] = [
-  "salary",
-  "freelance",
-  "investment",
-  "refund",
-  "other_income",
-];
-
-const EXPENSE_CATEGORIES: Category[] = [
-  "housing",
-  "transportation",
-  "food",
-  "utilities",
-  "healthcare",
-  "entertainment",
-  "shopping",
-  "education",
-  "subscriptions",
-  "travel",
-  "other",
-];
+const INCOME_GROUPS = CATEGORY_HIERARCHY.filter((c) => c.type === "income");
+const EXPENSE_GROUPS = CATEGORY_HIERARCHY.filter((c) => c.type === "expense");
 
 interface TransactionFormProps {
   mode: "create" | "edit";
@@ -53,7 +34,7 @@ export default function TransactionForm({
   );
   const [title, setTitle] = useState(transaction?.title ?? "");
   const [category, setCategory] = useState<Category>(
-    transaction?.category ?? (txnType === "income" ? "salary" : "food")
+    transaction?.category ?? (txnType === "income" ? "salary" : "food_dining")
   );
   const [amount, setAmount] = useState(
     transaction ? transaction.amount.toString() : ""
@@ -67,8 +48,7 @@ export default function TransactionForm({
   const [aiLoading, setAiLoading] = useState(false);
   const [aiConfidence, setAiConfidence] = useState<number | null>(null);
 
-  const categories =
-    txnType === "income" ? INCOME_CATEGORIES : EXPENSE_CATEGORIES;
+  const categoryGroups = txnType === "income" ? INCOME_GROUPS : EXPENSE_GROUPS;
 
   async function suggestCategory() {
     if (!title.trim() || aiLoading) return;
@@ -84,8 +64,8 @@ export default function TransactionForm({
           transactionType: txnType === "transfer" ? "expense" : txnType,
         }),
       });
-      const data = await res.json();
-      if (data.category && categories.includes(data.category as Category)) {
+      const data = await res.json() as { category?: string; confidence?: number };
+      if (data.category) {
         setCategory(data.category as Category);
         setAiConfidence(data.confidence ?? null);
       }
@@ -99,7 +79,7 @@ export default function TransactionForm({
   // Reset category when type changes
   useEffect(() => {
     if (!transaction) {
-      setCategory(txnType === "income" ? "salary" : "food");
+      setCategory(txnType === "income" ? "salary" : "food_dining");
     }
   }, [txnType, transaction]);
 
@@ -216,10 +196,13 @@ export default function TransactionForm({
               onChange={(e) => { setCategory(e.target.value as Category); setAiConfidence(null); }}
               className="w-full px-3 py-2.5 rounded-lg bg-arcana-navy border border-arcana-border text-white text-sm focus:outline-none focus:ring-2 focus:ring-arcana-blue"
             >
-              {categories.map((cat) => (
-                <option key={cat} value={cat}>
-                  {CATEGORY_LABELS[cat]}
-                </option>
+              {categoryGroups.map((group) => (
+                <optgroup key={group.id} label={group.name}>
+                  <option value={group.id}>{group.name} (general)</option>
+                  {group.subcategories.map((sub) => (
+                    <option key={sub.id} value={sub.id}>{"  "}{sub.name}</option>
+                  ))}
+                </optgroup>
               ))}
             </select>
             {aiConfidence !== null && (
