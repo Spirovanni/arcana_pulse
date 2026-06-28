@@ -10,6 +10,11 @@ export const metadata: Metadata = {
   title: "Arcana Pulse",
   description:
     "Your financial cockpit — connect accounts, track transactions, manage income and expenses, and manage your investment strategy.",
+  icons: {
+    icon: "/favicon.svg",
+    shortcut: "/favicon.svg",
+    apple: "/brand/arcana-mark.svg",
+  },
 };
 
 export default function RootLayout({

@@ -15,6 +15,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { useRouter } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
 import { useState, useRef, useEffect } from "react";
+import BrandLogo from "@/components/BrandLogo";
 
 // ─── Data ────────────────────────────────────────────────────────────────────
 
@@ -208,9 +209,7 @@ export default function LandingPage() {
       {/* ── Nav ── */}
       <nav className="fixed top-0 w-full z-50 glass-panel border-b border-outline/20 shadow-xl">
         <div className="flex justify-between items-center w-full px-8 lg:px-16 py-4 max-w-screen-2xl mx-auto">
-          <div className="text-2xl font-black tracking-tighter text-primary uppercase font-headline">
-            Arcana
-          </div>
+          <BrandLogo textSize="lg" />
           <div className="hidden md:flex space-x-10 items-center">
             {[
               {
@@ -724,9 +723,7 @@ export default function LandingPage() {
       <footer className="relative z-10 w-full py-12 px-10 lg:px-16 bg-[#060606] border-t border-outline/40">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-start gap-10">
           <div className="space-y-2">
-            <div className="text-xl font-black text-primary font-headline uppercase tracking-tighter">
-              Arcana
-            </div>
+            <BrandLogo textSize="md" />
             <p className="text-sm text-secondary uppercase tracking-[2px] max-w-[200px] leading-relaxed">
               Sovereign financial intelligence for ambitious careers.
             </p>

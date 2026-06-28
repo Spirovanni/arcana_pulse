@@ -14,7 +14,6 @@ import {
   Bell,
   Settings,
   LogOut,
-  Zap,
   BarChart2,
   Wallet,
   Target,
@@ -28,6 +27,7 @@ import { NAV_ITEMS } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import NotificationBell from "@/components/NotificationBell";
 import { DEFAULT_WORKSPACE_ID } from "@/lib/services/workspace";
+import BrandLogo from "@/components/BrandLogo";
 
 const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
   LayoutDashboard,
@@ -56,13 +56,12 @@ export default function Sidebar() {
     <aside className="hidden lg:flex w-[260px] flex-col bg-background border-r border-outline py-12 px-8 z-40 h-screen sticky top-0">
       {/* Brand */}
       <Link href="/" className="mb-12 block group">
-        <h2 className="text-primary font-headline font-bold text-lg tracking-[4px] uppercase flex items-center gap-2 group-hover:opacity-80 transition-opacity">
-          <Zap className="size-5" />
-          Arcana
-        </h2>
-        <p className="text-[9px] uppercase tracking-widest text-secondary mt-1 ml-7">
-          Pulse Environment
-        </p>
+        <BrandLogo
+          className="group-hover:opacity-80 transition-opacity"
+          markClassName="size-5"
+          textClassName="text-lg tracking-[4px]"
+          showTagline
+        />
       </Link>
 
       {/* Nav links */}

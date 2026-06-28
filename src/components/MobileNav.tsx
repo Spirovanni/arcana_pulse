@@ -17,7 +17,6 @@ import {
   LogOut,
   Menu,
   X,
-  Zap,
   BarChart2,
   Wallet,
   Target,
@@ -31,6 +30,7 @@ import { NAV_ITEMS } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import NotificationBell from "@/components/NotificationBell";
 import { DEFAULT_WORKSPACE_ID } from "@/lib/services/workspace";
+import BrandLogo from "@/components/BrandLogo";
 
 const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
   LayoutDashboard,
@@ -60,9 +60,8 @@ export default function MobileNav() {
     <div className="lg:hidden">
       {/* Top bar */}
       <div className="flex items-center justify-between px-6 py-4 bg-background border-b border-outline">
-        <Link href="/" className="flex items-center gap-2 text-primary font-headline font-bold text-lg tracking-[4px] uppercase hover:opacity-80 transition-opacity">
-          <Zap className="size-5" />
-          <span>Arcana</span>
+        <Link href="/" className="hover:opacity-80 transition-opacity">
+          <BrandLogo markClassName="size-5" textSize="sm" />
         </Link>
         <div className="flex items-center gap-1">
           <NotificationBell workspaceId={DEFAULT_WORKSPACE_ID} />
@@ -84,9 +83,8 @@ export default function MobileNav() {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mb-10 flex items-center justify-between">
-              <Link href="/" onClick={() => setOpen(false)} className="text-primary font-headline font-bold text-lg tracking-[4px] uppercase flex items-center gap-2 hover:opacity-80 transition-opacity">
-                <Zap className="size-5" />
-                Arcana
+              <Link href="/" onClick={() => setOpen(false)} className="hover:opacity-80 transition-opacity">
+                <BrandLogo markClassName="size-5" textSize="sm" />
               </Link>
               <button
                 type="button"
