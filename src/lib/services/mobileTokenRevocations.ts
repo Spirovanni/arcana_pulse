@@ -1,11 +1,11 @@
 const revokedTokenExpiries = new Map<string, number>();
 
 function pruneExpiredRevocations(nowUnix = Math.floor(Date.now() / 1000)): void {
-  for (const [jti, exp] of revokedTokenExpiries.entries()) {
+  Array.from(revokedTokenExpiries.entries()).forEach(([jti, exp]) => {
     if (exp <= nowUnix) {
       revokedTokenExpiries.delete(jti);
     }
-  }
+  });
 }
 
 export function revokeMobileToken(jti: string, exp: number): void {

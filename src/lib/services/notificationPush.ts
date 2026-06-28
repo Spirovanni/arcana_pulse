@@ -77,13 +77,13 @@ export function unregisterPushSubscription(input: {
   expoPushToken?: string;
 }): number {
   let removed = 0;
-  for (const [key, sub] of store.entries()) {
-    if (sub.workspaceId !== input.workspaceId || sub.userId !== input.userId) continue;
-    if (input.deviceId && sub.deviceId !== input.deviceId) continue;
-    if (input.expoPushToken && sub.expoPushToken !== input.expoPushToken) continue;
+  Array.from(store.entries()).forEach(([key, sub]) => {
+    if (sub.workspaceId !== input.workspaceId || sub.userId !== input.userId) return;
+    if (input.deviceId && sub.deviceId !== input.deviceId) return;
+    if (input.expoPushToken && sub.expoPushToken !== input.expoPushToken) return;
     store.delete(key);
     removed += 1;
-  }
+  });
   return removed;
 }
 
