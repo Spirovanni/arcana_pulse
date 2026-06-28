@@ -52,6 +52,7 @@ export default function GoalsPage() {
     value: string;
   } | null>(null);
   const [lastAnalysisAt, setLastAnalysisAt] = useState<string | null>(null);
+  const [goalError, setGoalError] = useState<string>("");
 
   const fetchData = useCallback(async (forceAnalysis = false) => {
     setLoading(true);
@@ -92,6 +93,7 @@ export default function GoalsPage() {
     questionnaireResponses: Record<string, string>;
   }) => {
     try {
+      setGoalError("");
       const res = await fetch("/api/goals", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -104,9 +106,12 @@ export default function GoalsPage() {
         const result = await res.json();
         setGoals((prev) => [...prev, result.goal]);
         setModalOpen(false);
+      } else {
+        const err = await res.json().catch(() => null);
+        setGoalError(err?.error ?? "Failed to create goal.");
       }
     } catch {
-      // Silently fail
+      setGoalError("Failed to create goal.");
     }
   };
 
@@ -264,6 +269,11 @@ export default function GoalsPage() {
           </button>
         </div>
       </div>
+      {goalError && (
+        <div className="rounded-sm border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+          {goalError}
+        </div>
+      )}
       <LastAnalysisStamp
         lastAnalysisAt={lastAnalysisAt}
         className="block text-[11px] uppercase tracking-[1.5px] text-slate-400"

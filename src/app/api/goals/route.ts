@@ -63,11 +63,17 @@ export async function POST(request: NextRequest) {
         questionnaireResponses?: Record<string, string>;
       };
     const goalType = typeof body.goalType === "string" ? body.goalType : "custom";
-    const questionnaireResponses =
+    const rawQuestionnaireResponses =
       body.questionnaireResponses &&
       typeof body.questionnaireResponses === "object"
         ? (body.questionnaireResponses as Record<string, string>)
         : {};
+    const questionnaireResponses = Object.fromEntries(
+      Object.entries(rawQuestionnaireResponses).map(([key, value]) => [
+        key,
+        typeof value === "string" ? value : String(value ?? ""),
+      ])
+    );
 
     if (!workspaceId || !name || targetAmount == null || !targetDate) {
       return NextResponse.json(
@@ -100,7 +106,7 @@ export async function POST(request: NextRequest) {
     const requiredQuestions =
       GOAL_TYPE_CONFIG[goalType as GoalType].questions.filter((q) => q.required);
     for (const question of requiredQuestions) {
-      if (!questionnaireResponses[question.id]?.trim()) {
+      if (!String(questionnaireResponses[question.id] ?? "").trim()) {
         return NextResponse.json(
           {
             error: `Question "${question.prompt}" is required for ${GOAL_TYPE_CONFIG[goalType as GoalType].label} goals.`,
@@ -110,30 +116,48 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const aiPlan = await generateGoalActionPlan({
-      workspaceId,
-      name,
-      goalType: goalType as GoalType,
-      targetAmount,
-      targetDate,
-      monthlyContribution: monthlyContribution ?? 0,
-      priority: (priority as GoalPriority) ?? "medium",
-      questionnaireResponses,
-    });
-
-    const goal = await createGoal(
-      workspaceId,
-      name,
-      targetAmount,
-      targetDate,
-      (priority as GoalPriority) ?? "medium",
-      monthlyContribution ?? 0,
-      {
+    let aiPlan = "";
+    try {
+      aiPlan = await generateGoalActionPlan({
+        workspaceId,
+        name,
         goalType: goalType as GoalType,
+        targetAmount,
+        targetDate,
+        monthlyContribution: monthlyContribution ?? 0,
+        priority: (priority as GoalPriority) ?? "medium",
         questionnaireResponses,
-        aiPlan,
-      }
-    );
+      });
+    } catch {
+      aiPlan = "";
+    }
+
+    let goal;
+    try {
+      goal = await createGoal(
+        workspaceId,
+        name,
+        targetAmount,
+        targetDate,
+        (priority as GoalPriority) ?? "medium",
+        monthlyContribution ?? 0,
+        {
+          goalType: goalType as GoalType,
+          questionnaireResponses,
+          aiPlan,
+        }
+      );
+    } catch {
+      // Backward-compatible fallback if goal schema is not yet migrated.
+      goal = await createGoal(
+        workspaceId,
+        name,
+        targetAmount,
+        targetDate,
+        (priority as GoalPriority) ?? "medium",
+        monthlyContribution ?? 0
+      );
+    }
 
     return NextResponse.json({ goal }, { status: 201 });
   } catch (error: unknown) {
@@ -207,7 +231,9 @@ export async function PUT(request: NextRequest) {
           (q) => q.required
         );
       for (const question of requiredQuestions) {
-        if (!updates.questionnaireResponses?.[question.id]?.trim()) {
+        if (
+          !String(updates.questionnaireResponses?.[question.id] ?? "").trim()
+        ) {
           return NextResponse.json(
             {
               error: `Question "${question.prompt}" is required for ${GOAL_TYPE_CONFIG[updates.goalType as GoalType].label} goals.`,
