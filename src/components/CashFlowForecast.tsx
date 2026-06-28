@@ -5,6 +5,7 @@ import { ProgressFill } from "@/components/ProgressBar";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { CATEGORY_LABELS } from "@/lib/constants";
 import type { CashFlowForecast as CashFlowForecastType, Category } from "@/lib/types";
+import LastAnalysisStamp from "@/components/LastAnalysisStamp";
 
 const FREQUENCY_LABELS: Record<string, string> = {
   weekly: "Weekly",
@@ -16,13 +17,22 @@ interface CashFlowForecastProps {
   data: CashFlowForecastType | null;
   loading: boolean;
   onRefresh: () => void;
+  lastAnalysisAt: string | null;
 }
 
-export default function CashFlowForecast({ data, loading, onRefresh }: CashFlowForecastProps) {
+export default function CashFlowForecast({
+  data,
+  loading,
+  onRefresh,
+  lastAnalysisAt,
+}: CashFlowForecastProps) {
   return (
     <div>
       <div className="flex items-center justify-between mb-5">
-        <span className="text-[9px] uppercase tracking-[2px] text-secondary font-bold">Cash Flow Intelligence</span>
+        <div className="space-y-1">
+          <span className="block text-[9px] uppercase tracking-[2px] text-secondary font-bold">Cash Flow Intelligence</span>
+          <LastAnalysisStamp lastAnalysisAt={lastAnalysisAt} />
+        </div>
         <button
           type="button"
           onClick={onRefresh}
@@ -46,7 +56,9 @@ export default function CashFlowForecast({ data, loading, onRefresh }: CashFlowF
       {!loading && !data && (
         <div className="rounded-sm bg-surface-container-high border border-outline p-8 text-center">
           <BarChart3 className="w-5 h-5 text-secondary mx-auto mb-2" />
-          <p className="text-xs text-secondary uppercase tracking-wider">No forecast data available</p>
+          <p className="text-xs text-secondary uppercase tracking-wider">
+            {lastAnalysisAt ? "No forecast data available" : "No analysis yet. Click refresh to run."}
+          </p>
         </div>
       )}
 

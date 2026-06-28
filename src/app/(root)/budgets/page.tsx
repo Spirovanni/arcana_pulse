@@ -15,6 +15,7 @@ import { DEFAULT_WORKSPACE_ID } from "@/lib/services/workspace";
 import { CATEGORY_LABELS } from "@/lib/constants";
 import { formatCurrency } from "@/lib/utils";
 import { computeDashboardMetrics } from "@/lib/services/dashboard";
+import LastAnalysisStamp from "@/components/LastAnalysisStamp";
 import type {
   BudgetRecommendation,
   Budget,
@@ -67,18 +68,21 @@ export default function BudgetsPage() {
   const [loading, setLoading] = useState(true);
   const [editingCategory, setEditingCategory] = useState<string | null>(null);
   const [editAmount, setEditAmount] = useState("");
+  const [lastAnalysisAt, setLastAnalysisAt] = useState<string | null>(null);
 
-  const fetchData = useCallback(async () => {
+  const fetchData = useCallback(async (forceAnalysis = false) => {
     setLoading(true);
     try {
+      const forceParam = forceAnalysis ? "&force=true" : "";
       const [recRes, budRes] = await Promise.all([
-        fetch(`/api/ai/budgets?workspaceId=${DEFAULT_WORKSPACE_ID}`),
+        fetch(`/api/ai/budgets?workspaceId=${DEFAULT_WORKSPACE_ID}${forceParam}`),
         fetch(`/api/budgets?workspaceId=${DEFAULT_WORKSPACE_ID}`),
       ]);
 
       if (recRes.ok) {
         const data = await recRes.json();
         setRecommendations(data.recommendations ?? []);
+        setLastAnalysisAt(data.lastAnalysisAt ?? null);
       }
       if (budRes.ok) {
         const data = await budRes.json();
@@ -92,7 +96,7 @@ export default function BudgetsPage() {
   }, []);
 
   useEffect(() => {
-    fetchData();
+    void fetchData(false);
   }, [fetchData]);
 
   const handleAccept = async (category: Category, amount: number) => {
@@ -196,7 +200,7 @@ export default function BudgetsPage() {
           </p>
         </div>
         <button
-          onClick={fetchData}
+          onClick={() => void fetchData(true)}
           disabled={loading}
           className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-arcana-blue text-white hover:bg-blue-600 transition-colors disabled:opacity-50"
         >
@@ -204,6 +208,10 @@ export default function BudgetsPage() {
           Regenerate
         </button>
       </div>
+      <LastAnalysisStamp
+        lastAnalysisAt={lastAnalysisAt}
+        className="block text-[11px] uppercase tracking-[1.5px] text-slate-400"
+      />
 
       {/* Summary cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">

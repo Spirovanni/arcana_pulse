@@ -8,6 +8,7 @@ import CashFlowForecastWidget from "@/components/CashFlowForecast";
 import BudgetRecommendations from "@/components/BudgetRecommendations";
 import SavingsGoalsWidget from "@/components/SavingsGoalsWidget";
 import InsightCards from "@/components/InsightCards";
+import LastAnalysisStamp from "@/components/LastAnalysisStamp";
 import type {
   SpendingInsight,
   CashFlowForecast,
@@ -31,33 +32,63 @@ export default function AnalyticsPage() {
   const [savingsGoals, setSavingsGoals] = useState<SavingsGoal[]>([]);
   const [goalProjections, setGoalProjections] = useState<GoalProjection[]>([]);
   const [goalsLoading, setGoalsLoading] = useState(true);
+  const [insightsLastAnalysisAt, setInsightsLastAnalysisAt] = useState<string | null>(null);
+  const [forecastLastAnalysisAt, setForecastLastAnalysisAt] = useState<string | null>(null);
+  const [budgetsLastAnalysisAt, setBudgetsLastAnalysisAt] = useState<string | null>(null);
+  const [goalsLastAnalysisAt, setGoalsLastAnalysisAt] = useState<string | null>(null);
 
-  const fetchStaticData = useCallback(async () => {
+  const fetchStaticData = useCallback(async (forceAnalysis = false) => {
     try {
       setInsightsLoading(true); setForecastLoading(true); setBudgetsLoading(true); setGoalsLoading(true);
+      const forceParam = forceAnalysis ? "&force=true" : "";
       const [insRes, forRes, recRes, budRes, goalRes, projRes] = await Promise.all([
-        fetch(`/api/ai/insights?workspaceId=${DEFAULT_WORKSPACE_ID}`).catch(() => null),
-        fetch(`/api/ai/forecast?workspaceId=${DEFAULT_WORKSPACE_ID}`).catch(() => null),
-        fetch(`/api/ai/budgets?workspaceId=${DEFAULT_WORKSPACE_ID}`).catch(() => null),
+        fetch(`/api/ai/insights?workspaceId=${DEFAULT_WORKSPACE_ID}${forceParam}`).catch(() => null),
+        fetch(`/api/ai/forecast?workspaceId=${DEFAULT_WORKSPACE_ID}${forceParam}`).catch(() => null),
+        fetch(`/api/ai/budgets?workspaceId=${DEFAULT_WORKSPACE_ID}${forceParam}`).catch(() => null),
         fetch(`/api/budgets?workspaceId=${DEFAULT_WORKSPACE_ID}`).catch(() => null),
         fetch(`/api/goals?workspaceId=${DEFAULT_WORKSPACE_ID}`).catch(() => null),
-        fetch(`/api/ai/goals?workspaceId=${DEFAULT_WORKSPACE_ID}`).catch(() => null),
+        fetch(`/api/ai/goals?workspaceId=${DEFAULT_WORKSPACE_ID}${forceParam}`).catch(() => null),
       ]);
 
-      if (insRes?.ok) { const d = await insRes.json(); setInsights(d.insights ?? []); }
-      if (forRes?.ok) { const d = await forRes.json(); setForecast(d.forecast ?? null); }
-      if (recRes?.ok) { const d = await recRes.json(); setBudgetRecs(d.recommendations ?? []); }
+      if (insRes?.ok) {
+        const d = await insRes.json();
+        setInsights(d.insights ?? []);
+        setInsightsLastAnalysisAt(d.lastAnalysisAt ?? null);
+      }
+      if (forRes?.ok) {
+        const d = await forRes.json();
+        setForecast(d.forecast ?? null);
+        setForecastLastAnalysisAt(d.lastAnalysisAt ?? null);
+      }
+      if (recRes?.ok) {
+        const d = await recRes.json();
+        setBudgetRecs(d.recommendations ?? []);
+        setBudgetsLastAnalysisAt(d.lastAnalysisAt ?? null);
+      }
       if (budRes?.ok) { const d = await budRes.json(); setBudgets(d.budgets ?? []); }
       if (goalRes?.ok) { const d = await goalRes.json(); setSavingsGoals(d.goals ?? []); }
-      if (projRes?.ok) { const d = await projRes.json(); setGoalProjections(d.projections ?? []); }
+      if (projRes?.ok) {
+        const d = await projRes.json();
+        setGoalProjections(d.projections ?? []);
+        setGoalsLastAnalysisAt(d.lastAnalysisAt ?? null);
+      }
     } finally {
       setInsightsLoading(false); setForecastLoading(false); setBudgetsLoading(false); setGoalsLoading(false);
     }
   }, []);
 
-  useEffect(() => {
-    fetchStaticData();
+  const refreshAnalyses = useCallback(() => {
+    void fetchStaticData(true);
   }, [fetchStaticData]);
+
+  useEffect(() => {
+    void fetchStaticData(false);
+  }, [fetchStaticData]);
+
+  const latestAnalysisAt =
+    [insightsLastAnalysisAt, forecastLastAnalysisAt, budgetsLastAnalysisAt, goalsLastAnalysisAt]
+      .filter((value): value is string => Boolean(value))
+      .sort((a, b) => new Date(b).getTime() - new Date(a).getTime())[0] ?? null;
 
   return (
     <div className="max-w-7xl mx-auto space-y-12 pb-20 fade-in">
@@ -75,6 +106,10 @@ export default function AnalyticsPage() {
           </p>
         </div>
         <div className="flex items-center gap-4">
+          <LastAnalysisStamp
+            lastAnalysisAt={latestAnalysisAt}
+            className="text-[10px] uppercase tracking-[1.5px] text-secondary"
+          />
           <div className="px-4 py-1.5 rounded-sm bg-green-500/5 text-arcana-success border border-green-500/20 text-[10px] uppercase tracking-widest font-bold flex items-center gap-2 relative overflow-hidden">
              <div className="size-1.5 rounded-full bg-arcana-success animate-pulse" />
              AI Engine Active
@@ -89,7 +124,7 @@ export default function AnalyticsPage() {
             <Brain className="size-4 text-primary" /> Active Behavioral Analysis
          </h2>
          <div className="ml-4">
-            <InsightCards insights={insights} loading={insightsLoading} onRefresh={fetchStaticData} />
+            <InsightCards insights={insights} loading={insightsLoading} onRefresh={refreshAnalyses} lastAnalysisAt={insightsLastAnalysisAt} />
          </div>
       </div>
 
@@ -100,7 +135,7 @@ export default function AnalyticsPage() {
               <Activity className="size-4 text-primary" /> Core Forecasting Engine
            </h2>
            <div className="ml-4">
-              <CashFlowForecastWidget data={forecast} loading={forecastLoading} onRefresh={fetchStaticData} />
+              <CashFlowForecastWidget data={forecast} loading={forecastLoading} onRefresh={refreshAnalyses} lastAnalysisAt={forecastLastAnalysisAt} />
            </div>
         </div>
 
@@ -115,8 +150,9 @@ export default function AnalyticsPage() {
                  budgets={budgets}
                  actualSpending={metrics.categoryBreakdown}
                  loading={budgetsLoading} 
-                 onRefresh={fetchStaticData} 
+                 onRefresh={refreshAnalyses}
                  onAccept={async () => {}}
+                 lastAnalysisAt={budgetsLastAnalysisAt}
               />
            </div>
         </div>
@@ -134,7 +170,8 @@ export default function AnalyticsPage() {
                   goals={savingsGoals}
                   projections={goalProjections} 
                   loading={goalsLoading} 
-                  onRefresh={fetchStaticData} 
+                  onRefresh={refreshAnalyses}
+                  lastAnalysisAt={goalsLastAnalysisAt}
                 />
              </div>
            </div>

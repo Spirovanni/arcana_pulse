@@ -5,6 +5,7 @@ import { formatCurrency } from "@/lib/utils";
 import { CATEGORY_LABELS } from "@/lib/constants";
 import type { BudgetRecommendation, Budget, CategoryBreakdown, Category } from "@/lib/types";
 import ProgressBar from "@/components/ProgressBar";
+import LastAnalysisStamp from "@/components/LastAnalysisStamp";
 
 interface BudgetRecommendationsProps {
   recommendations: BudgetRecommendation[];
@@ -13,6 +14,7 @@ interface BudgetRecommendationsProps {
   loading: boolean;
   onRefresh: () => void;
   onAccept: (category: Category, amount: number) => void;
+  lastAnalysisAt: string | null;
 }
 
 function getStatus(actual: number, limit: number): { label: string; color: string; barColor: string } {
@@ -29,6 +31,7 @@ export default function BudgetRecommendations({
   loading,
   onRefresh,
   onAccept,
+  lastAnalysisAt,
 }: BudgetRecommendationsProps) {
   const budgetMap = new Map(budgets.map((b) => [b.category, b]));
   const spendingMap = new Map(actualSpending.map((s) => [s.category, s]));
@@ -47,7 +50,10 @@ export default function BudgetRecommendations({
     <div>
       <div className="flex items-center justify-between mb-5">
         <div className="flex items-center gap-3">
-          <span className="text-[9px] uppercase tracking-[2px] text-secondary font-bold">Budget Vectors</span>
+          <div className="space-y-1">
+            <span className="block text-[9px] uppercase tracking-[2px] text-secondary font-bold">Budget Vectors</span>
+            <LastAnalysisStamp lastAnalysisAt={lastAnalysisAt} />
+          </div>
           <a href="/budgets" className="text-[9px] uppercase tracking-[1px] text-primary/60 hover:text-primary transition-colors">
             All →
           </a>
@@ -75,7 +81,9 @@ export default function BudgetRecommendations({
       {!loading && sortedCategories.length === 0 && (
         <div className="rounded-sm bg-surface-container-high border border-outline p-8 text-center">
           <PieChart className="w-5 h-5 text-secondary mx-auto mb-2" />
-          <p className="text-xs text-secondary uppercase tracking-wider">No budget data yet</p>
+          <p className="text-xs text-secondary uppercase tracking-wider">
+            {lastAnalysisAt ? "No budget data yet" : "No analysis yet. Click refresh to run."}
+          </p>
         </div>
       )}
 

@@ -8,6 +8,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import type { SpendingInsight, InsightType, InsightSeverity } from "@/lib/types";
+import LastAnalysisStamp from "@/components/LastAnalysisStamp";
 
 const SEVERITY_STYLES: Record<
   InsightSeverity,
@@ -45,13 +46,22 @@ interface InsightCardsProps {
   insights: SpendingInsight[];
   loading: boolean;
   onRefresh: () => void;
+  lastAnalysisAt: string | null;
 }
 
-export default function InsightCards({ insights, loading, onRefresh }: InsightCardsProps) {
+export default function InsightCards({
+  insights,
+  loading,
+  onRefresh,
+  lastAnalysisAt,
+}: InsightCardsProps) {
   return (
     <div>
       <div className="flex items-center justify-between mb-5">
-        <span className="text-[9px] uppercase tracking-[2px] text-secondary font-bold">AI Signal Feed</span>
+        <div className="space-y-1">
+          <span className="block text-[9px] uppercase tracking-[2px] text-secondary font-bold">AI Signal Feed</span>
+          <LastAnalysisStamp lastAnalysisAt={lastAnalysisAt} />
+        </div>
         <button
           type="button"
           onClick={onRefresh}
@@ -75,7 +85,9 @@ export default function InsightCards({ insights, loading, onRefresh }: InsightCa
       {!loading && insights.length === 0 && (
         <div className="rounded-sm bg-surface-container-high border border-outline p-8 text-center">
           <Lightbulb className="w-5 h-5 text-secondary mx-auto mb-2" />
-          <p className="text-xs text-secondary uppercase tracking-wider">No insights available yet</p>
+          <p className="text-xs text-secondary uppercase tracking-wider">
+            {lastAnalysisAt ? "No insights available yet" : "No analysis yet. Click refresh to run."}
+          </p>
         </div>
       )}
 

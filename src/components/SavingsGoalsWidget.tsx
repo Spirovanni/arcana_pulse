@@ -4,15 +4,23 @@ import { Target, RefreshCw, CheckCircle2, AlertTriangle, TrendingUp } from "luci
 import { formatCurrency } from "@/lib/utils";
 import type { SavingsGoal, GoalProjection } from "@/lib/types";
 import ProgressBar from "@/components/ProgressBar";
+import LastAnalysisStamp from "@/components/LastAnalysisStamp";
 
 interface SavingsGoalsWidgetProps {
   goals: SavingsGoal[];
   projections: GoalProjection[];
   loading: boolean;
   onRefresh: () => void;
+  lastAnalysisAt: string | null;
 }
 
-export default function SavingsGoalsWidget({ goals, projections, loading, onRefresh }: SavingsGoalsWidgetProps) {
+export default function SavingsGoalsWidget({
+  goals,
+  projections,
+  loading,
+  onRefresh,
+  lastAnalysisAt,
+}: SavingsGoalsWidgetProps) {
   const projectionMap = new Map(projections.map((p) => [p.goalId, p]));
 
   const activeGoals = goals
@@ -24,7 +32,10 @@ export default function SavingsGoalsWidget({ goals, projections, loading, onRefr
     <div>
       <div className="flex items-center justify-between mb-5">
         <div className="flex items-center gap-3">
-          <span className="text-[9px] uppercase tracking-[2px] text-secondary font-bold">Savings Targets</span>
+          <div className="space-y-1">
+            <span className="block text-[9px] uppercase tracking-[2px] text-secondary font-bold">Savings Targets</span>
+            <LastAnalysisStamp lastAnalysisAt={lastAnalysisAt} />
+          </div>
           <a href="/goals" className="text-[9px] uppercase tracking-[1px] text-primary/60 hover:text-primary transition-colors">
             All →
           </a>

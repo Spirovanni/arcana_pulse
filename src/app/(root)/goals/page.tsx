@@ -31,6 +31,7 @@ import { getTotalInvestmentBalance } from "@/lib/services/investments";
 import { runMonteCarloForGoals } from "@/lib/services/monte-carlo";
 import type { MonteCarloResult } from "@/lib/services/monte-carlo";
 import GoalModal from "@/components/GoalModal";
+import LastAnalysisStamp from "@/components/LastAnalysisStamp";
 import type {
   SavingsGoal,
   GoalProjection,
@@ -48,13 +49,15 @@ export default function GoalsPage() {
     goalId: string;
     value: string;
   } | null>(null);
+  const [lastAnalysisAt, setLastAnalysisAt] = useState<string | null>(null);
 
-  const fetchData = useCallback(async () => {
+  const fetchData = useCallback(async (forceAnalysis = false) => {
     setLoading(true);
     try {
+      const forceParam = forceAnalysis ? "&force=true" : "";
       const [goalsRes, projRes] = await Promise.all([
         fetch(`/api/goals?workspaceId=${DEFAULT_WORKSPACE_ID}`),
-        fetch(`/api/ai/goals?workspaceId=${DEFAULT_WORKSPACE_ID}`),
+        fetch(`/api/ai/goals?workspaceId=${DEFAULT_WORKSPACE_ID}${forceParam}`),
       ]);
 
       if (goalsRes.ok) {
@@ -64,6 +67,7 @@ export default function GoalsPage() {
       if (projRes.ok) {
         const data = await projRes.json();
         setProjections(data.projections ?? []);
+        setLastAnalysisAt(data.lastAnalysisAt ?? null);
       }
     } catch {
       // Silently fail
@@ -73,7 +77,7 @@ export default function GoalsPage() {
   }, []);
 
   useEffect(() => {
-    fetchData();
+    void fetchData(false);
   }, [fetchData]);
 
   const handleCreate = async (data: {
@@ -233,7 +237,7 @@ export default function GoalsPage() {
         </div>
         <div className="flex items-center gap-2">
           <button
-            onClick={fetchData}
+            onClick={() => void fetchData(true)}
             disabled={loading}
             className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-arcana-sky bg-arcana-surface border border-arcana-border hover:bg-arcana-navy transition-colors disabled:opacity-50"
           >
@@ -254,6 +258,10 @@ export default function GoalsPage() {
           </button>
         </div>
       </div>
+      <LastAnalysisStamp
+        lastAnalysisAt={lastAnalysisAt}
+        className="block text-[11px] uppercase tracking-[1.5px] text-slate-400"
+      />
 
       {/* Summary cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
