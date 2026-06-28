@@ -49,6 +49,7 @@ export function addBank(input: AddBankInput): Bank {
     displayMask: input.displayMask,
     shareableId: input.shareableId,
     balance: input.balance,
+    accountType: "bank",
     accessTokenRef: input.accessTokenRef,
     fundingSourceUrl: input.fundingSourceUrl,
     createdAt: now,

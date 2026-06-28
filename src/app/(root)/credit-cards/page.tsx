@@ -1,22 +1,22 @@
-\"use client\";
+"use client";
 
-import { useEffect, useMemo, useState, useCallback } from \"react\";
-import { CreditCard, Upload, RefreshCw, ChevronDown, ChevronUp, Sparkles } from \"lucide-react\";
-import { formatCurrency, formatDate } from \"@/lib/utils\";
-import { CATEGORY_LABELS } from \"@/lib/constants\";
-import type { Category, Transaction, Bank } from \"@/lib/types\";
-import UploadBankModal, { type BuildResult } from \"@/components/UploadBankModal\";
+import { useEffect, useMemo, useState, useCallback } from "react";
+import { CreditCard, Upload, RefreshCw, ChevronDown, ChevronUp, Sparkles } from "lucide-react";
+import { formatCurrency, formatDate } from "@/lib/utils";
+import { CATEGORY_LABELS } from "@/lib/constants";
+import type { Category, Transaction, Bank } from "@/lib/types";
+import UploadBankModal, { type BuildResult } from "@/components/UploadBankModal";
 
 // ── Category filter sets ──────────────────────────────────────────────────────
 
 const CC_FALLBACK_CATEGORIES = new Set<Category>([
-  \"debt_credit_card\",
-  \"debt_payments\",
-  \"financial_fees\",
-  \"fees_bank\",
-  \"fees_atm\",
-  \"fees_overdraft\",
-  \"fees_wire_transfer\",
+  "debt_credit_card",
+  "debt_payments",
+  "financial_fees",
+  "fees_bank",
+  "fees_atm",
+  "fees_overdraft",
+  "fees_wire_transfer",
 ]);
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -51,9 +51,9 @@ export default function CreditCardsPage() {
 
   const loadCardAccounts = useCallback(async () => {
     try {
-      const res = await fetch(\"/api/banks\");
+      const res = await fetch("/api/banks");
       const data = await res.json().catch(() => ({})) as { banks?: Bank[] };
-      const banks = (data.banks ?? []).filter((b) => b.accountType === \"credit_card\");
+      const banks = (data.banks ?? []).filter((b) => b.accountType === "credit_card");
 
       const accounts: CardAccount[] = await Promise.all(
         banks.map(async (b) => ({
@@ -73,7 +73,7 @@ export default function CreditCardsPage() {
 
   const loadFallback = useCallback(async () => {
     try {
-      const res = await fetch(\"/api/transactions?transactionType=expense&page=1&pageSize=500\");
+      const res = await fetch("/api/transactions?transactionType=expense&page=1&pageSize=500");
       const data = await res.json().catch(() => ({})) as { items?: Transaction[] };
       setFallbackItems(
         (data.items ?? []).filter((txn) => CC_FALLBACK_CATEGORIES.has(txn.category as Category))
@@ -99,13 +99,13 @@ export default function CreditCardsPage() {
     const txns = await loadBankTransactions(result.bank.bankId);
     const newAccount: CardAccount = {
       bankId: result.bank.bankId,
-      workspaceId: \"\",
+      workspaceId: "",
       institutionName: result.bank.institutionName,
       accountId: result.bank.bankId,
       displayMask: result.bank.displayMask,
-      shareableId: \"\",
+      shareableId: "",
       balance: result.bank.balance ?? 0,
-      accountType: \"credit_card\",
+      accountType: "credit_card",
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       transactions: txns,
@@ -148,35 +148,35 @@ export default function CreditCardsPage() {
   // ── Render ───────────────────────────────────────────────────────────────
 
   return (
-    <div className=\"space-y-6\">
+    <div className="space-y-6">
       {/* ── Page header ────────────────────────────────────────────────── */}
-      <div className=\"flex items-start justify-between gap-4\">
+      <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className=\"text-2xl font-bold text-white flex items-center gap-2\">
-            <CreditCard className=\"w-6 h-6 text-amber-300\" />
+          <h1 className="text-2xl font-bold text-white flex items-center gap-2">
+            <CreditCard className="w-6 h-6 text-amber-300" />
             Credit Cards
           </h1>
-          <p className=\"text-sm text-slate-400 mt-1\">
+          <p className="text-sm text-slate-400 mt-1">
             Upload your credit card statement CSV to track charges with AI categorisation.
           </p>
         </div>
-        <div className=\"flex items-center gap-2 shrink-0\">
+        <div className="flex items-center gap-2 shrink-0">
           <button
-            type=\"button\"
+            type="button"
             onClick={handleRefresh}
             disabled={refreshing || isLoading}
-            className=\"p-2 rounded-lg border border-arcana-border text-slate-400 hover:text-white hover:border-amber-500/40 transition-colors disabled:opacity-40\"
-            title=\"Refresh\"
+            className="p-2 rounded-lg border border-arcana-border text-slate-400 hover:text-white hover:border-amber-500/40 transition-colors disabled:opacity-40"
+            title="Refresh"
           >
-            <RefreshCw className={`w-4 h-4 ${refreshing ? \"animate-spin\" : \"\"}`} />
+            <RefreshCw className={`w-4 h-4 ${refreshing ? "animate-spin" : ""}`} />
           </button>
           <button
-            type=\"button\"
-            id=\"upload-credit-card-btn\"
+            type="button"
+            id="upload-credit-card-btn"
             onClick={() => setShowUploadModal(true)}
-            className=\"flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-amber-600 to-amber-500 text-white text-sm font-medium hover:opacity-90 transition-opacity\"
+            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-amber-600 to-amber-500 text-white text-sm font-medium hover:opacity-90 transition-opacity"
           >
-            <Upload className=\"w-4 h-4\" />
+            <Upload className="w-4 h-4" />
             Upload Statement
           </button>
         </div>
@@ -185,7 +185,7 @@ export default function CreditCardsPage() {
       {/* ── Upload modal ───────────────────────────────────────────────── */}
       {showUploadModal && (
         <UploadBankModal
-          accountType=\"credit_card\"
+          accountType="credit_card"
           onClose={() => setShowUploadModal(false)}
           onSuccess={handleUploadSuccess}
         />
@@ -193,14 +193,14 @@ export default function CreditCardsPage() {
 
       {/* ── Uploaded card accounts ──────────────────────────────────────── */}
       {!accountsLoading && hasCardAccounts && (
-        <div className=\"space-y-4\">
+        <div className="space-y-4">
           {/* Summary strip */}
-          <div className=\"rounded-xl bg-arcana-surface border border-arcana-border p-5\">
-            <p className=\"text-sm text-slate-400 mb-1\">Total Credit Card Charges</p>
-            <p className=\"text-2xl font-bold text-amber-300\">{formatCurrency(uploadedTotal)}</p>
-            <p className=\"text-xs text-slate-500 mt-1\">
-              {uploadedCount.toLocaleString()} transaction{uploadedCount !== 1 ? \"s\" : \"\"} across{\" \"}
-              {cardAccounts.length} card account{cardAccounts.length !== 1 ? \"s\" : \"\"}
+          <div className="rounded-xl bg-arcana-surface border border-arcana-border p-5">
+            <p className="text-sm text-slate-400 mb-1">Total Credit Card Charges</p>
+            <p className="text-2xl font-bold text-amber-300">{formatCurrency(uploadedTotal)}</p>
+            <p className="text-xs text-slate-500 mt-1">
+              {uploadedCount.toLocaleString()} transaction{uploadedCount !== 1 ? "s" : ""} across{" "}
+              {cardAccounts.length} card account{cardAccounts.length !== 1 ? "s" : ""}
             </p>
           </div>
 
@@ -211,70 +211,70 @@ export default function CreditCardsPage() {
             return (
               <div
                 key={account.bankId}
-                className=\"rounded-xl bg-arcana-surface border border-arcana-border overflow-hidden\"
+                className="rounded-xl bg-arcana-surface border border-arcana-border overflow-hidden"
               >
                 {/* Account header row */}
                 <button
-                  type=\"button\"
+                  type="button"
                   onClick={() => setExpandedId(isExpanded ? null : account.bankId)}
-                  className=\"w-full flex items-center justify-between px-5 py-4 hover:bg-arcana-navy/30 transition-colors\"
+                  className="w-full flex items-center justify-between px-5 py-4 hover:bg-arcana-navy/30 transition-colors"
                 >
-                  <div className=\"flex items-center gap-3\">
-                    <div className=\"w-8 h-8 rounded-lg bg-amber-500/15 border border-amber-500/30 flex items-center justify-center\">
-                      <CreditCard className=\"w-4 h-4 text-amber-300\" />
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-amber-500/15 border border-amber-500/30 flex items-center justify-center">
+                      <CreditCard className="w-4 h-4 text-amber-300" />
                     </div>
-                    <div className=\"text-left\">
-                      <p className=\"text-sm font-semibold text-white\">
+                    <div className="text-left">
+                      <p className="text-sm font-semibold text-white">
                         {account.institutionName}
                         {account.displayMask && (
-                          <span className=\"text-slate-400 ml-1 font-normal\">···{account.displayMask}</span>
+                          <span className="text-slate-400 ml-1 font-normal">···{account.displayMask}</span>
                         )}
                       </p>
-                      <p className=\"text-xs text-slate-500\">
-                        {account.transactions.length} transaction{account.transactions.length !== 1 ? \"s\" : \"\"}
+                      <p className="text-xs text-slate-500">
+                        {account.transactions.length} transaction{account.transactions.length !== 1 ? "s" : ""}
                       </p>
                     </div>
                   </div>
-                  <div className=\"flex items-center gap-3\">
-                    <span className=\"text-sm font-semibold text-amber-300\">{formatCurrency(acctTotal)}</span>
+                  <div className="flex items-center gap-3">
+                    <span className="text-sm font-semibold text-amber-300">{formatCurrency(acctTotal)}</span>
                     {isExpanded ? (
-                      <ChevronUp className=\"w-4 h-4 text-slate-400\" />
+                      <ChevronUp className="w-4 h-4 text-slate-400" />
                     ) : (
-                      <ChevronDown className=\"w-4 h-4 text-slate-400\" />
+                      <ChevronDown className="w-4 h-4 text-slate-400" />
                     )}
                   </div>
                 </button>
 
                 {/* Transactions table */}
                 {isExpanded && (
-                  <div className=\"border-t border-arcana-border\">
+                  <div className="border-t border-arcana-border">
                     {account.transactions.length === 0 ? (
-                      <p className=\"px-5 py-6 text-sm text-slate-500\">No transactions found for this account.</p>
+                      <p className="px-5 py-6 text-sm text-slate-500">No transactions found for this account.</p>
                     ) : (
-                      <div className=\"overflow-x-auto\">
-                        <table className=\"w-full text-sm min-w-[640px]\">
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-sm min-w-[640px]">
                           <thead>
-                            <tr className=\"border-b border-arcana-border bg-arcana-navy/50\">
-                              <th className=\"px-5 py-3 text-left text-[10px] uppercase tracking-[1.4px] text-slate-400\">Description</th>
-                              <th className=\"px-5 py-3 text-left text-[10px] uppercase tracking-[1.4px] text-slate-400\">Category</th>
-                              <th className=\"px-5 py-3 text-left text-[10px] uppercase tracking-[1.4px] text-slate-400\">Date</th>
-                              <th className=\"px-5 py-3 text-right text-[10px] uppercase tracking-[1.4px] text-slate-400\">Amount</th>
+                            <tr className="border-b border-arcana-border bg-arcana-navy/50">
+                              <th className="px-5 py-3 text-left text-[10px] uppercase tracking-[1.4px] text-slate-400">Description</th>
+                              <th className="px-5 py-3 text-left text-[10px] uppercase tracking-[1.4px] text-slate-400">Category</th>
+                              <th className="px-5 py-3 text-left text-[10px] uppercase tracking-[1.4px] text-slate-400">Date</th>
+                              <th className="px-5 py-3 text-right text-[10px] uppercase tracking-[1.4px] text-slate-400">Amount</th>
                             </tr>
                           </thead>
                           <tbody>
                             {account.transactions.map((txn) => (
                               <tr
                                 key={txn.transactionId}
-                                className=\"border-b border-arcana-border/60 last:border-0 hover:bg-arcana-navy/20 transition-colors\"
+                                className="border-b border-arcana-border/60 last:border-0 hover:bg-arcana-navy/20 transition-colors"
                               >
-                                <td className=\"px-5 py-3 text-white max-w-[280px] truncate\">{txn.title}</td>
-                                <td className=\"px-5 py-3\">
-                                  <span className=\"text-xs px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-300 border border-amber-500/20\">
+                                <td className="px-5 py-3 text-white max-w-[280px] truncate">{txn.title}</td>
+                                <td className="px-5 py-3">
+                                  <span className="text-xs px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-300 border border-amber-500/20">
                                     {CATEGORY_LABELS[txn.category as Category] ?? txn.category}
                                   </span>
                                 </td>
-                                <td className=\"px-5 py-3 text-slate-500 text-xs\">{formatDate(txn.date)}</td>
-                                <td className=\"px-5 py-3 text-right font-medium text-amber-300\">{formatCurrency(txn.amount)}</td>
+                                <td className="px-5 py-3 text-slate-500 text-xs">{formatDate(txn.date)}</td>
+                                <td className="px-5 py-3 text-right font-medium text-amber-300">{formatCurrency(txn.amount)}</td>
                               </tr>
                             ))}
                           </tbody>
@@ -291,26 +291,26 @@ export default function CreditCardsPage() {
 
       {/* ── Empty / loading state for card accounts ─────────────────────── */}
       {accountsLoading && (
-        <div className=\"rounded-xl bg-arcana-surface border border-arcana-border px-5 py-10 text-center\">
-          <p className=\"text-sm text-slate-400\">Loading credit card accounts…</p>
+        <div className="rounded-xl bg-arcana-surface border border-arcana-border px-5 py-10 text-center">
+          <p className="text-sm text-slate-400">Loading credit card accounts…</p>
         </div>
       )}
 
       {!accountsLoading && !hasCardAccounts && (
-        <div className=\"rounded-xl bg-arcana-surface border border-arcana-border px-5 py-12 text-center space-y-3\">
-          <div className=\"w-12 h-12 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center mx-auto\">
-            <CreditCard className=\"w-6 h-6 text-amber-400\" />
+        <div className="rounded-xl bg-arcana-surface border border-arcana-border px-5 py-12 text-center space-y-3">
+          <div className="w-12 h-12 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center mx-auto">
+            <CreditCard className="w-6 h-6 text-amber-400" />
           </div>
-          <p className=\"text-sm font-medium text-white\">No credit card accounts yet</p>
-          <p className=\"text-xs text-slate-500 max-w-xs mx-auto\">
+          <p className="text-sm font-medium text-white">No credit card accounts yet</p>
+          <p className="text-xs text-slate-500 max-w-xs mx-auto">
             Upload a CSV statement from any credit card issuer and AI will categorise every charge instantly.
           </p>
           <button
-            type=\"button\"
+            type="button"
             onClick={() => setShowUploadModal(true)}
-            className=\"inline-flex items-center gap-2 px-4 py-2 mt-2 rounded-lg bg-amber-600/20 border border-amber-600/30 text-amber-300 text-sm hover:bg-amber-600/30 transition-colors\"
+            className="inline-flex items-center gap-2 px-4 py-2 mt-2 rounded-lg bg-amber-600/20 border border-amber-600/30 text-amber-300 text-sm hover:bg-amber-600/30 transition-colors"
           >
-            <Sparkles className=\"w-4 h-4\" />
+            <Sparkles className="w-4 h-4" />
             Upload your first statement
           </button>
         </div>
@@ -318,32 +318,32 @@ export default function CreditCardsPage() {
 
       {/* ── Fallback: category-matched transactions from banking accounts ── */}
       {!fallbackLoading && fallbackItems.length > 0 && (
-        <div className=\"rounded-xl bg-arcana-surface border border-arcana-border overflow-hidden\">
-          <div className=\"px-5 py-3 border-b border-arcana-border flex items-center justify-between\">
-            <p className=\"text-sm font-semibold text-white\">Credit Card Payments in Banking Accounts</p>
-            <span className=\"text-xs text-slate-500\">
+        <div className="rounded-xl bg-arcana-surface border border-arcana-border overflow-hidden">
+          <div className="px-5 py-3 border-b border-arcana-border flex items-center justify-between">
+            <p className="text-sm font-semibold text-white">Credit Card Payments in Banking Accounts</p>
+            <span className="text-xs text-slate-500">
               {formatCurrency(fallbackTotal)} · {fallbackItems.length} transactions
             </span>
           </div>
-          <div className=\"overflow-x-auto\">
-            <table className=\"w-full text-sm min-w-[620px]\">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm min-w-[620px]">
               <thead>
-                <tr className=\"border-b border-arcana-border bg-arcana-navy/50\">
-                  <th className=\"px-5 py-3 text-left text-[10px] uppercase tracking-[1.4px] text-slate-400\">Title</th>
-                  <th className=\"px-5 py-3 text-left text-[10px] uppercase tracking-[1.4px] text-slate-400\">Category</th>
-                  <th className=\"px-5 py-3 text-left text-[10px] uppercase tracking-[1.4px] text-slate-400\">Date</th>
-                  <th className=\"px-5 py-3 text-right text-[10px] uppercase tracking-[1.4px] text-slate-400\">Amount</th>
+                <tr className="border-b border-arcana-border bg-arcana-navy/50">
+                  <th className="px-5 py-3 text-left text-[10px] uppercase tracking-[1.4px] text-slate-400">Title</th>
+                  <th className="px-5 py-3 text-left text-[10px] uppercase tracking-[1.4px] text-slate-400">Category</th>
+                  <th className="px-5 py-3 text-left text-[10px] uppercase tracking-[1.4px] text-slate-400">Date</th>
+                  <th className="px-5 py-3 text-right text-[10px] uppercase tracking-[1.4px] text-slate-400">Amount</th>
                 </tr>
               </thead>
               <tbody>
                 {fallbackItems.map((txn) => (
-                  <tr key={txn.transactionId} className=\"border-b border-arcana-border/60 last:border-0 hover:bg-arcana-navy/20 transition-colors\">
-                    <td className=\"px-5 py-3 text-white max-w-[280px] truncate\">{txn.title}</td>
-                    <td className=\"px-5 py-3 text-slate-400 text-xs\">
+                  <tr key={txn.transactionId} className="border-b border-arcana-border/60 last:border-0 hover:bg-arcana-navy/20 transition-colors">
+                    <td className="px-5 py-3 text-white max-w-[280px] truncate">{txn.title}</td>
+                    <td className="px-5 py-3 text-slate-400 text-xs">
                       {CATEGORY_LABELS[txn.category as Category] ?? txn.category}
                     </td>
-                    <td className=\"px-5 py-3 text-slate-500 text-xs\">{formatDate(txn.date)}</td>
-                    <td className=\"px-5 py-3 text-right font-medium text-amber-300\">{formatCurrency(txn.amount)}</td>
+                    <td className="px-5 py-3 text-slate-500 text-xs">{formatDate(txn.date)}</td>
+                    <td className="px-5 py-3 text-right font-medium text-amber-300">{formatCurrency(txn.amount)}</td>
                   </tr>
                 ))}
               </tbody>
