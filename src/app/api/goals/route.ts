@@ -6,6 +6,12 @@ import {
   updateGoal,
   deleteGoal,
 } from "@/lib/services/db/goals";
+import {
+  getGoalsByWorkspace as getGoalsByWorkspaceLocal,
+  createGoal as createGoalLocal,
+  updateGoal as updateGoalLocal,
+  deleteGoal as deleteGoalLocal,
+} from "@/lib/services/goals";
 import { generateGoalActionPlan } from "@/lib/services/ai/goals";
 import { requireAuth } from "@/lib/auth/withAuth";
 import type { GoalPriority, GoalStatus, GoalType } from "@/lib/types";
@@ -37,17 +43,19 @@ export async function GET(request: NextRequest) {
   if (!auth.ok) return auth.response;
   const { workspaceId } = auth;
 
-  if (!isAppwriteConfigured()) {
-    return NextResponse.json(
-      { error: "Appwrite is not configured" },
-      { status: 503 }
-    );
-  }
-
   try {
-    const goals = await withAppwriteCircuitRecovery(() =>
-      getGoalsByWorkspace(workspaceId)
-    );
+    let goals;
+    if (isAppwriteConfigured()) {
+      try {
+        goals = await withAppwriteCircuitRecovery(() =>
+          getGoalsByWorkspace(workspaceId)
+        );
+      } catch {
+        goals = getGoalsByWorkspaceLocal(workspaceId);
+      }
+    } else {
+      goals = getGoalsByWorkspaceLocal(workspaceId);
+    }
 
     return NextResponse.json({ goals });
   } catch (error: unknown) {
@@ -61,13 +69,6 @@ export async function POST(request: NextRequest) {
   const auth = await requireAuth(request, { requiredRole: "member" });
   if (!auth.ok) return auth.response;
   const { workspaceId } = auth;
-
-  if (!isAppwriteConfigured()) {
-    return NextResponse.json(
-      { error: "Appwrite is not configured" },
-      { status: 503 }
-    );
-  }
 
   try {
     const body = await request.json();
@@ -152,9 +153,55 @@ export async function POST(request: NextRequest) {
     }
 
     let goal;
-    try {
-      goal = await withAppwriteCircuitRecovery(() =>
-        createGoal(
+    const useDb = isAppwriteConfigured();
+    if (useDb) {
+      try {
+        goal = await withAppwriteCircuitRecovery(() =>
+          createGoal(
+            workspaceId,
+            name,
+            targetAmount,
+            targetDate,
+            (priority as GoalPriority) ?? "medium",
+            monthlyContribution ?? 0,
+            {
+              goalType: goalType as GoalType,
+              questionnaireResponses,
+              aiPlan,
+            }
+          )
+        );
+      } catch {
+        // Backward-compatible fallback if goal schema is not yet migrated.
+        try {
+          goal = await withAppwriteCircuitRecovery(() =>
+            createGoal(
+              workspaceId,
+              name,
+              targetAmount,
+              targetDate,
+              (priority as GoalPriority) ?? "medium",
+              monthlyContribution ?? 0
+            )
+          );
+        } catch {
+          goal = createGoalLocal(
+            workspaceId,
+            name,
+            targetAmount,
+            targetDate,
+            (priority as GoalPriority) ?? "medium",
+            monthlyContribution ?? 0,
+            {
+              goalType: goalType as GoalType,
+              questionnaireResponses,
+              aiPlan,
+            }
+          );
+        }
+      }
+    } else {
+      goal = createGoalLocal(
         workspaceId,
         name,
         targetAmount,
@@ -166,19 +213,6 @@ export async function POST(request: NextRequest) {
           questionnaireResponses,
           aiPlan,
         }
-        )
-      );
-    } catch {
-      // Backward-compatible fallback if goal schema is not yet migrated.
-      goal = await withAppwriteCircuitRecovery(() =>
-        createGoal(
-          workspaceId,
-          name,
-          targetAmount,
-          targetDate,
-          (priority as GoalPriority) ?? "medium",
-          monthlyContribution ?? 0
-        )
       );
     }
 
@@ -193,13 +227,6 @@ export async function POST(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   const auth = await requireAuth(request, { requiredRole: "member" });
   if (!auth.ok) return auth.response;
-
-  if (!isAppwriteConfigured()) {
-    return NextResponse.json(
-      { error: "Appwrite is not configured" },
-      { status: 503 }
-    );
-  }
 
   try {
     const body = await request.json();
@@ -295,9 +322,18 @@ export async function PUT(request: NextRequest) {
       ...(aiPlan ? { aiPlan } : {}),
     };
 
-    const goal = await withAppwriteCircuitRecovery(() =>
-      updateGoal(goalId, typedUpdates)
-    );
+    let goal;
+    if (isAppwriteConfigured()) {
+      try {
+        goal = await withAppwriteCircuitRecovery(() =>
+          updateGoal(goalId, typedUpdates)
+        );
+      } catch {
+        goal = updateGoalLocal(goalId, typedUpdates);
+      }
+    } else {
+      goal = updateGoalLocal(goalId, typedUpdates);
+    }
 
     return NextResponse.json({ goal });
   } catch (error: unknown) {
@@ -311,13 +347,6 @@ export async function DELETE(request: NextRequest) {
   const auth = await requireAuth(request, { requiredRole: "member" });
   if (!auth.ok) return auth.response;
 
-  if (!isAppwriteConfigured()) {
-    return NextResponse.json(
-      { error: "Appwrite is not configured" },
-      { status: 503 }
-    );
-  }
-
   try {
     const goalId = request.nextUrl.searchParams.get("goalId");
 
@@ -328,7 +357,15 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    await withAppwriteCircuitRecovery(() => deleteGoal(goalId));
+    if (isAppwriteConfigured()) {
+      try {
+        await withAppwriteCircuitRecovery(() => deleteGoal(goalId));
+      } catch {
+        deleteGoalLocal(goalId);
+      }
+    } else {
+      deleteGoalLocal(goalId);
+    }
 
     return NextResponse.json({ success: true });
   } catch (error: unknown) {
