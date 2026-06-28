@@ -3,7 +3,7 @@
 import { useSession } from "next-auth/react";
 import { UserCircle2 } from "lucide-react";
 import Link from "next/link";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { usePathname } from "next/navigation";
 import { formatTokenSummary } from "@/lib/aiUsageDisplay";
 
@@ -21,56 +21,64 @@ export default function TopBar() {
   const [imgSrc, setImgSrc] = useState<string | undefined>(primaryImageUrl || fallbackImageUrl);
   const [tokenSummary, setTokenSummary] = useState<string>("...");
 
+  const loadUsage = useCallback(async () => {
+    try {
+      const res = await fetch("/api/ai/usage", { cache: "no-store" });
+      if (!res.ok) return;
+      const data = await res.json();
+      const usage = data.usage as
+        | {
+            tokenLimit: number | null;
+            tokensUsed: number;
+            tokensRemaining: number | null;
+          }
+        | undefined;
+      if (!usage) return;
+
+      setTokenSummary(formatTokenSummary(usage));
+    } catch {
+      // non-critical, keep top bar lean
+    }
+  }, []);
+
   useEffect(() => {
     setImgSrc(primaryImageUrl || fallbackImageUrl);
   }, [primaryImageUrl, fallbackImageUrl]);
 
   useEffect(() => {
     let cancelled = false;
-
-    const loadUsage = async () => {
-      try {
-        const res = await fetch("/api/ai/usage", { cache: "no-store" });
-        if (!res.ok) return;
-        const data = await res.json();
-        const usage = data.usage as
-          | {
-              tokenLimit: number | null;
-              tokensUsed: number;
-              tokensRemaining: number | null;
-            }
-          | undefined;
-        if (!usage || cancelled) return;
-
-        setTokenSummary(formatTokenSummary(usage));
-      } catch {
-        // non-critical, keep top bar lean
-      }
+    const safeLoadUsage = async () => {
+      if (cancelled) return;
+      await loadUsage();
     };
-
-    void loadUsage();
+    void safeLoadUsage();
     const onFocus = () => {
-      void loadUsage();
+      void safeLoadUsage();
     };
     const onVisibility = () => {
       if (document.visibilityState === "visible") {
-        void loadUsage();
+        void safeLoadUsage();
       }
+    };
+    const onUsageRefresh = () => {
+      void safeLoadUsage();
     };
     const interval = window.setInterval(() => {
       if (document.visibilityState === "visible") {
-        void loadUsage();
+        void safeLoadUsage();
       }
-    }, 15000);
+    }, 5000);
     window.addEventListener("focus", onFocus);
     document.addEventListener("visibilitychange", onVisibility);
+    window.addEventListener("arcana:ai-usage-refresh", onUsageRefresh);
     return () => {
       cancelled = true;
       window.clearInterval(interval);
       window.removeEventListener("focus", onFocus);
       document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("arcana:ai-usage-refresh", onUsageRefresh);
     };
-  }, [pathname]);
+  }, [pathname, loadUsage]);
 
   if (!user) return null;
 

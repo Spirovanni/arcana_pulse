@@ -25,6 +25,7 @@ import {
   Shield,
   PanelLeftClose,
   PanelLeftOpen,
+  FolderTree,
 } from "lucide-react";
 import { NAV_ITEMS } from "@/lib/constants";
 import { cn } from "@/lib/utils";
@@ -50,11 +51,47 @@ const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
   Bot,
   BookMarked,
   Shield,
+  FolderTree,
 };
+
+const NAV_SECTIONS: Array<{ id: string; label: string; hrefs: string[] }> = [
+  {
+    id: "overview",
+    label: "Overview",
+    hrefs: ["/dashboard", "/assistant", "/notifications"],
+  },
+  {
+    id: "banking",
+    label: "Banking & Cashflow",
+    hrefs: ["/my-banks", "/transactions", "/income", "/expense", "/transfer", "/budgets", "/goals"],
+  },
+  {
+    id: "investing",
+    label: "Investing",
+    hrefs: ["/portfolio", "/algo-strategies"],
+  },
+  {
+    id: "intelligence",
+    label: "Intelligence",
+    hrefs: ["/intelligence/career", "/resources"],
+  },
+  {
+    id: "account",
+    label: "Account",
+    hrefs: ["/pricing", "/settings", "/admin"],
+  },
+];
 
 export default function Sidebar() {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
+  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
+    overview: true,
+    banking: true,
+    investing: true,
+    intelligence: true,
+    account: true,
+  });
 
   useEffect(() => {
     const saved = window.localStorage.getItem("arcana.sidebar.collapsed");
@@ -64,6 +101,28 @@ export default function Sidebar() {
   useEffect(() => {
     window.localStorage.setItem("arcana.sidebar.collapsed", collapsed ? "true" : "false");
   }, [collapsed]);
+  useEffect(() => {
+    const saved = window.localStorage.getItem("arcana.sidebar.sections");
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved) as Record<string, boolean>;
+        setExpandedSections((prev) => ({ ...prev, ...parsed }));
+      } catch {
+        // ignore invalid local storage payloads
+      }
+    }
+  }, []);
+  useEffect(() => {
+    window.localStorage.setItem("arcana.sidebar.sections", JSON.stringify(expandedSections));
+  }, [expandedSections]);
+
+  const navByHref = Object.fromEntries(NAV_ITEMS.map((item) => [item.href, item]));
+  const sectionItems = NAV_SECTIONS.map((section) => ({
+    ...section,
+    items: section.hrefs
+      .map((href) => navByHref[href])
+      .filter((item): item is (typeof NAV_ITEMS)[number] => Boolean(item)),
+  }));
 
   return (
     <aside
@@ -94,32 +153,65 @@ export default function Sidebar() {
       </div>
 
       {/* Nav links */}
-      <nav className="flex-1 space-y-4">
-        {NAV_ITEMS.map((item) => {
-          const Icon = ICON_MAP[item.icon];
-          const isActive =
-            pathname === item.href ||
-            (item.href !== "/" && pathname.startsWith(item.href));
-            
+      <nav className="flex-1 space-y-3 overflow-y-auto pr-1">
+        {(collapsed ? [{ id: "all", label: "All", items: NAV_ITEMS }] : sectionItems).map((section) => {
+          const isExpanded = collapsed ? true : (expandedSections[section.id] ?? true);
+          const hasActiveItem = section.items.some(
+            (item) => pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href))
+          );
+
           return (
-            <Link
-              key={item.href}
-              href={item.href}
-              title={collapsed ? item.label : undefined}
-              className={cn(
-                "w-full flex items-center text-[11px] uppercase tracking-[2px] transition-all duration-300 group text-left",
-                collapsed ? "gap-0 justify-center px-2 py-2 rounded-sm" : "gap-4",
-                isActive
-                  ? collapsed
-                    ? "text-on-surface bg-primary/10"
-                    : "text-on-surface border-l-2 border-primary pl-4 -ml-[34px]"
-                  : "text-secondary hover:text-on-surface",
-                collapsed && isActive && "border-l-0 -ml-0 bg-primary/10"
+            <div key={section.id} className="space-y-1">
+              {!collapsed && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    setExpandedSections((prev) => ({
+                      ...prev,
+                      [section.id]: !(prev[section.id] ?? true),
+                    }))
+                  }
+                  className={cn(
+                    "w-full flex items-center justify-between px-2 py-1 text-[9px] uppercase tracking-[2px] font-bold transition-colors rounded-sm",
+                    hasActiveItem ? "text-primary bg-primary/5" : "text-secondary/70 hover:text-secondary"
+                  )}
+                >
+                  <span>{section.label}</span>
+                  {isExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                </button>
               )}
-            >
-              {Icon && <Icon className="w-4 h-4 text-secondary opacity-70 group-hover:opacity-100 group-hover:text-primary transition-colors" />}
-              {!collapsed && <span className="font-medium whitespace-nowrap">{item.label}</span>}
-            </Link>
+
+              {isExpanded && (
+                <div className={cn(!collapsed && "pl-2 border-l border-outline/40 ml-2 space-y-1 py-1")}>
+                  {section.items.map((item) => {
+                    const Icon = ICON_MAP[item.icon];
+                    const isActive =
+                      pathname === item.href ||
+                      (item.href !== "/" && pathname.startsWith(item.href));
+
+                    return (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        title={collapsed ? item.label : undefined}
+                        className={cn(
+                          "w-full flex items-center text-[11px] uppercase tracking-[2px] transition-all duration-300 group text-left",
+                          collapsed ? "gap-0 justify-center px-2 py-2 rounded-sm" : "gap-3 px-2 py-2 rounded-sm",
+                          isActive
+                            ? "text-on-surface bg-primary/10"
+                            : "text-secondary hover:text-on-surface hover:bg-primary/5"
+                        )}
+                      >
+                        {Icon && (
+                          <Icon className="w-4 h-4 text-secondary opacity-70 group-hover:opacity-100 group-hover:text-primary transition-colors" />
+                        )}
+                        {!collapsed && <span className="font-medium whitespace-nowrap">{item.label}</span>}
+                      </Link>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           );
         })}
       </nav>
