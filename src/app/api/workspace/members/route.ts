@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import {
   getMembersByWorkspace,
   getInvitesByWorkspace,
+  ensureWorkspaceOwnerMember,
   updateMemberRole,
   removeMember,
   revokeInvite,
@@ -16,7 +17,20 @@ export async function GET(request: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const workspaceId = request.nextUrl.searchParams.get("workspaceId") ?? "ws-001";
+  const workspaceId =
+    request.nextUrl.searchParams.get("workspaceId") ??
+    session.user.workspaceId ??
+    "ws-001";
+
+  ensureWorkspaceOwnerMember({
+    workspaceId,
+    userId: session.user.userId,
+    email: session.user.email,
+    firstName: session.user.firstName ?? "",
+    lastName: session.user.lastName ?? "",
+    role: session.user.role,
+  });
+
   const members = getMembersByWorkspace(workspaceId);
   const invites = getInvitesByWorkspace(workspaceId).filter((i) => i.status === "pending");
   return NextResponse.json({ members, invites });
@@ -60,7 +74,7 @@ export async function DELETE(request: NextRequest) {
   }
 
   if (memberId) {
-    const workspaceId = sp.get("workspaceId") ?? "ws-001";
+    const workspaceId = sp.get("workspaceId") ?? session.user.workspaceId ?? "ws-001";
     const members = getMembersByWorkspace(workspaceId);
     const target = members.find((m) => m.memberId === memberId);
     if (!target) return NextResponse.json({ error: "Member not found" }, { status: 404 });

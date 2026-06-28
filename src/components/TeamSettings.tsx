@@ -3,8 +3,8 @@
 import { useState, useEffect } from "react";
 import { Users, UserPlus, Crown, Shield, Eye, User, Trash2, Mail, Copy, Check, RefreshCw } from "lucide-react";
 import type { WorkspaceMember, WorkspaceInvite, UserRole } from "@/lib/types";
-import { DEFAULT_WORKSPACE_ID } from "@/lib/services/workspace";
 import { cn } from "@/lib/utils";
+import { useSession } from "next-auth/react";
 
 const ROLE_META: Record<UserRole, { label: string; icon: React.ComponentType<{ className?: string }>; color: string }> = {
   owner:  { label: "Owner",  icon: Crown,  color: "text-primary" },
@@ -16,6 +16,7 @@ const ROLE_META: Record<UserRole, { label: string; icon: React.ComponentType<{ c
 const ASSIGNABLE_ROLES: UserRole[] = ["admin", "member", "viewer"];
 
 export default function TeamSettings() {
+  const { data: session } = useSession();
   const [members, setMembers] = useState<WorkspaceMember[]>([]);
   const [invites, setInvites] = useState<WorkspaceInvite[]>([]);
   const [loading, setLoading] = useState(true);
@@ -27,10 +28,12 @@ export default function TeamSettings() {
   const [inviteSuccess, setInviteSuccess] = useState("");
   const [copiedLink, setCopiedLink] = useState<string | null>(null);
 
+  const workspaceId = session?.user?.workspaceId ?? "ws-001";
+
   async function fetchTeam() {
     setLoading(true);
     try {
-      const res = await fetch(`/api/workspace/members?workspaceId=${DEFAULT_WORKSPACE_ID}`);
+      const res = await fetch(`/api/workspace/members?workspaceId=${workspaceId}`);
       const data = await res.json();
       setMembers(data.members ?? []);
       setInvites(data.invites ?? []);
@@ -39,7 +42,7 @@ export default function TeamSettings() {
     }
   }
 
-  useEffect(() => { fetchTeam(); }, []);
+  useEffect(() => { void fetchTeam(); }, [workspaceId]);
 
   async function handleInvite(e: React.FormEvent) {
     e.preventDefault();
@@ -50,7 +53,7 @@ export default function TeamSettings() {
       const res = await fetch("/api/workspace/invite", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: inviteEmail, role: inviteRole, workspaceId: DEFAULT_WORKSPACE_ID }),
+        body: JSON.stringify({ email: inviteEmail, role: inviteRole, workspaceId }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
@@ -76,7 +79,7 @@ export default function TeamSettings() {
   }
 
   async function handleRemoveMember(memberId: string) {
-    await fetch(`/api/workspace/members?memberId=${memberId}&workspaceId=${DEFAULT_WORKSPACE_ID}`, { method: "DELETE" });
+    await fetch(`/api/workspace/members?memberId=${memberId}&workspaceId=${workspaceId}`, { method: "DELETE" });
     fetchTeam();
   }
 

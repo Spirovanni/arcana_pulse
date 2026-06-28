@@ -1,55 +1,10 @@
 import type { WorkspaceMember, WorkspaceInvite, UserRole, InviteStatus } from "@/lib/types";
 import { generateId } from "@/lib/utils";
-import { mockUser } from "@/lib/mock/data";
 
 // ─── In-memory stores ────────────────────────────────────────────────────────
 
-let members: WorkspaceMember[] = [
-  {
-    memberId: "mem-001",
-    workspaceId: "ws-001",
-    userId: mockUser.userId,
-    email: mockUser.email,
-    firstName: mockUser.firstName,
-    lastName: mockUser.lastName,
-    role: "owner",
-    joinedAt: mockUser.createdAt,
-  },
-  {
-    memberId: "mem-002",
-    workspaceId: "ws-001",
-    userId: "usr-002",
-    email: "partner@example.com",
-    firstName: "Alex",
-    lastName: "Rivera",
-    role: "admin",
-    joinedAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
-  },
-  {
-    memberId: "mem-003",
-    workspaceId: "ws-001",
-    userId: "usr-003",
-    email: "child@example.com",
-    firstName: "Jordan",
-    lastName: "Rivera",
-    role: "viewer",
-    joinedAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-  },
-];
-
-let invites: WorkspaceInvite[] = [
-  {
-    inviteId: "inv-001",
-    workspaceId: "ws-001",
-    invitedByUserId: mockUser.userId,
-    email: "pending@example.com",
-    role: "member",
-    token: "demo-token-pending",
-    status: "pending",
-    expiresAt: new Date(Date.now() + 6 * 24 * 60 * 60 * 1000).toISOString(),
-    createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
-  },
-];
+let members: WorkspaceMember[] = [];
+let invites: WorkspaceInvite[] = [];
 
 // ─── Permission matrix ────────────────────────────────────────────────────────
 
@@ -77,6 +32,33 @@ export function canRemoveMember(actorRole: UserRole, targetRole: UserRole): bool
 
 export function getMembersByWorkspace(workspaceId: string): WorkspaceMember[] {
   return members.filter((m) => m.workspaceId === workspaceId);
+}
+
+export function ensureWorkspaceOwnerMember(input: {
+  workspaceId: string;
+  userId: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  role: UserRole;
+}): WorkspaceMember {
+  const existing = members.find(
+    (m) => m.workspaceId === input.workspaceId && m.userId === input.userId
+  );
+  if (existing) return { ...existing };
+
+  const member: WorkspaceMember = {
+    memberId: generateId("mem"),
+    workspaceId: input.workspaceId,
+    userId: input.userId,
+    email: input.email,
+    firstName: input.firstName,
+    lastName: input.lastName,
+    role: input.role,
+    joinedAt: new Date().toISOString(),
+  };
+  members.push(member);
+  return { ...member };
 }
 
 export function updateMemberRole(memberId: string, role: UserRole): WorkspaceMember {
