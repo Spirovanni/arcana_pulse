@@ -7,6 +7,9 @@
  * (for transaction parsing). After upload it calls /api/banks/build-from-statement
  * which uses Gemini AI to categorise every transaction, then creates a new bank
  * account that appears in the Statement-Linked Banks section of My Banks.
+ *
+ * Supports accountType prop to handle Credit Card and Loan statements with
+ * context-specific copy while sharing the same upload + AI pipeline.
  */
 
 import { useState, useRef, useCallback, DragEvent, ChangeEvent } from "react";
@@ -21,7 +24,10 @@ import {
   AlertCircle,
   Info,
   ChevronRight,
+  CreditCard,
+  HandCoins,
 } from "lucide-react";
+import type { AccountType } from "@/lib/types";
 
 export interface BuildResult {
   bank: {
@@ -42,6 +48,8 @@ export interface BuildResult {
 interface Props {
   onClose: () => void;
   onSuccess: (result: BuildResult) => void;
+  /** Tailor copy and account tagging for credit cards or loans. Defaults to 'bank'. */
+  accountType?: AccountType;
 }
 
 type Step = "upload" | "processing" | "done" | "error";
@@ -129,7 +137,47 @@ function FileDropZone({
   );
 }
 
-export default function UploadBankModal({ onClose, onSuccess }: Props) {
+// Context-specific copy per account type
+const ACCOUNT_TYPE_COPY = {
+  bank: {
+    title: "Upload Bank Statement",
+    subtitle: "We\u2019ll create a new bank account and AI-categorise every transaction",
+    label: "Bank Name",
+    buildLabel: "Build Bank with AI",
+    processingLabel: "Building your bank\u2026",
+    iconColor: "text-arcana-sky",
+    accentColor: "text-arcana-sky",
+    icon: Upload,
+    aiHint: "Gemini AI will categorise every transaction into Food, Transport, Housing, etc.",
+  },
+  credit_card: {
+    title: "Upload Credit Card Statement",
+    subtitle: "We\u2019ll create a credit card account and AI-categorise every charge",
+    label: "Card Issuer",
+    buildLabel: "Import with AI",
+    processingLabel: "Importing your card statement\u2026",
+    iconColor: "text-amber-400",
+    accentColor: "text-amber-400",
+    icon: CreditCard,
+    aiHint: "Gemini AI will categorise every charge\u2014dining, shopping, travel, fees, and more.",
+  },
+  loan: {
+    title: "Upload Loan Statement",
+    subtitle: "We\u2019ll create a loan account and AI-categorise every payment",
+    label: "Lender",
+    buildLabel: "Import with AI",
+    processingLabel: "Importing your loan statement\u2026",
+    iconColor: "text-cyan-400",
+    accentColor: "text-cyan-400",
+    icon: HandCoins,
+    aiHint: "Gemini AI will categorise payments\u2014principal, interest, fees, and escrow.",
+  },
+} as const;
+
+export default function UploadBankModal({ onClose, onSuccess, accountType = "bank" }: Props) {
+  const copy = ACCOUNT_TYPE_COPY[accountType];
+  const HeaderIcon = copy.icon;
+
   const [csvFile, setCsvFile] = useState<File | null>(null);
   const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [institutionName, setInstitutionName] = useState("");
@@ -204,6 +252,7 @@ export default function UploadBankModal({ onClose, onSuccess }: Props) {
           filename: csvFile.name,                 // used for institution/mask hints
           institutionName: institutionName || undefined,
           accountMask: accountMask || undefined,
+          accountType,                            // tag the new bank record
           // omit workspaceId — the API derives it from the authenticated session
         }),
       });
@@ -235,11 +284,11 @@ export default function UploadBankModal({ onClose, onSuccess }: Props) {
         <div className="flex items-center justify-between px-6 py-4 border-b border-arcana-border">
           <div>
             <h2 className="text-base font-semibold text-white flex items-center gap-2">
-              <Upload className="w-4 h-4 text-arcana-sky" />
-              Upload Bank Statement
+              <HeaderIcon className={`w-4 h-4 ${copy.iconColor}`} />
+              {copy.title}
             </h2>
             <p className="text-xs text-slate-400 mt-0.5">
-              We&#8217;ll create a new bank account and AI-categorise every transaction
+              {copy.subtitle}
             </p>
           </div>
           <button
@@ -260,8 +309,7 @@ export default function UploadBankModal({ onClose, onSuccess }: Props) {
               <div className="flex items-start gap-2.5 rounded-xl bg-violet-950/40 border border-violet-700/30 px-4 py-3">
                 <Sparkles className="w-4 h-4 text-violet-400 shrink-0 mt-0.5" />
                 <p className="text-xs text-violet-300">
-                  Gemini AI will categorise every transaction into Food, Transport, Housing, etc.
-                  giving you instant spending insights on your real bank data.
+                  {copy.aiHint}
                 </p>
               </div>
 
@@ -290,7 +338,7 @@ export default function UploadBankModal({ onClose, onSuccess }: Props) {
               {csvFile && (
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
-                    <label className="text-xs font-medium text-slate-300">Bank Name</label>
+                  <label className="text-xs font-medium text-slate-300">{copy.label}</label>
                     <input
                       type="text"
                       value={institutionName}
@@ -342,7 +390,7 @@ export default function UploadBankModal({ onClose, onSuccess }: Props) {
                 <Loader2 className="w-6 h-6 text-arcana-sky animate-spin absolute -top-1 -right-1" />
               </div>
               <div>
-                <p className="text-sm font-medium text-white mb-1">Building your bank…</p>
+              <p className="text-sm font-medium text-white mb-1">{copy.processingLabel}</p>
                 <p className="text-xs text-slate-400 max-w-xs">{statusMessage}</p>
               </div>
               {/* Progress steps */}
@@ -432,7 +480,7 @@ export default function UploadBankModal({ onClose, onSuccess }: Props) {
                 className="flex items-center gap-2 px-5 py-2 rounded-lg bg-gradient-to-r from-violet-600 to-arcana-blue text-white text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 <Sparkles className="w-4 h-4" />
-                Build Bank with AI
+                {copy.buildLabel}
               </button>
             </>
           )}
