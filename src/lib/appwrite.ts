@@ -41,6 +41,7 @@ export const COLLECTIONS = {
   supportTickets:     "supportTickets",
   investmentAccounts: "investmentAccounts",
   paperOrders:        "paperOrders",
+  aiUsage:            process.env.APPWRITE_AI_USAGE_COLLECTION_ID     ?? "aiUsage",
 } as const;
 
 

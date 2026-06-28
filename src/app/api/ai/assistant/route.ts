@@ -67,7 +67,7 @@ export async function POST(request: NextRequest) {
       resolvedOption.provider
     );
 
-    recordAIUsage({
+    await recordAIUsage({
       workspaceId,
       plan: usageCheck.plan,
       feature: "assistant",

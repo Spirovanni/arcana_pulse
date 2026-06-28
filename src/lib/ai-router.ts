@@ -157,7 +157,7 @@ export async function completeForFeature(
         maxTokens,
       });
       if (workspaceId && resolvedPlan) {
-        recordAIUsage({
+        await recordAIUsage({
           workspaceId,
           plan: resolvedPlan,
           feature,

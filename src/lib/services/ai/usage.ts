@@ -1,6 +1,10 @@
 import { canUseAI, getPlanLimits } from "@/lib/planLimits";
 import type { WorkspacePlan } from "@/lib/types";
 import { resolveWorkspacePlan } from "@/lib/services/workspacePlan";
+import {
+  getAIUsageByWorkspacePeriod,
+  upsertAIUsageByWorkspacePeriod,
+} from "@/lib/services/db/aiUsage";
 
 type FeatureUsage = {
   requests: number;
@@ -87,11 +91,41 @@ function getOrInitRecord(workspaceId: string, plan: WorkspacePlan): UsageRecord 
   return created;
 }
 
+async function getOrInitRecordWithPersistence(
+  workspaceId: string,
+  plan: WorkspacePlan
+): Promise<UsageRecord> {
+  const periodKey = getPeriodKey();
+  const key = buildStoreKey(workspaceId, periodKey);
+  const cached = usageStore.get(key);
+  if (cached) {
+    if (cached.plan !== plan) cached.plan = plan;
+    return cached;
+  }
+
+  const persisted = await getAIUsageByWorkspacePeriod(workspaceId, periodKey);
+  if (persisted) {
+    const hydrated: UsageRecord = {
+      workspaceId: persisted.workspaceId,
+      plan,
+      periodKey: persisted.periodKey,
+      requestsUsed: persisted.requestsUsed,
+      tokensUsed: persisted.tokensUsed,
+      featureUsage: persisted.featureUsage,
+      lastUsedAt: persisted.lastUsedAt,
+    };
+    usageStore.set(key, hydrated);
+    return hydrated;
+  }
+
+  return getOrInitRecord(workspaceId, plan);
+}
+
 export async function getAIUsageSnapshot(
   workspaceId: string
 ): Promise<AIUsageSnapshot> {
   const plan = await resolveWorkspacePlan(workspaceId);
-  const record = getOrInitRecord(workspaceId, plan);
+  const record = await getOrInitRecordWithPersistence(workspaceId, plan);
   return toSnapshot(record);
 }
 
@@ -104,7 +138,7 @@ export async function checkAIUsageAllowance(
 > {
   const plan = await resolveWorkspacePlan(workspaceId);
   const aiAccess = canUseAI(plan);
-  const record = getOrInitRecord(workspaceId, plan);
+  const record = await getOrInitRecordWithPersistence(workspaceId, plan);
   const snapshot = toSnapshot(record);
 
   if (!aiAccess.allowed) {
@@ -128,14 +162,17 @@ export async function checkAIUsageAllowance(
   return { allowed: true, plan, snapshot };
 }
 
-export function recordAIUsage(params: {
+export async function recordAIUsage(params: {
   workspaceId: string;
   plan: WorkspacePlan;
   feature: string;
   inputTokens: number;
   outputTokens: number;
-}): AIUsageSnapshot {
-  const record = getOrInitRecord(params.workspaceId, params.plan);
+}): Promise<AIUsageSnapshot> {
+  const record = await getOrInitRecordWithPersistence(
+    params.workspaceId,
+    params.plan
+  );
   const totalTokens = Math.max(0, params.inputTokens) + Math.max(0, params.outputTokens);
 
   record.requestsUsed += 1;
@@ -147,6 +184,16 @@ export function recordAIUsage(params: {
   }
   record.featureUsage[params.feature].requests += 1;
   record.featureUsage[params.feature].tokens += totalTokens;
+
+  await upsertAIUsageByWorkspacePeriod({
+    workspaceId: record.workspaceId,
+    periodKey: record.periodKey,
+    plan: record.plan,
+    requestsUsed: record.requestsUsed,
+    tokensUsed: record.tokensUsed,
+    featureUsage: record.featureUsage,
+    lastUsedAt: record.lastUsedAt,
+  });
 
   return toSnapshot(record);
 }
