@@ -152,13 +152,17 @@ function MyBanksPageContent() {
               `/api/transactions?bankId=${encodeURIComponent(bank.bankId)}&sourceType=synced&page=1&pageSize=5000`
             );
             if (!res.ok) return [bank.bankId, null] as const;
-            const data = await res.json().catch(() => ({} as { items?: Array<{ date: string }> }));
-            const items = data.items ?? [];
+            const data: { items?: Array<{ date?: string | null }> } = await res
+              .json()
+              .catch(() => ({} as { items?: Array<{ date?: string | null }> }));
+            const items: Array<{ date?: string | null }> = Array.isArray(data.items)
+              ? data.items
+              : [];
             if (items.length === 0) {
               return [bank.bankId, { imported: 0, periodStart: "", periodEnd: "" }] as const;
             }
             const dates = items
-              .map((item) => item.date)
+              .map((item: { date?: string | null }) => item.date)
               .filter((date): date is string => Boolean(date))
               .sort();
             return [

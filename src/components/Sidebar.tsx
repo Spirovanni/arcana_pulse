@@ -26,6 +26,8 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   FolderTree,
+  ChevronUp,
+  ChevronDown,
 } from "lucide-react";
 import { NAV_ITEMS } from "@/lib/constants";
 import { cn } from "@/lib/utils";
