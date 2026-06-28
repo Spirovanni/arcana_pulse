@@ -148,24 +148,47 @@ function OrderPanel({ onOrderPlaced }: { onOrderPlaced: () => void }) {
   const [showDropdown, setShowDropdown] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [cooldownSeconds, setCooldownSeconds] = useState(0);
+  const [assetSearchCooldownSeconds, setAssetSearchCooldownSeconds] = useState(0);
   const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null);
   const searchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Search assets
   useEffect(() => {
     if (searchTimeout.current) clearTimeout(searchTimeout.current);
-    if (!assetSearch.trim()) { setAssets([]); return; }
+    if (!assetSearch.trim()) {
+      setAssets([]);
+      setShowDropdown(false);
+      return;
+    }
+    if (assetSearchCooldownSeconds > 0) {
+      setAssets([]);
+      setShowDropdown(false);
+      return;
+    }
     searchTimeout.current = setTimeout(async () => {
       try {
         const res = await fetch(`/api/alpaca/assets?q=${encodeURIComponent(assetSearch)}`);
-        const data = await res.json();
+        const retryAfterRaw = res.headers.get("Retry-After");
+        const retryAfter = Number.parseInt(retryAfterRaw ?? "", 10);
+        const data = await res.json().catch(() => ({} as { assets?: AlpacaAsset[]; error?: string }));
+
+        if (res.status === 429) {
+          const cooldown =
+            Number.isFinite(retryAfter) && retryAfter > 0 ? Math.min(retryAfter, 120) : 10;
+          setAssetSearchCooldownSeconds(cooldown);
+          setAssets([]);
+          setShowDropdown(false);
+          return;
+        }
+
         setAssets(data.assets ?? []);
         setShowDropdown(true);
       } catch {
         setAssets([]);
+        setShowDropdown(false);
       }
     }, 350);
-  }, [assetSearch]);
+  }, [assetSearch, assetSearchCooldownSeconds]);
 
   useEffect(() => {
     if (cooldownSeconds <= 0) return;
@@ -174,6 +197,14 @@ function OrderPanel({ onOrderPlaced }: { onOrderPlaced: () => void }) {
     }, 1000);
     return () => clearTimeout(timeout);
   }, [cooldownSeconds]);
+
+  useEffect(() => {
+    if (assetSearchCooldownSeconds <= 0) return;
+    const timeout = setTimeout(() => {
+      setAssetSearchCooldownSeconds((prev) => Math.max(0, prev - 1));
+    }, 1000);
+    return () => clearTimeout(timeout);
+  }, [assetSearchCooldownSeconds]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -274,6 +305,11 @@ function OrderPanel({ onOrderPlaced }: { onOrderPlaced: () => void }) {
               required
             />
           </div>
+          {assetSearchCooldownSeconds > 0 && (
+            <p className="mt-1 text-[10px] text-yellow-400">
+              Symbol lookup is rate-limited. Retrying in {assetSearchCooldownSeconds}s.
+            </p>
+          )}
           {showDropdown && assets.length > 0 && !symbol && (
             <div className="absolute z-20 w-full mt-1 bg-arcana-navy border border-arcana-border rounded-lg shadow-xl max-h-48 overflow-y-auto">
               {assets.map((a) => (
