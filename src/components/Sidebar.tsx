@@ -214,11 +214,11 @@ export default function Sidebar() {
                   })}
 
                   {!collapsed && section.id === "banking" && (
-                    <div className="pl-8 space-y-1.5 py-1">
+                    <div className="pl-0 space-y-1 py-1">
                       <Link
                         href="/credit-cards"
                         className={cn(
-                          "flex items-center gap-2 text-[10px] uppercase tracking-[1.7px] transition-colors rounded-sm px-1.5 py-1",
+                          "flex items-center gap-3 text-[11px] uppercase tracking-[2px] transition-colors rounded-sm px-2 py-2",
                           pathname.startsWith("/credit-cards")
                             ? "text-amber-300 bg-amber-500/10"
                             : "text-secondary hover:text-amber-300 hover:bg-amber-500/5"
@@ -230,7 +230,7 @@ export default function Sidebar() {
                       <Link
                         href="/loans"
                         className={cn(
-                          "flex items-center gap-2 text-[10px] uppercase tracking-[1.7px] transition-colors rounded-sm px-1.5 py-1",
+                          "flex items-center gap-3 text-[11px] uppercase tracking-[2px] transition-colors rounded-sm px-2 py-2",
                           pathname.startsWith("/loans")
                             ? "text-cyan-300 bg-cyan-500/10"
                             : "text-secondary hover:text-cyan-300 hover:bg-cyan-500/5"
