@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect, Suspense } from "react";
+import { useState, useCallback, useEffect, useMemo, Suspense } from "react";
 import { useSession } from "next-auth/react";
 import { useSearchParams } from "next/navigation";
 import {
@@ -35,7 +35,7 @@ import {
   getHoldingsByAccount,
   ACCOUNT_TYPE_LABELS,
 } from "@/lib/services/investments";
-import { formatCurrency, formatDate, makeArcId } from "@/lib/utils";
+import { formatCurrency, formatDate } from "@/lib/utils";
 import { CATEGORY_LABELS } from "@/lib/constants";
 import type { Bank } from "@/lib/types";
 
@@ -63,6 +63,12 @@ type BuildResult = {
   filename: string;
 };
 
+type StatementBankMeta = {
+  imported: number;
+  periodStart: string;
+  periodEnd: string;
+};
+
 function MyBanksPageContent() {
   const { data: session } = useSession();
   const [version, setVersion] = useState(0);
@@ -87,39 +93,6 @@ function MyBanksPageContent() {
     () => searchParams.get("upload") === "1"
   );
 
-  // Statement-linked banks — persisted in localStorage so they survive page refreshes
-  // (server-side in-memory store doesn't persist across Vercel serverless invocations)
-  const LS_KEY  = "arcana:statement-banks";
-  const LS_META = "arcana:statement-banks-meta";
-
-  const [statementBanks, setStatementBanks] = useState<Bank[]>([]);
-  const [stmtMeta, setStmtMeta] = useState<
-    Record<string, { imported: number; periodStart: string; periodEnd: string; filename: string; username: string }>
-  >({});
-
-  // Load from localStorage on mount
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem(LS_KEY);
-      if (raw) setStatementBanks(JSON.parse(raw) as Bank[]);
-      const meta = localStorage.getItem(LS_META);
-      if (meta) setStmtMeta(JSON.parse(meta));
-    } catch { /* ignore parse errors */ }
-  }, []);
-
-  function addStatementBank(bank: Bank, meta: { imported: number; periodStart: string; periodEnd: string; filename: string; username: string }) {
-    setStatementBanks((prev) => {
-      const next = prev.filter((b) => b.bankId !== bank.bankId).concat(bank);
-      try { localStorage.setItem(LS_KEY, JSON.stringify(next)); } catch { /* quota */ }
-      return next;
-    });
-    setStmtMeta((prev) => {
-      const next = { ...prev, [bank.bankId]: meta };
-      try { localStorage.setItem(LS_META, JSON.stringify(next)); } catch { /* quota */ }
-      return next;
-    });
-  }
-
   // Derive username from email
   const username = session?.user?.email?.split("@")[0]?.replace(/[^a-zA-Z0-9_]/g, "_") ?? "";
 
@@ -129,6 +102,8 @@ function MyBanksPageContent() {
   const [linkToken, setLinkToken] = useState<string | null>(null);
   const [linking, setLinking] = useState(false);
   const [syncingBankId, setSyncingBankId] = useState<string | null>(null);
+  const [removingStatementBankId, setRemovingStatementBankId] = useState<string | null>(null);
+  const [statementMeta, setStatementMeta] = useState<Record<string, StatementBankMeta>>({});
 
   // Fetch persisted banks from Appwrite-backed API
   useEffect(() => {
@@ -152,6 +127,68 @@ function MyBanksPageContent() {
       cancelled = true;
     };
   }, [version]);
+
+  const statementBanks = useMemo(
+    () => banks.filter((bank) => bank.accountId.startsWith("stmt-")),
+    [banks]
+  );
+  const linkedBanks = useMemo(
+    () => banks.filter((bank) => !bank.accountId.startsWith("stmt-")),
+    [banks]
+  );
+
+  useEffect(() => {
+    if (statementBanks.length === 0) {
+      setStatementMeta({});
+      return;
+    }
+
+    let cancelled = false;
+    async function loadStatementMeta() {
+      const metaEntries = await Promise.all(
+        statementBanks.map(async (bank) => {
+          try {
+            const res = await fetch(
+              `/api/transactions?bankId=${encodeURIComponent(bank.bankId)}&sourceType=synced&page=1&pageSize=5000`
+            );
+            if (!res.ok) return [bank.bankId, null] as const;
+            const data = await res.json().catch(() => ({} as { items?: Array<{ date: string }> }));
+            const items = data.items ?? [];
+            if (items.length === 0) {
+              return [bank.bankId, { imported: 0, periodStart: "", periodEnd: "" }] as const;
+            }
+            const dates = items
+              .map((item) => item.date)
+              .filter((date): date is string => Boolean(date))
+              .sort();
+            return [
+              bank.bankId,
+              {
+                imported: items.length,
+                periodStart: dates[0] ?? "",
+                periodEnd: dates[dates.length - 1] ?? "",
+              },
+            ] as const;
+          } catch {
+            return [bank.bankId, null] as const;
+          }
+        })
+      );
+
+      if (cancelled) return;
+
+      const nextMeta: Record<string, StatementBankMeta> = {};
+      for (const [bankId, meta] of metaEntries) {
+        if (meta) nextMeta[bankId] = meta;
+      }
+      setStatementMeta(nextMeta);
+    }
+
+    void loadStatementMeta();
+    return () => {
+      cancelled = true;
+    };
+  }, [statementBanks]);
 
   // Fetch saved statement files for this user
   useEffect(() => {
@@ -206,29 +243,6 @@ function MyBanksPageContent() {
       });
       const data: BuildResult = await res.json();
       setBuildResults((prev) => ({ ...prev, [file.filename]: data }));
-      // Also persist to localStorage if bank was created
-      if (data.bank) {
-        addStatementBank(
-          {
-            bankId:          data.bank.bankId,
-            workspaceId:     "ws-001",
-            institutionName: data.bank.institutionName,
-            accountId:       `stmt-${data.bank.displayMask}-${Date.now()}`,
-            displayMask:     data.bank.displayMask,
-            shareableId:     makeArcId(data.bank.institutionName, data.bank.displayMask),
-            balance:         data.bank.balance ?? 0,
-            createdAt:       new Date().toISOString(),
-            updatedAt:       new Date().toISOString(),
-          },
-          {
-            imported:    data.imported,
-            periodStart: data.periodStart,
-            periodEnd:   data.periodEnd,
-            filename:    file.filename,
-            username:    file.username,
-          }
-        );
-      }
       bump();
     } catch {
       setBuildResults((prev) => ({
@@ -322,6 +336,16 @@ function MyBanksPageContent() {
       // Sync failed silently
     } finally {
       setSyncingBankId(null);
+    }
+  }
+
+  async function removeStatementBank(bankId: string) {
+    setRemovingStatementBankId(bankId);
+    try {
+      await fetch(`/api/banks/${encodeURIComponent(bankId)}`, { method: "DELETE" });
+      bump();
+    } finally {
+      setRemovingStatementBankId(null);
     }
   }
 
@@ -472,7 +496,7 @@ function MyBanksPageContent() {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {statementBanks.map((bank) => {
-              const meta = stmtMeta[bank.bankId];
+              const meta = statementMeta[bank.bankId];
               const accountUrl = `/my-banks/${bank.bankId}`;
 
               return (
@@ -516,7 +540,11 @@ function MyBanksPageContent() {
                         </div>
                         <div>
                           <p className="text-[9px] text-slate-500 uppercase tracking-wide mb-0.5">Period</p>
-                          <p className="text-[10px] text-slate-300">{meta.periodStart} → {meta.periodEnd}</p>
+                          <p className="text-[10px] text-slate-300">
+                            {meta.periodStart && meta.periodEnd
+                              ? `${formatDate(meta.periodStart)} → ${formatDate(meta.periodEnd)}`
+                              : "—"}
+                          </p>
                         </div>
                       </div>
                     )}
@@ -533,17 +561,16 @@ function MyBanksPageContent() {
                     </a>
                     <button
                       type="button"
-                      onClick={() => {
-                        setStatementBanks((prev) => {
-                          const next = prev.filter((b) => b.bankId !== bank.bankId);
-                          try { localStorage.setItem(LS_KEY, JSON.stringify(next)); } catch { /* quota */ }
-                          return next;
-                        });
-                      }}
+                      disabled={removingStatementBankId === bank.bankId}
+                      onClick={() => void removeStatementBank(bank.bankId)}
                       className="flex items-center justify-center gap-1 px-3 py-2 rounded-lg text-xs text-slate-500 hover:text-red-400 hover:bg-red-900/20 transition-colors"
                       title="Remove bank"
                     >
-                      <X className="w-3 h-3" />
+                      {removingStatementBankId === bank.bankId ? (
+                        <Loader2 className="w-3 h-3 animate-spin" />
+                      ) : (
+                        <X className="w-3 h-3" />
+                      )}
                     </button>
                   </div>
                 </div>
@@ -563,7 +590,7 @@ function MyBanksPageContent() {
         <div className="rounded-xl bg-arcana-surface border border-arcana-border p-8 flex items-center justify-center">
           <Loader2 className="w-5 h-5 animate-spin text-primary" />
         </div>
-      ) : banks.length === 0 ? (
+      ) : linkedBanks.length === 0 ? (
         <EmptyState
           icon={Landmark}
           title="No banks connected"
@@ -576,7 +603,7 @@ function MyBanksPageContent() {
         />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {banks.map((bank) => {
+          {linkedBanks.map((bank) => {
             const isExpanded = expandedBankId === bank.bankId;
             const isCopied = copiedId === bank.shareableId;
 
@@ -888,28 +915,8 @@ function MyBanksPageContent() {
       {showUploadModal && (
         <UploadBankModal
           onClose={() => setShowUploadModal(false)}
-          onSuccess={(result: ModalBuildResult) => {
+          onSuccess={(_result: ModalBuildResult) => {
             setShowUploadModal(false);
-            addStatementBank(
-              {
-                bankId:          result.bank.bankId,
-                workspaceId:     "ws-001",
-                institutionName: result.bank.institutionName,
-                accountId:       `stmt-${result.bank.displayMask}-${Date.now()}`,
-                displayMask:     result.bank.displayMask,
-                shareableId:     makeArcId(result.bank.institutionName, result.bank.displayMask),
-                balance:         result.bank.balance ?? 0,
-                createdAt:       new Date().toISOString(),
-                updatedAt:       new Date().toISOString(),
-              },
-              {
-                imported:    result.imported,
-                periodStart: result.periodStart,
-                periodEnd:   result.periodEnd,
-                filename:    result.filename,
-                username:    result.username,
-              }
-            );
             bump();
           }}
         />
