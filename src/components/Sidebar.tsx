@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
 import { useEffect, useState } from "react";
 import {
@@ -86,7 +86,6 @@ const NAV_SECTIONS: Array<{ id: string; label: string; hrefs: string[] }> = [
 
 export default function Sidebar() {
   const pathname = usePathname();
-  const searchParams = useSearchParams();
   const [collapsed, setCollapsed] = useState(false);
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
     overview: true,
@@ -126,8 +125,6 @@ export default function Sidebar() {
       .map((href) => navByHref[href])
       .filter((item): item is (typeof NAV_ITEMS)[number] => Boolean(item)),
   }));
-
-  const expenseFocus = searchParams.get("focus");
 
   return (
     <aside
@@ -221,9 +218,7 @@ export default function Sidebar() {
                         href="/expense?focus=credit-cards"
                         className={cn(
                           "block text-[10px] uppercase tracking-[1.7px] transition-colors",
-                          expenseFocus === "credit-cards"
-                            ? "text-amber-300"
-                            : "text-secondary hover:text-amber-300"
+                          "text-secondary hover:text-amber-300"
                         )}
                       >
                         Credit Cards
@@ -232,9 +227,7 @@ export default function Sidebar() {
                         href="/expense?focus=loans"
                         className={cn(
                           "block text-[10px] uppercase tracking-[1.7px] transition-colors",
-                          expenseFocus === "loans"
-                            ? "text-cyan-300"
-                            : "text-secondary hover:text-cyan-300"
+                          "text-secondary hover:text-cyan-300"
                         )}
                       >
                         Loans
