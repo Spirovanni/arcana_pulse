@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { generateBudgetRecommendations } from "@/lib/services/ai/budgets";
+import {
+  evaluateBudgetRecommendations,
+  generateBudgetRecommendations,
+} from "@/lib/services/ai/budgets";
 import {
   getAnalysisCache,
   setAnalysisCache,
@@ -10,7 +13,10 @@ export async function GET(request: NextRequest) {
     const workspaceId =
       request.nextUrl.searchParams.get("workspaceId") ?? "ws-001";
     const force = request.nextUrl.searchParams.get("force") === "true";
-    const cacheKey = `budgets:${workspaceId}`;
+    const evaluationScope =
+      request.nextUrl.searchParams.get("evaluationScope") ?? "all";
+    const preferImportedTransactions = evaluationScope === "imported";
+    const cacheKey = `budgets:${workspaceId}:${evaluationScope}`;
 
     if (!force) {
       const cached = getAnalysisCache<
@@ -20,6 +26,8 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({
           recommendations: cached.value,
           lastAnalysisAt: cached.analyzedAt,
+          evaluationCompletedAt: cached.analyzedAt,
+          evaluationScope,
           generatedFresh: false,
         });
       }
@@ -27,16 +35,24 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({
         recommendations: [],
         lastAnalysisAt: null,
+        evaluationCompletedAt: null,
+        evaluationScope,
         generatedFresh: false,
       });
     }
 
-    const recommendations = await generateBudgetRecommendations(workspaceId);
+    const evaluation = await evaluateBudgetRecommendations(workspaceId, {
+      preferImportedTransactions,
+    });
+    const recommendations = evaluation.recommendations;
     const cached = setAnalysisCache(cacheKey, recommendations);
 
     return NextResponse.json({
       recommendations,
       lastAnalysisAt: cached.analyzedAt,
+      evaluationCompletedAt: cached.analyzedAt,
+      evaluationScope: evaluation.sourceScope,
+      evaluatedTransactionCount: evaluation.transactionCount,
       generatedFresh: true,
     });
   } catch (error: unknown) {

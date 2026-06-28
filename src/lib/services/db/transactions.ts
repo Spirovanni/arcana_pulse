@@ -331,7 +331,8 @@ export async function overrideCategory(
 
 export async function sumByType(
   workspaceId: string,
-  type: "income" | "expense"
+  type: "income" | "expense",
+  sourceType?: "synced" | "manual" | "transfer"
 ): Promise<number> {
   // Fetch all matching transactions (up to 5000)
   const result = await getDatabase().listDocuments(
@@ -340,6 +341,7 @@ export async function sumByType(
     [
       Query.equal("workspaceId", workspaceId),
       Query.equal("transactionType", type),
+      ...(sourceType ? [Query.equal("sourceType", sourceType)] : []),
       Query.limit(5000),
       Query.select(["amount"]),
     ]
@@ -370,10 +372,12 @@ export async function totalTransactionValue(
 
 export async function getCategoryBreakdown(
   workspaceId: string,
-  type?: "income" | "expense"
+  type?: "income" | "expense",
+  sourceType?: "synced" | "manual" | "transfer"
 ): Promise<CategoryBreakdown[]> {
   const queries: string[] = [
     Query.equal("workspaceId", workspaceId),
+    ...(sourceType ? [Query.equal("sourceType", sourceType)] : []),
     Query.limit(5000),
     Query.select(["category", "amount", "transactionType"]),
   ];
@@ -414,13 +418,15 @@ export async function getTopCategory(
 }
 
 export async function getMonthlyFlow(
-  workspaceId: string
+  workspaceId: string,
+  sourceType?: "synced" | "manual" | "transfer"
 ): Promise<{ month: string; income: number; expense: number }[]> {
   const result = await getDatabase().listDocuments(
     DATABASE_ID,
     COLLECTIONS.transactions,
     [
       Query.equal("workspaceId", workspaceId),
+      ...(sourceType ? [Query.equal("sourceType", sourceType)] : []),
       Query.limit(5000),
       Query.select(["date", "amount", "transactionType"]),
     ]

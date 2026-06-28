@@ -19,6 +19,8 @@ interface BudgetContext {
   totalMonthlyIncome: number;
   totalMonthlyExpense: number;
   recurringExpenses: { title: string; category: string; amount: number; frequency: string }[];
+  transactionCount: number;
+  sourceTypeScope: "all" | "synced";
 }
 
 // ---------------------------------------------------------------------------
@@ -78,29 +80,61 @@ RULES:
 // ---------------------------------------------------------------------------
 
 async function gatherBudgetContext(
-  workspaceId: string
+  workspaceId: string,
+  sourceTypeScope: "all" | "synced" = "all"
 ): Promise<BudgetContext> {
+  const scopedSourceType =
+    sourceTypeScope === "synced" ? "synced" : undefined;
+
   let categoryBreakdown: Awaited<ReturnType<typeof DbTx.getCategoryBreakdown>>;
   let monthlyFlow: Awaited<ReturnType<typeof DbTx.getMonthlyFlow>>;
+  let transactionCount = 0;
   let totalIncome: number;
   let totalExpense: number;
   let recurringPatterns: Awaited<ReturnType<typeof DbFc.detectRecurringPatterns>>;
 
   try {
+    const txCountResult = await DbTx.listTransactions(
+      { workspaceId, ...(scopedSourceType ? { sourceType: scopedSourceType } : {}) },
+      { page: 1, pageSize: 1 }
+    );
+    transactionCount = txCountResult.total;
+
     [categoryBreakdown, monthlyFlow, totalIncome, totalExpense, recurringPatterns] =
       await Promise.all([
-        DbTx.getCategoryBreakdown(workspaceId, "expense"),
-        DbTx.getMonthlyFlow(workspaceId),
-        DbTx.sumByType(workspaceId, "income"),
-        DbTx.sumByType(workspaceId, "expense"),
+        DbTx.getCategoryBreakdown(workspaceId, "expense", scopedSourceType),
+        DbTx.getMonthlyFlow(workspaceId, scopedSourceType),
+        DbTx.sumByType(workspaceId, "income", scopedSourceType),
+        DbTx.sumByType(workspaceId, "expense", scopedSourceType),
         DbFc.detectRecurringPatterns(workspaceId),
       ]);
   } catch {
-    categoryBreakdown = MockTx.getCategoryBreakdown(workspaceId, "expense");
-    monthlyFlow = MockTx.getMonthlyFlow(workspaceId);
-    totalIncome = MockTx.sumByType(workspaceId, "income");
-    totalExpense = MockTx.sumByType(workspaceId, "expense");
+    categoryBreakdown = MockTx.getCategoryBreakdown(
+      workspaceId,
+      "expense",
+      scopedSourceType
+    );
+    monthlyFlow = MockTx.getMonthlyFlow(workspaceId, scopedSourceType);
+    totalIncome = MockTx.sumByType(workspaceId, "income", scopedSourceType);
+    totalExpense = MockTx.sumByType(workspaceId, "expense", scopedSourceType);
     recurringPatterns = [];
+    const tx = MockTx.listTransactions(
+      { workspaceId, ...(scopedSourceType ? { sourceType: scopedSourceType } : {}) },
+      { page: 1, pageSize: 1 }
+    );
+    transactionCount = tx.total;
+  }
+
+  if (transactionCount === 0) {
+    try {
+      const tx = await DbTx.listTransactions(
+        { workspaceId, ...(scopedSourceType ? { sourceType: scopedSourceType } : {}) },
+        { page: 1, pageSize: 1 }
+      );
+      transactionCount = tx.total;
+    } catch {
+      // keep fallback count
+    }
   }
 
   const monthCount = Math.max(monthlyFlow.length, 1);
@@ -127,6 +161,8 @@ async function gatherBudgetContext(
     totalMonthlyIncome,
     totalMonthlyExpense,
     recurringExpenses,
+    transactionCount,
+    sourceTypeScope,
   };
 }
 
@@ -244,7 +280,7 @@ function generateFallbackRecommendations(
 export async function generateBudgetRecommendations(
   workspaceId: string
 ): Promise<BudgetRecommendation[]> {
-  const context = await gatherBudgetContext(workspaceId);
+  const context = await gatherBudgetContext(workspaceId, "all");
 
   // If no spending data, return empty
   if (context.categoryBreakdown.length === 0) {
@@ -266,5 +302,66 @@ export async function generateBudgetRecommendations(
     return generateFallbackRecommendations(context);
   } catch {
     return generateFallbackRecommendations(context);
+  }
+}
+
+export async function evaluateBudgetRecommendations(
+  workspaceId: string,
+  options?: { preferImportedTransactions?: boolean }
+): Promise<{
+  recommendations: BudgetRecommendation[];
+  sourceScope: "all" | "synced" | "all_fallback";
+  transactionCount: number;
+}> {
+  const preferImported = options?.preferImportedTransactions ?? false;
+  if (!preferImported) {
+    const recommendations = await generateBudgetRecommendations(workspaceId);
+    const allContext = await gatherBudgetContext(workspaceId, "all");
+    return {
+      recommendations,
+      sourceScope: "all",
+      transactionCount: allContext.transactionCount,
+    };
+  }
+
+  const syncedContext = await gatherBudgetContext(workspaceId, "synced");
+  if (syncedContext.transactionCount === 0) {
+    const recommendations = await generateBudgetRecommendations(workspaceId);
+    const allContext = await gatherBudgetContext(workspaceId, "all");
+    return {
+      recommendations,
+      sourceScope: "all_fallback",
+      transactionCount: allContext.transactionCount,
+    };
+  }
+
+  if (syncedContext.categoryBreakdown.length === 0) {
+    return {
+      recommendations: [],
+      sourceScope: "synced",
+      transactionCount: syncedContext.transactionCount,
+    };
+  }
+
+  try {
+    const text = await completeForFeature(
+      "budgets",
+      SYSTEM_PROMPT,
+      `Generate budget recommendations based on this imported bank transaction data:\n${JSON.stringify(syncedContext, null, 2)}`,
+      1024,
+      { workspaceId }
+    );
+    const validated = validateRecommendations(text);
+    return {
+      recommendations: validated ?? generateFallbackRecommendations(syncedContext),
+      sourceScope: "synced",
+      transactionCount: syncedContext.transactionCount,
+    };
+  } catch {
+    return {
+      recommendations: generateFallbackRecommendations(syncedContext),
+      sourceScope: "synced",
+      transactionCount: syncedContext.transactionCount,
+    };
   }
 }

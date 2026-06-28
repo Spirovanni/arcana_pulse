@@ -69,13 +69,17 @@ export default function BudgetsPage() {
   const [editingCategory, setEditingCategory] = useState<string | null>(null);
   const [editAmount, setEditAmount] = useState("");
   const [lastAnalysisAt, setLastAnalysisAt] = useState<string | null>(null);
+  const [evaluationCompletedAt, setEvaluationCompletedAt] = useState<string | null>(null);
+  const [evaluationScope, setEvaluationScope] = useState<string>("all");
+  const [evaluatedTransactionCount, setEvaluatedTransactionCount] = useState<number>(0);
 
   const fetchData = useCallback(async (forceAnalysis = false) => {
     setLoading(true);
     try {
       const forceParam = forceAnalysis ? "&force=true" : "";
+      const scopeParam = forceAnalysis ? "&evaluationScope=imported" : "";
       const [recRes, budRes] = await Promise.all([
-        fetch(`/api/ai/budgets?workspaceId=${DEFAULT_WORKSPACE_ID}${forceParam}`),
+        fetch(`/api/ai/budgets?workspaceId=${DEFAULT_WORKSPACE_ID}${forceParam}${scopeParam}`),
         fetch(`/api/budgets?workspaceId=${DEFAULT_WORKSPACE_ID}`),
       ]);
 
@@ -83,6 +87,9 @@ export default function BudgetsPage() {
         const data = await recRes.json();
         setRecommendations(data.recommendations ?? []);
         setLastAnalysisAt(data.lastAnalysisAt ?? null);
+        setEvaluationCompletedAt(data.evaluationCompletedAt ?? data.lastAnalysisAt ?? null);
+        setEvaluationScope(data.evaluationScope ?? "all");
+        setEvaluatedTransactionCount(data.evaluatedTransactionCount ?? 0);
       }
       if (budRes.ok) {
         const data = await budRes.json();
@@ -212,6 +219,19 @@ export default function BudgetsPage() {
         lastAnalysisAt={lastAnalysisAt}
         className="block text-[11px] uppercase tracking-[1.5px] text-slate-400"
       />
+      <p className="text-[11px] uppercase tracking-[1.5px] text-slate-500">
+        Evaluation completed:{" "}
+        {evaluationCompletedAt
+          ? new Date(evaluationCompletedAt).toLocaleString()
+          : "Not run yet"}{" "}
+        · Source:{" "}
+        {evaluationScope === "synced"
+          ? "Imported bank transactions"
+          : evaluationScope === "all_fallback"
+          ? "Imported unavailable, using all transactions"
+          : "All workspace transactions"}{" "}
+        · Records: {evaluatedTransactionCount}
+      </p>
 
       {/* Summary cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">

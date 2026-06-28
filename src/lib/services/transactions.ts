@@ -197,11 +197,15 @@ export function deleteTransaction(transactionId: string): void {
 
 export function sumByType(
   workspaceId: string,
-  type: "income" | "expense"
+  type: "income" | "expense",
+  sourceType?: "synced" | "manual" | "transfer"
 ): number {
   return transactions
     .filter(
-      (t) => t.workspaceId === workspaceId && t.transactionType === type
+      (t) =>
+        t.workspaceId === workspaceId &&
+        t.transactionType === type &&
+        (sourceType ? t.sourceType === sourceType : true)
     )
     .reduce((sum, t) => sum + t.amount, 0);
 }
@@ -214,12 +218,14 @@ export function totalTransactionValue(workspaceId: string): number {
 
 export function getCategoryBreakdown(
   workspaceId: string,
-  type?: "income" | "expense"
+  type?: "income" | "expense",
+  sourceType?: "synced" | "manual" | "transfer"
 ): CategoryBreakdown[] {
   const relevant = transactions.filter(
     (t) =>
       t.workspaceId === workspaceId &&
       (type ? t.transactionType === type : true) &&
+      (sourceType ? t.sourceType === sourceType : true) &&
       t.transactionType !== "transfer"
   );
 
@@ -247,12 +253,14 @@ export function getTopCategory(workspaceId: string): Category {
 }
 
 export function getMonthlyFlow(
-  workspaceId: string
+  workspaceId: string,
+  sourceType?: "synced" | "manual" | "transfer"
 ): { month: string; income: number; expense: number }[] {
   const byMonth: Record<string, { income: number; expense: number }> = {};
 
   for (const t of transactions) {
     if (t.workspaceId !== workspaceId) continue;
+    if (sourceType && t.sourceType !== sourceType) continue;
     if (t.transactionType === "transfer") continue;
     const month = t.date.slice(0, 7); // YYYY-MM
     if (!byMonth[month]) byMonth[month] = { income: 0, expense: 0 };
