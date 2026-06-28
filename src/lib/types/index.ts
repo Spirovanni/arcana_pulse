@@ -358,17 +358,29 @@ export interface BudgetRecommendation {
 export type GoalPriority = "low" | "medium" | "high";
 
 export type GoalStatus = "active" | "completed" | "paused";
+export type GoalType =
+  | "emergency_fund"
+  | "debt_payoff"
+  | "home_purchase"
+  | "retirement"
+  | "education"
+  | "travel"
+  | "business_launch"
+  | "custom";
 
 export interface SavingsGoal {
   goalId: string;
   workspaceId: string;
   name: string;
+  goalType?: GoalType;
   targetAmount: number;
   currentAmount: number;
   targetDate: string;
   monthlyContribution: number;
   priority: GoalPriority;
   status: GoalStatus;
+  questionnaireResponses?: Record<string, string>;
+  aiPlan?: string;
   createdAt: string;
   updatedAt: string;
 }

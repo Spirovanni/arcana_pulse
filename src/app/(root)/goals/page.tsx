@@ -37,7 +37,9 @@ import type {
   GoalProjection,
   GoalPriority,
   GoalStatus,
+  GoalType,
 } from "@/lib/types";
+import { GOAL_TYPE_CONFIG } from "@/lib/goalQuestionnaires";
 
 export default function GoalsPage() {
   const [goals, setGoals] = useState<SavingsGoal[]>([]);
@@ -82,10 +84,12 @@ export default function GoalsPage() {
 
   const handleCreate = async (data: {
     name: string;
+    goalType: GoalType;
     targetAmount: number;
     targetDate: string;
     monthlyContribution: number;
     priority: GoalPriority;
+    questionnaireResponses: Record<string, string>;
   }) => {
     try {
       const res = await fetch("/api/goals", {
@@ -108,10 +112,12 @@ export default function GoalsPage() {
 
   const handleEdit = async (data: {
     name: string;
+    goalType: GoalType;
     targetAmount: number;
     targetDate: string;
     monthlyContribution: number;
     priority: GoalPriority;
+    questionnaireResponses: Record<string, string>;
   }) => {
     if (!editingGoal) return;
     try {
@@ -348,6 +354,9 @@ export default function GoalsPage() {
                       <span className="text-sm font-medium text-white">
                         {goal.name}
                       </span>
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-300 uppercase tracking-wider">
+                        {GOAL_TYPE_CONFIG[goal.goalType ?? "custom"]?.label ?? "Custom"}
+                      </span>
                       <span
                         className={`text-xs px-1.5 py-0.5 rounded capitalize ${
                           goal.priority === "high"
@@ -494,6 +503,17 @@ export default function GoalsPage() {
                       <p className="text-xs text-slate-500">
                         {projection.narrative}
                       </p>
+                    </div>
+                  )}
+
+                  {goal.aiPlan && (
+                    <div className="mt-3 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2">
+                      <p className="text-[10px] uppercase tracking-widest text-primary mb-1">
+                        AI Execution Plan
+                      </p>
+                      <pre className="whitespace-pre-wrap text-xs text-slate-300 leading-relaxed font-sans">
+                        {goal.aiPlan}
+                      </pre>
                     </div>
                   )}
                 </div>

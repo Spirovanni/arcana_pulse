@@ -9,6 +9,7 @@ import type {
   SavingsGoal,
   GoalPriority,
   GoalStatus,
+  GoalType,
 } from "@/lib/types";
 import type { Models } from "node-appwrite";
 
@@ -19,6 +20,15 @@ import type { Models } from "node-appwrite";
 function toSavingsGoal(
   doc: Models.Document & Record<string, any>
 ): SavingsGoal {
+  let questionnaireResponses: Record<string, string> | undefined;
+  if (typeof doc.questionnaireResponsesJson === "string") {
+    try {
+      questionnaireResponses = JSON.parse(doc.questionnaireResponsesJson);
+    } catch {
+      questionnaireResponses = undefined;
+    }
+  }
+
   return {
     goalId: doc.$id,
     workspaceId: doc.workspaceId,
@@ -29,6 +39,12 @@ function toSavingsGoal(
     monthlyContribution: doc.monthlyContribution ?? 0,
     priority: (doc.priority ?? "medium") as GoalPriority,
     status: (doc.status ?? "active") as GoalStatus,
+    goalType:
+      typeof doc.goalType === "string"
+        ? (doc.goalType as GoalType)
+        : undefined,
+    questionnaireResponses,
+    aiPlan: typeof doc.aiPlan === "string" ? doc.aiPlan : undefined,
     createdAt: doc.$createdAt,
     updatedAt: doc.$updatedAt,
   };
@@ -65,25 +81,60 @@ export async function createGoal(
   targetAmount: number,
   targetDate: string,
   priority: GoalPriority = "medium",
-  monthlyContribution: number = 0
+  monthlyContribution: number = 0,
+  options?: {
+    goalType?: GoalType;
+    questionnaireResponses?: Record<string, string>;
+    aiPlan?: string;
+  }
 ): Promise<SavingsGoal> {
-  const doc = await getDatabase().createDocument(
-    DATABASE_ID,
-    COLLECTIONS.goals,
-    generateId("goal"),
-    {
-      workspaceId,
-      name,
-      targetAmount,
-      currentAmount: 0,
-      targetDate,
-      monthlyContribution,
-      priority,
-      status: "active",
-    }
-  );
+  const payload = {
+    workspaceId,
+    name,
+    targetAmount,
+    currentAmount: 0,
+    targetDate,
+    monthlyContribution,
+    priority,
+    status: "active",
+    ...(options?.goalType ? { goalType: options.goalType } : {}),
+    ...(options?.questionnaireResponses
+      ? {
+          questionnaireResponsesJson: JSON.stringify(
+            options.questionnaireResponses
+          ),
+        }
+      : {}),
+    ...(options?.aiPlan ? { aiPlan: options.aiPlan } : {}),
+  };
 
-  return toSavingsGoal(doc as Models.Document & Record<string, any>);
+  let doc: Models.Document & Record<string, any>;
+  try {
+    doc = (await getDatabase().createDocument(
+      DATABASE_ID,
+      COLLECTIONS.goals,
+      generateId("goal"),
+      payload
+    )) as Models.Document & Record<string, any>;
+  } catch {
+    doc = (await getDatabase().createDocument(
+      DATABASE_ID,
+      COLLECTIONS.goals,
+      generateId("goal"),
+      {
+        workspaceId,
+        name,
+        targetAmount,
+        currentAmount: 0,
+        targetDate,
+        monthlyContribution,
+        priority,
+        status: "active",
+      }
+    )) as Models.Document & Record<string, any>;
+  }
+
+  return toSavingsGoal(doc);
 }
 
 // ---------------------------------------------------------------------------
@@ -102,17 +153,45 @@ export async function updateGoal(
       | "monthlyContribution"
       | "priority"
       | "status"
+      | "goalType"
+      | "questionnaireResponses"
+      | "aiPlan"
     >
   >
 ): Promise<SavingsGoal> {
-  const doc = await getDatabase().updateDocument(
-    DATABASE_ID,
-    COLLECTIONS.goals,
-    goalId,
-    updates
-  );
+  const payload: Record<string, unknown> = {
+    ...updates,
+    ...(updates.questionnaireResponses
+      ? {
+          questionnaireResponsesJson: JSON.stringify(
+            updates.questionnaireResponses
+          ),
+        }
+      : {}),
+  };
+  delete payload.questionnaireResponses;
 
-  return toSavingsGoal(doc as Models.Document & Record<string, any>);
+  let doc: Models.Document & Record<string, any>;
+  try {
+    doc = (await getDatabase().updateDocument(
+      DATABASE_ID,
+      COLLECTIONS.goals,
+      goalId,
+      payload
+    )) as Models.Document & Record<string, any>;
+  } catch {
+    // Graceful fallback for older schemas that do not yet have new goal fields.
+    const { goalType, aiPlan, questionnaireResponsesJson, ...legacyPayload } =
+      payload;
+    doc = (await getDatabase().updateDocument(
+      DATABASE_ID,
+      COLLECTIONS.goals,
+      goalId,
+      legacyPayload
+    )) as Models.Document & Record<string, any>;
+  }
+
+  return toSavingsGoal(doc);
 }
 
 // ---------------------------------------------------------------------------

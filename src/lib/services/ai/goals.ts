@@ -1,9 +1,10 @@
 import { getAnthropicClient } from "@/lib/anthropic";
+import { completeForFeature } from "@/lib/ai-router";
 import { getMonthlyFlow, sumByType } from "@/lib/services/db/transactions";
 import { detectRecurringPatterns } from "@/lib/services/db/forecasting";
 import { getGoalsByWorkspace } from "@/lib/services/db/goals";
 import { formatCurrency } from "@/lib/utils";
-import type { GoalProjection, SavingsGoal } from "@/lib/types";
+import type { GoalProjection, GoalType, GoalPriority, SavingsGoal } from "@/lib/types";
 
 // ---------------------------------------------------------------------------
 // Types (internal)
@@ -216,4 +217,68 @@ export async function generateGoalProjections(
   } catch {
     return generateFallbackProjections(context.goals, context.avgMonthlySavings);
   }
+}
+
+const ACTION_PLAN_PROMPT = `You are a financial goal strategist. Given a goal and questionnaire responses, write a concise tactical plan.
+
+Output rules:
+1) Return plain text only, no markdown fences.
+2) Keep it to 5-7 bullet points.
+3) Each bullet must be concrete and action-oriented.
+4) Include at least one monthly execution habit and one risk control.
+5) Tone: pragmatic and encouraging.
+`;
+
+export interface GoalPlanInput {
+  workspaceId: string;
+  name: string;
+  goalType: GoalType;
+  targetAmount: number;
+  targetDate: string;
+  monthlyContribution: number;
+  priority: GoalPriority;
+  questionnaireResponses: Record<string, string>;
+}
+
+export async function generateGoalActionPlan(
+  input: GoalPlanInput
+): Promise<string> {
+  const payload = {
+    goalName: input.name,
+    goalType: input.goalType,
+    targetAmount: input.targetAmount,
+    targetDate: input.targetDate,
+    monthlyContribution: input.monthlyContribution,
+    priority: input.priority,
+    questionnaireResponses: input.questionnaireResponses,
+  };
+
+  try {
+    const text = await completeForFeature(
+      "goals",
+      ACTION_PLAN_PROMPT,
+      `Generate a realistic execution plan for this goal:\n${JSON.stringify(payload, null, 2)}`,
+      768,
+      { workspaceId: input.workspaceId }
+    );
+
+    const trimmed = text.trim();
+    if (trimmed.length >= 20) return trimmed;
+  } catch {
+    // fall through to deterministic fallback
+  }
+
+  const responses = Object.entries(input.questionnaireResponses)
+    .filter(([, value]) => value.trim().length > 0)
+    .slice(0, 3)
+    .map(([key, value]) => `${key.replace(/_/g, " ")}: ${value}`);
+
+  return [
+    `- Set up an automatic monthly transfer of ${formatCurrency(Math.max(1, input.monthlyContribution || input.targetAmount / 12))} toward "${input.name}".`,
+    `- Break the ${formatCurrency(input.targetAmount)} target into weekly checkpoints and review progress every Sunday.`,
+    `- Prioritize this as a ${input.priority} goal and pause lower-priority discretionary spending until you're back on track.`,
+    `- Use these goal constraints as planning anchors: ${responses.join(" | ") || "no additional constraints provided"}.`,
+    `- Add a risk buffer: keep 10% of each contribution cycle in reserve for unexpected expenses so momentum is not broken.`,
+    `- Recalculate the timeline monthly and increase contributions after any income boost, bonus, or debt payoff.`,
+  ].join("\n");
 }

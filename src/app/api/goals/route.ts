@@ -6,11 +6,14 @@ import {
   updateGoal,
   deleteGoal,
 } from "@/lib/services/db/goals";
+import { generateGoalActionPlan } from "@/lib/services/ai/goals";
 import { requireAuth } from "@/lib/auth/withAuth";
-import type { GoalPriority, GoalStatus } from "@/lib/types";
+import type { GoalPriority, GoalStatus, GoalType } from "@/lib/types";
+import { GOAL_TYPE_CONFIG } from "@/lib/goalQuestionnaires";
 
 const VALID_PRIORITIES: Set<string> = new Set(["low", "medium", "high"]);
 const VALID_STATUSES: Set<string> = new Set(["active", "completed", "paused"]);
+const VALID_GOAL_TYPES: Set<string> = new Set(Object.keys(GOAL_TYPE_CONFIG));
 
 export async function GET(request: NextRequest) {
   const auth = await requireAuth(request, { requiredRole: "viewer" });
@@ -56,7 +59,15 @@ export async function POST(request: NextRequest) {
         targetDate?: string;
         priority?: string;
         monthlyContribution?: number;
+        goalType?: string;
+        questionnaireResponses?: Record<string, string>;
       };
+    const goalType = typeof body.goalType === "string" ? body.goalType : "custom";
+    const questionnaireResponses =
+      body.questionnaireResponses &&
+      typeof body.questionnaireResponses === "object"
+        ? (body.questionnaireResponses as Record<string, string>)
+        : {};
 
     if (!workspaceId || !name || targetAmount == null || !targetDate) {
       return NextResponse.json(
@@ -79,13 +90,49 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (!VALID_GOAL_TYPES.has(goalType)) {
+      return NextResponse.json(
+        { error: `Invalid goalType: ${goalType}` },
+        { status: 400 }
+      );
+    }
+
+    const requiredQuestions =
+      GOAL_TYPE_CONFIG[goalType as GoalType].questions.filter((q) => q.required);
+    for (const question of requiredQuestions) {
+      if (!questionnaireResponses[question.id]?.trim()) {
+        return NextResponse.json(
+          {
+            error: `Question "${question.prompt}" is required for ${GOAL_TYPE_CONFIG[goalType as GoalType].label} goals.`,
+          },
+          { status: 400 }
+        );
+      }
+    }
+
+    const aiPlan = await generateGoalActionPlan({
+      workspaceId,
+      name,
+      goalType: goalType as GoalType,
+      targetAmount,
+      targetDate,
+      monthlyContribution: monthlyContribution ?? 0,
+      priority: (priority as GoalPriority) ?? "medium",
+      questionnaireResponses,
+    });
+
     const goal = await createGoal(
       workspaceId,
       name,
       targetAmount,
       targetDate,
       (priority as GoalPriority) ?? "medium",
-      monthlyContribution ?? 0
+      monthlyContribution ?? 0,
+      {
+        goalType: goalType as GoalType,
+        questionnaireResponses,
+        aiPlan,
+      }
     );
 
     return NextResponse.json({ goal }, { status: 201 });
@@ -118,6 +165,9 @@ export async function PUT(request: NextRequest) {
       monthlyContribution?: number;
       priority?: string;
       status?: string;
+      goalType?: string;
+      questionnaireResponses?: Record<string, string>;
+      aiPlan?: string;
     };
 
     if (!goalId) {
@@ -140,12 +190,60 @@ export async function PUT(request: NextRequest) {
         { status: 400 }
       );
     }
+    if (updates.goalType && !VALID_GOAL_TYPES.has(updates.goalType)) {
+      return NextResponse.json(
+        { error: `Invalid goalType: ${updates.goalType}` },
+        { status: 400 }
+      );
+    }
 
-    const { priority: rawPriority, status: rawStatus, ...rest } = updates;
+    let aiPlan = updates.aiPlan;
+    const hasQuestionnaire =
+      updates.questionnaireResponses &&
+      typeof updates.questionnaireResponses === "object";
+    if (updates.goalType && hasQuestionnaire) {
+      const requiredQuestions =
+        GOAL_TYPE_CONFIG[updates.goalType as GoalType].questions.filter(
+          (q) => q.required
+        );
+      for (const question of requiredQuestions) {
+        if (!updates.questionnaireResponses?.[question.id]?.trim()) {
+          return NextResponse.json(
+            {
+              error: `Question "${question.prompt}" is required for ${GOAL_TYPE_CONFIG[updates.goalType as GoalType].label} goals.`,
+            },
+            { status: 400 }
+          );
+        }
+      }
+      aiPlan = await generateGoalActionPlan({
+        workspaceId: auth.workspaceId,
+        name: updates.name ?? "Savings Goal",
+        goalType: updates.goalType as GoalType,
+        targetAmount: updates.targetAmount ?? 1,
+        targetDate: updates.targetDate ?? new Date().toISOString().split("T")[0],
+        monthlyContribution: updates.monthlyContribution ?? 0,
+        priority: (updates.priority as GoalPriority) ?? "medium",
+        questionnaireResponses: updates.questionnaireResponses ?? {},
+      });
+    }
+
+    const {
+      priority: rawPriority,
+      status: rawStatus,
+      goalType: rawGoalType,
+      questionnaireResponses: rawQuestionnaireResponses,
+      ...rest
+    } = updates;
     const typedUpdates: Parameters<typeof updateGoal>[1] = {
       ...rest,
       ...(rawPriority ? { priority: rawPriority as GoalPriority } : {}),
       ...(rawStatus ? { status: rawStatus as GoalStatus } : {}),
+      ...(rawGoalType ? { goalType: rawGoalType as GoalType } : {}),
+      ...(rawQuestionnaireResponses
+        ? { questionnaireResponses: rawQuestionnaireResponses }
+        : {}),
+      ...(aiPlan ? { aiPlan } : {}),
     };
 
     const goal = await updateGoal(goalId, typedUpdates);
