@@ -4,9 +4,12 @@ import { useSession } from "next-auth/react";
 import { UserCircle2 } from "lucide-react";
 import Link from "next/link";
 import { useState, useEffect } from "react";
+import { usePathname } from "next/navigation";
+import { formatTokenSummary } from "@/lib/aiUsageDisplay";
 
 export default function TopBar() {
   const { data: session } = useSession();
+  const pathname = usePathname();
   const user = session?.user as any;
 
   // Derive these before hooks so we can pass them as initial/dep values
@@ -34,27 +37,27 @@ export default function TopBar() {
           | {
               tokenLimit: number | null;
               tokensUsed: number;
+              tokensRemaining: number | null;
             }
           | undefined;
         if (!usage || cancelled) return;
 
-        if (usage.tokenLimit == null) {
-          setTokenSummary(`${usage.tokensUsed.toLocaleString()} tokens used`);
-          return;
-        }
-        setTokenSummary(
-          `${Math.max(0, usage.tokenLimit - usage.tokensUsed).toLocaleString()} tokens left`
-        );
+        setTokenSummary(formatTokenSummary(usage));
       } catch {
         // non-critical, keep top bar lean
       }
     };
 
     void loadUsage();
+    const onFocus = () => {
+      void loadUsage();
+    };
+    window.addEventListener("focus", onFocus);
     return () => {
       cancelled = true;
+      window.removeEventListener("focus", onFocus);
     };
-  }, []);
+  }, [pathname]);
 
   if (!user) return null;
 

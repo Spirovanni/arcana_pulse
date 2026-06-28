@@ -4,6 +4,7 @@ import { useSession } from "next-auth/react";
 import { User, Mail, Shield, Key, AtSign, Globe, BadgeCheck, ShieldAlert, Upload, Loader2, ImagePlus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useRef, useEffect } from "react";
+import { formatTokenSummary } from "@/lib/aiUsageDisplay";
 
 export default function ProfilePage() {
   const { data: session, status, update } = useSession();
@@ -314,6 +315,12 @@ export default function ProfilePage() {
           <p className="text-sm text-secondary">Loading usage details...</p>
         ) : (
           <div className="space-y-5">
+            <div className="rounded-sm border border-primary/20 bg-primary/5 p-3">
+              <p className="text-[10px] uppercase tracking-widest text-secondary">Navbar Token Summary</p>
+              <p className="text-sm text-on-surface mt-1">
+                {formatTokenSummary(usage)}
+              </p>
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
               <div className="rounded-sm border border-outline bg-surface-container p-3">
                 <p className="text-[10px] uppercase tracking-widest text-secondary">Period</p>

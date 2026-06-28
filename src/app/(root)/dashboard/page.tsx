@@ -4,10 +4,6 @@ import { useState, useEffect, useCallback } from "react";
 import {
   TrendingUp,
   Brain,
-  Zap,
-  Globe,
-  Cpu,
-  Wallet,
   ArrowRight,
   DollarSign,
   Repeat2,
@@ -15,16 +11,14 @@ import {
 } from "lucide-react";
 import { motion } from "framer-motion";
 import {
-  Bar,
-  BarChart,
+  Area,
+  AreaChart,
   ResponsiveContainer,
-  Cell,
   Tooltip,
   XAxis,
   YAxis,
   CartesianGrid
 } from "recharts";
-import { computeDashboardMetrics } from "@/lib/services/dashboard";
 import { getDividendSummary } from "@/lib/services/investments";
 import { DEFAULT_WORKSPACE_ID } from "@/lib/services/workspace";
 import { CATEGORY_LABELS } from "@/lib/constants";
@@ -42,11 +36,13 @@ import type {
   Category,
   SavingsGoal,
   GoalProjection,
+  DashboardMetrics,
 } from "@/lib/types";
 
 export default function DashboardPage() {
-  const metrics = computeDashboardMetrics(DEFAULT_WORKSPACE_ID);
-  const divSummary = getDividendSummary(DEFAULT_WORKSPACE_ID);
+  const [dashboardMetrics, setDashboardMetrics] = useState<DashboardMetrics | null>(null);
+  const [dashboardLoading, setDashboardLoading] = useState(true);
+  const divSummary = getDividendSummary(DEFAULT_WORKSPACE_ID); // kept as optional investment widget
 
   const [insights, setInsights] = useState<SpendingInsight[]>([]);
   const [insightsLoading, setInsightsLoading] = useState(true);
@@ -67,8 +63,10 @@ export default function DashboardPage() {
     // We retain the fetch logic, wrapped gracefully for potential silent failures
     try {
       setInsightsLoading(true); setForecastLoading(true); setBudgetsLoading(true); setGoalsLoading(true);
+      setDashboardLoading(true);
       const forceParam = forceAnalysis ? "&force=true" : "";
-      const [insRes, forRes, recRes, budRes, goalRes, projRes] = await Promise.all([
+      const [dashRes, insRes, forRes, recRes, budRes, goalRes, projRes] = await Promise.all([
+        fetch(`/api/dashboard?workspaceId=${DEFAULT_WORKSPACE_ID}`).catch(() => null),
         fetch(`/api/ai/insights?workspaceId=${DEFAULT_WORKSPACE_ID}${forceParam}`).catch(() => null),
         fetch(`/api/ai/forecast?workspaceId=${DEFAULT_WORKSPACE_ID}${forceParam}`).catch(() => null),
         fetch(`/api/ai/budgets?workspaceId=${DEFAULT_WORKSPACE_ID}${forceParam}`).catch(() => null),
@@ -76,6 +74,11 @@ export default function DashboardPage() {
         fetch(`/api/goals?workspaceId=${DEFAULT_WORKSPACE_ID}`).catch(() => null),
         fetch(`/api/ai/goals?workspaceId=${DEFAULT_WORKSPACE_ID}${forceParam}`).catch(() => null),
       ]);
+
+      if (dashRes?.ok) {
+        const d = await dashRes.json();
+        setDashboardMetrics(d as DashboardMetrics);
+      }
 
       if (insRes?.ok) {
         const d = await insRes.json();
@@ -100,6 +103,7 @@ export default function DashboardPage() {
         setGoalsLastAnalysisAt(d.lastAnalysisAt ?? null);
       }
     } finally {
+      setDashboardLoading(false);
       setInsightsLoading(false); setForecastLoading(false); setBudgetsLoading(false); setGoalsLoading(false);
     }
   }, []);
@@ -117,18 +121,27 @@ export default function DashboardPage() {
       .filter((value): value is string => Boolean(value))
       .sort((a, b) => new Date(b).getTime() - new Date(a).getTime())[0] ?? null;
 
-  // Reformat MonthlyFlow into Recharts friendly format
-  const chartData = metrics.monthlyFlow.map(m => ({ 
-    month: m.month, 
-    income: m.income, 
+  const emptyMetrics: DashboardMetrics = {
+    totalBalance: 0,
+    totalIncome: 0,
+    totalExpense: 0,
+    totalTransactionValue: 0,
+    savingsRate: 0,
+    spendingRate: 0,
+    topCategory: "other" as Category,
+    accountCount: 0,
+    recentTransactions: [],
+    categoryBreakdown: [],
+    accountDistribution: [],
+    monthlyFlow: [],
+  };
+  const metrics = dashboardMetrics ?? emptyMetrics;
+  const chartData = metrics.monthlyFlow.map((m) => ({
+    month: formatDate(`${m.month}-01`).slice(0, 3),
+    income: m.income,
     expense: m.expense,
-    val: Math.max(m.income - m.expense, 0)
+    net: m.income - m.expense,
   }));
-
-  // Fallback visual data if sandbox is empty
-  const visualChartData = chartData.length > 0 ? chartData : [
-    { val: 30 }, { val: 45 }, { val: 40 }, { val: 60 }, { val: 55 }, { val: 75 }, { val: 90 }
-  ];
 
   const savingsRateDisplay = Math.round(metrics.savingsRate * 100);
 
@@ -138,7 +151,9 @@ export default function DashboardPage() {
       <header className="flex flex-col md:flex-row md:items-end justify-between gap-8">
         <div className="space-y-4">
           <h1 className="font-headline text-4xl lg:text-5xl font-light tracking-tight text-on-surface">Portfolio Summary</h1>
-          <p className="text-secondary text-sm tracking-wide font-light">Welcome back. Your sovereign assets are performing above benchmark.</p>
+          <p className="text-secondary text-sm tracking-wide font-light">
+            Live dashboard metrics sourced from uploaded statements, synced accounts, and recorded transactions.
+          </p>
           <LastAnalysisStamp
             lastAnalysisAt={latestAnalysisAt}
             className="block text-[10px] uppercase tracking-[1.5px] text-secondary"
@@ -147,7 +162,9 @@ export default function DashboardPage() {
         <div className="flex items-center gap-12">
           <div className="space-y-1 text-right">
             <div className="text-[9px] uppercase tracking-[2px] text-secondary font-bold">Total Value</div>
-            <div className="text-2xl font-light text-primary">{formatCurrency(metrics.totalBalance)}</div>
+            <div className="text-2xl font-light text-primary">
+              {dashboardLoading ? "Loading..." : formatCurrency(metrics.totalBalance)}
+            </div>
           </div>
           <div className="space-y-1 text-right">
             <div className="text-[9px] uppercase tracking-[2px] text-secondary font-bold">MoM Growth</div>
@@ -166,24 +183,29 @@ export default function DashboardPage() {
           <div className="flex justify-between items-start mb-12 relative z-10">
             <div className="space-y-4">
               <div className="inline-block px-3 py-1 bg-primary/5 text-primary text-[9px] uppercase tracking-[3px] border border-primary/10 rounded-sm">Monthly Net Velocity</div>
-              <h3 className="font-headline text-3xl font-light text-on-surface leading-tight max-w-sm">Cash Flow Yield Engine</h3>
+              <h3 className="font-headline text-3xl font-light text-on-surface leading-tight max-w-sm">Cash Flow Trend</h3>
             </div>
-            <button className="px-6 py-2 border border-primary/30 text-primary text-[10px] uppercase tracking-[2px] hover:bg-primary hover:text-background transition-all">
-              View Strategy
-            </button>
+            <span className="px-4 py-2 border border-primary/20 text-primary text-[10px] uppercase tracking-[2px]">
+              Real Data
+            </span>
           </div>
 
           <div className="h-56 w-full relative z-10 -ml-4">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={visualChartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+            {chartData.length === 0 ? (
+              <div className="h-full flex items-center justify-center text-secondary text-sm pl-4">
+                No uploaded transaction history yet. Upload a statement or sync an account to render this chart.
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                 <defs>
-                  <linearGradient id="goldGradient" x1="0" y1="0" x2="0" y2="1">
+                  <linearGradient id="incomeGradient" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="0%" stopColor="var(--color-primary)" stopOpacity={1} />
-                    <stop offset="100%" stopColor="var(--color-primary-container)" stopOpacity={0.6} />
+                    <stop offset="100%" stopColor="var(--color-primary-container)" stopOpacity={0.15} />
                   </linearGradient>
-                  <linearGradient id="mutedGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#2A2A2A" stopOpacity={1} />
-                    <stop offset="100%" stopColor="#1A1A1A" stopOpacity={0.6} />
+                  <linearGradient id="expenseGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#f87171" stopOpacity={0.8} />
+                    <stop offset="100%" stopColor="#f87171" stopOpacity={0.05} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-outline-variant)" opacity={0.3} />
@@ -212,20 +234,25 @@ export default function DashboardPage() {
                     boxShadow: '0 8px 32px rgba(0, 0, 0, 0.5)'
                   }} 
                   itemStyle={{ color: 'var(--color-primary)', fontWeight: 600 }}
-                  formatter={(value) => [`$${value}`, 'Net Velocity']}
+                  formatter={(value, name) => [formatCurrency(Number(value)), name === "income" ? "Income" : "Expense"]}
                 />
-                <Bar dataKey="val" radius={[4, 4, 0, 0]} maxBarSize={40}>
-                  {visualChartData.map((entry, index) => (
-                    <Cell 
-                      key={`cell-${index}`} 
-                      fill={index === visualChartData.length - 1 ? 'url(#goldGradient)' : 'url(#mutedGradient)'} 
-                      className="transition-all duration-500 hover:opacity-80"
-                      style={{ filter: index === visualChartData.length - 1 ? 'drop-shadow(0 0 8px rgba(197,160,89,0.3))' : 'none' }}
-                    />
-                  ))}
-                </Bar>
-              </BarChart>
+                <Area
+                  type="monotone"
+                  dataKey="income"
+                  stroke="var(--color-primary)"
+                  fill="url(#incomeGradient)"
+                  strokeWidth={2}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="expense"
+                  stroke="#f87171"
+                  fill="url(#expenseGradient)"
+                  strokeWidth={2}
+                />
+              </AreaChart>
             </ResponsiveContainer>
+            )}
           </div>
         </div>
 
@@ -375,7 +402,13 @@ export default function DashboardPage() {
                 </tr>
               </thead>
               <tbody>
-                {metrics.recentTransactions.map((txn) => (
+                {metrics.recentTransactions.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="py-8 text-center text-secondary/70 text-sm">
+                      No transactions from uploaded statements or synced accounts yet.
+                    </td>
+                  </tr>
+                ) : metrics.recentTransactions.map((txn) => (
                   <tr
                     key={txn.transactionId}
                     className="border-b border-outline/20 last:border-0 hover:bg-outline/10 transition-colors group"

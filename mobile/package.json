@@ -1,0 +1,35 @@
+{
+  "name": "arcana-pulse-mobile",
+  "version": "0.1.0",
+  "private": true,
+  "main": "expo/AppEntry.js",
+  "scripts": {
+    "start": "expo start",
+    "android": "expo run:android",
+    "ios": "expo run:ios",
+    "web": "expo start --web",
+    "build:ios:prod": "eas build --platform ios --profile production",
+    "build:android:prod": "eas build --platform android --profile production",
+    "submit:ios:prod": "eas submit --platform ios --profile production",
+    "submit:android:prod": "eas submit --platform android --profile production"
+  },
+  "dependencies": {
+    "@react-native-async-storage/async-storage": "latest",
+    "@react-navigation/bottom-tabs": "latest",
+    "@react-navigation/native": "latest",
+    "expo": "latest",
+    "expo-local-authentication": "latest",
+    "expo-notifications": "latest",
+    "expo-secure-store": "latest",
+    "expo-status-bar": "latest",
+    "react": "latest",
+    "react-native": "latest",
+    "react-native-safe-area-context": "latest",
+    "react-native-screens": "latest"
+  },
+  "devDependencies": {
+    "@babel/core": "latest",
+    "@types/react": "latest",
+    "typescript": "latest"
+  }
+}

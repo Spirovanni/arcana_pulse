@@ -1,0 +1,32 @@
+{
+  "expo": {
+    "name": "Arcana Pulse",
+    "slug": "arcana-pulse-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "plugins": [
+      "expo-notifications"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "org.arcanapulse.mobile",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "package": "org.arcanapulse.mobile",
+      "useNextNotificationsApi": true
+    },
+    "extra": {
+      "apiBaseUrl": "https://www.arcanapulse.ai",
+      "eas": {
+        "projectId": "3eb9ed1c-79b2-4570-9563-6d404c32c6db"
+      }
+    }
+  }
+}

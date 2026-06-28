@@ -11,6 +11,7 @@ import { getServerSession, type Session } from "next-auth";
 import { NextRequest, NextResponse } from "next/server";
 import { authOptions } from "@/lib/auth";
 import type { UserRole } from "@/lib/types";
+import { verifyMobileAccessToken } from "@/lib/auth/mobileToken";
 
 // ---------------------------------------------------------------------------
 // Role rank — higher number = more privilege
@@ -43,6 +44,14 @@ export type AuthFailure = {
 };
 
 export type AuthResult = AuthSuccess | AuthFailure;
+
+function readBearerToken(request: NextRequest): string | null {
+  const authorization = request.headers.get("authorization");
+  if (!authorization) return null;
+  const [scheme, token] = authorization.split(" ");
+  if (scheme?.toLowerCase() !== "bearer" || !token) return null;
+  return token.trim();
+}
 
 // ---------------------------------------------------------------------------
 // requireAuth — primary guard
@@ -87,8 +96,30 @@ export async function requireAuth(
     workspaceIdOverride,
   } = options;
 
-  // 1. Session validation
-  const session = await getServerSession(authOptions);
+  // 1. Session validation (web session or mobile bearer token)
+  let session = await getServerSession(authOptions);
+
+  if (!session?.user) {
+    const bearerToken = readBearerToken(request);
+    const mobileClaims = bearerToken ? verifyMobileAccessToken(bearerToken) : null;
+
+    if (mobileClaims) {
+      session = {
+        user: {
+          userId: mobileClaims.userId,
+          workspaceId: mobileClaims.workspaceId,
+          email: mobileClaims.email,
+          role: mobileClaims.role,
+          membershipType: mobileClaims.membershipType,
+          firstName: "",
+          lastName: "",
+          name: mobileClaims.email,
+        },
+        expires: new Date(mobileClaims.exp * 1000).toISOString(),
+      } as Session;
+    }
+  }
+
   if (!session?.user) {
     return {
       ok: false,
