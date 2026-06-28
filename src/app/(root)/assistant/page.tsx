@@ -163,11 +163,14 @@ export default function AssistantPage() {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [listening, setListening] = useState(false);
+  const [voiceMode, setVoiceMode] = useState(false);
   const [voiceEnabled, setVoiceEnabled] = useState(true);
   const [selectedModel, setSelectedModel] = useState<AssistantModelOption>(ASSISTANT_MODELS[0]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const recognitionRef = useRef<BrowserSpeechRecognition | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const voiceTranscriptRef = useRef("");
+  const sendMessageRef = useRef<(text: string) => Promise<void>>(async () => undefined);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -236,6 +239,7 @@ export default function AssistantPage() {
         const transcript = Array.from(event.results)
           .map((r) => r[0].transcript)
           .join(" ");
+        voiceTranscriptRef.current = transcript;
         setInput(transcript);
       };
       recognition.onerror = () => {
@@ -243,13 +247,22 @@ export default function AssistantPage() {
       };
       recognition.onend = () => {
         setListening(false);
+        if (voiceMode) {
+          const transcript = voiceTranscriptRef.current.trim();
+          if (transcript) {
+            void sendMessageRef.current(transcript);
+            voiceTranscriptRef.current = "";
+            setInput("");
+          }
+        }
       };
       recognitionRef.current = recognition;
     }
 
+    voiceTranscriptRef.current = "";
     setListening(true);
     recognitionRef.current.start();
-  }, []);
+  }, [voiceMode]);
 
   const sendMessage = useCallback(
     async (text: string) => {
@@ -308,6 +321,10 @@ export default function AssistantPage() {
     [loading, messages, selectedModel, speakAssistantReply]
   );
 
+  useEffect(() => {
+    sendMessageRef.current = sendMessage;
+  }, [sendMessage]);
+
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
@@ -318,9 +335,9 @@ export default function AssistantPage() {
   const selectedBadgeClass = BADGE_COLORS[selectedModel.badgeColor] ?? BADGE_COLORS.purple;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 lg:space-y-6">
       {/* Header */}
-      <div className="flex items-start justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-white">Financial Assistant</h1>
           <p className="text-sm text-slate-400 mt-1">
@@ -337,7 +354,7 @@ export default function AssistantPage() {
       {/* Chat container */}
       <div
         className="rounded-xl bg-arcana-surface border border-arcana-border flex flex-col"
-        style={{ height: "calc(100vh - 220px)" }}
+        style={{ minHeight: "620px", height: "calc(100vh - 250px)" }}
       >
         {/* Messages area */}
         <div className="flex-1 overflow-y-auto p-5 space-y-4">
@@ -437,7 +454,38 @@ export default function AssistantPage() {
         </div>
 
         {/* Input bar */}
-        <div className="border-t border-arcana-border p-4">
+        <div className="border-t border-arcana-border p-4 space-y-3">
+          <div className="flex items-center justify-between gap-3">
+            <button
+              type="button"
+              onClick={listening ? stopListening : startListening}
+              disabled={loading}
+              className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg border text-xs font-semibold uppercase tracking-wider transition-colors ${
+                listening
+                  ? "bg-red-500/20 border-red-400/30 text-red-300"
+                  : voiceMode
+                  ? "bg-arcana-blue/20 border-arcana-blue/40 text-arcana-blue"
+                  : "bg-arcana-navy border-arcana-border text-slate-300 hover:border-arcana-blue"
+              } disabled:opacity-50 disabled:cursor-not-allowed`}
+            >
+              {listening ? <Square className="w-3.5 h-3.5" /> : <Mic className="w-3.5 h-3.5" />}
+              {listening ? "Listening..." : voiceMode ? "Talk Mode" : "Tap To Talk"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setVoiceMode((v) => !v)}
+              className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg border text-xs font-semibold uppercase tracking-wider transition-colors ${
+                voiceMode
+                  ? "bg-arcana-blue/20 border-arcana-blue/40 text-arcana-blue"
+                  : "bg-arcana-navy border-arcana-border text-slate-400 hover:border-arcana-blue"
+              }`}
+              title="When enabled, speech is sent automatically when listening ends."
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              Auto Send Voice
+            </button>
+          </div>
+
           <div className="flex items-end gap-2">
             {/* Model selector */}
             <ModelSelector selected={selectedModel} onChange={setSelectedModel} />
@@ -452,21 +500,6 @@ export default function AssistantPage() {
               disabled={loading}
               className="flex-1 px-4 py-2.5 rounded-lg bg-arcana-navy border border-arcana-border text-white text-sm placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-arcana-blue resize-none disabled:opacity-50"
             />
-
-            {/* Voice input toggle */}
-            <button
-              type="button"
-              onClick={listening ? stopListening : startListening}
-              disabled={loading}
-              title={listening ? "Stop listening" : "Start voice input"}
-              className={`flex items-center justify-center w-10 h-10 rounded-lg border transition-colors flex-shrink-0 ${
-                listening
-                  ? "bg-red-500/20 border-red-400/30 text-red-300"
-                  : "bg-arcana-navy border-arcana-border text-slate-300 hover:border-arcana-blue"
-              } disabled:opacity-50 disabled:cursor-not-allowed`}
-            >
-              {listening ? <Square className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
-            </button>
 
             {/* Voice output toggle */}
             <button
