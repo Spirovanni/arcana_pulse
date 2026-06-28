@@ -10,10 +10,27 @@ import { generateGoalActionPlan } from "@/lib/services/ai/goals";
 import { requireAuth } from "@/lib/auth/withAuth";
 import type { GoalPriority, GoalStatus, GoalType } from "@/lib/types";
 import { GOAL_TYPE_CONFIG } from "@/lib/goalQuestionnaires";
+import { appwriteCircuit } from "@/lib/resilience/circuit-breaker";
 
 const VALID_PRIORITIES: Set<string> = new Set(["low", "medium", "high"]);
 const VALID_STATUSES: Set<string> = new Set(["active", "completed", "paused"]);
 const VALID_GOAL_TYPES: Set<string> = new Set(Object.keys(GOAL_TYPE_CONFIG));
+
+async function withAppwriteCircuitRecovery<T>(
+  operation: () => Promise<T>
+): Promise<T> {
+  try {
+    return await operation();
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Unknown Appwrite error";
+    if (message.includes("Circuit breaker is OPEN")) {
+      appwriteCircuit.reset();
+      return operation();
+    }
+    throw error;
+  }
+}
 
 export async function GET(request: NextRequest) {
   const auth = await requireAuth(request, { requiredRole: "viewer" });
@@ -28,7 +45,9 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const goals = await getGoalsByWorkspace(workspaceId);
+    const goals = await withAppwriteCircuitRecovery(() =>
+      getGoalsByWorkspace(workspaceId)
+    );
 
     return NextResponse.json({ goals });
   } catch (error: unknown) {
@@ -134,7 +153,8 @@ export async function POST(request: NextRequest) {
 
     let goal;
     try {
-      goal = await createGoal(
+      goal = await withAppwriteCircuitRecovery(() =>
+        createGoal(
         workspaceId,
         name,
         targetAmount,
@@ -146,16 +166,19 @@ export async function POST(request: NextRequest) {
           questionnaireResponses,
           aiPlan,
         }
+        )
       );
     } catch {
       // Backward-compatible fallback if goal schema is not yet migrated.
-      goal = await createGoal(
-        workspaceId,
-        name,
-        targetAmount,
-        targetDate,
-        (priority as GoalPriority) ?? "medium",
-        monthlyContribution ?? 0
+      goal = await withAppwriteCircuitRecovery(() =>
+        createGoal(
+          workspaceId,
+          name,
+          targetAmount,
+          targetDate,
+          (priority as GoalPriority) ?? "medium",
+          monthlyContribution ?? 0
+        )
       );
     }
 
@@ -272,7 +295,9 @@ export async function PUT(request: NextRequest) {
       ...(aiPlan ? { aiPlan } : {}),
     };
 
-    const goal = await updateGoal(goalId, typedUpdates);
+    const goal = await withAppwriteCircuitRecovery(() =>
+      updateGoal(goalId, typedUpdates)
+    );
 
     return NextResponse.json({ goal });
   } catch (error: unknown) {
@@ -303,7 +328,7 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    await deleteGoal(goalId);
+    await withAppwriteCircuitRecovery(() => deleteGoal(goalId));
 
     return NextResponse.json({ success: true });
   } catch (error: unknown) {
