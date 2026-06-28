@@ -4,19 +4,41 @@ import {
   COLLECTIONS,
   Query,
 } from "@/lib/appwrite";
-import type { Bank } from "@/lib/types";
+import type { Bank, AccountType } from "@/lib/types";
 import type { Models } from "node-appwrite";
 import { encryptSafe, decryptSafe } from "@/lib/crypto";
+
+// ---------------------------------------------------------------------------
+// accountType prefix codec
+// Encoded in institutionName so no Appwrite schema change is required.
+// ---------------------------------------------------------------------------
+const PREFIX_MAP: Record<AccountType, string> = {
+  credit_card: "CC:",
+  loan: "LN:",
+  bank: "",
+};
+
+function encodeInstitutionName(name: string, type: AccountType): string {
+  const prefix = PREFIX_MAP[type];
+  return prefix ? `${prefix}${name}` : name;
+}
+
+function decodeInstitutionName(stored: string): { name: string; accountType: AccountType } {
+  if (stored.startsWith("CC:")) return { name: stored.slice(3), accountType: "credit_card" };
+  if (stored.startsWith("LN:")) return { name: stored.slice(3), accountType: "loan" };
+  return { name: stored, accountType: "bank" };
+}
 
 // ---------------------------------------------------------------------------
 // Document → entity mapper
 // ---------------------------------------------------------------------------
 
 function toBank(doc: Models.Document & Record<string, any>): Bank {
+  const { name, accountType } = decodeInstitutionName(doc.institutionName ?? "");
   return {
     bankId: doc.$id,
     workspaceId: doc.workspaceId,
-    institutionName: doc.institutionName,
+    institutionName: name,
     accountId: doc.accountId,
     displayMask: doc.displayMask,
     // Decrypt sensitive fields transparently — handles legacy plaintext values
@@ -24,6 +46,7 @@ function toBank(doc: Models.Document & Record<string, any>): Bank {
     fundingSourceUrl: doc.fundingSourceUrl ? decryptSafe(doc.fundingSourceUrl) : undefined,
     shareableId: doc.shareableId,
     balance: doc.balance,
+    accountType,
     createdAt: doc.$createdAt,
     updatedAt: doc.$updatedAt,
   };
@@ -73,19 +96,21 @@ export interface AddBankInput {
   displayMask: string;
   shareableId: string;
   balance: number;
+  accountType?: AccountType;
   accessTokenRef?: string;
   fundingSourceUrl?: string;
 }
 
 export async function addBank(input: AddBankInput): Promise<Bank> {
   const { ID } = await import("node-appwrite");
+  const storedName = encodeInstitutionName(input.institutionName, input.accountType ?? "bank");
   const doc = await getDatabase().createDocument(
     DATABASE_ID,
     COLLECTIONS.banks,
     ID.unique(),
     {
       workspaceId: input.workspaceId,
-      institutionName: input.institutionName,
+      institutionName: storedName,
       accountId: input.accountId,
       displayMask: input.displayMask,
       shareableId: input.shareableId,

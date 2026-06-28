@@ -135,6 +135,8 @@ export interface Candidate {
   lastActionDate: string;
 }
 
+export type AccountType = "bank" | "credit_card" | "loan";
+
 export interface Bank {
   bankId: string;
   workspaceId: string;
@@ -145,6 +147,8 @@ export interface Bank {
   fundingSourceUrl?: string;
   shareableId: string;
   balance: number;
+  /** Derived from institutionName prefix: CC: → credit_card, LN: → loan, else bank */
+  accountType: AccountType;
   createdAt: string;
   updatedAt: string;
 }

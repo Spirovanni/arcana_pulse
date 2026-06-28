@@ -26,7 +26,7 @@ import { getOrCreateBank } from "@/lib/services/db/banks";
 import { insertSyncedTransaction } from "@/lib/services/db/transactions";
 import { isAppwriteConfigured, getDatabase, DATABASE_ID, COLLECTIONS, Query } from "@/lib/appwrite";
 import { completeForFeature } from "@/lib/ai-router";
-import type { Category } from "@/lib/types";
+import type { Category, AccountType } from "@/lib/types";
 import fs from "fs";
 import path from "path";
 
@@ -184,6 +184,7 @@ async function handlePost(
     institutionName?: string;
     accountMask?: string;
     workspaceId?: string;
+    accountType?: AccountType;
   };
 
   const workspaceId = body.workspaceId ?? auth.workspaceId;
@@ -295,6 +296,7 @@ async function handlePost(
       displayMask: accountMask,
       shareableId,
       balance: currentBalance,
+      accountType: body.accountType ?? "bank",
     });
     console.log(`[build-from-statement] Bank created: ${bank.bankId}`);
 
