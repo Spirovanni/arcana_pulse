@@ -12,6 +12,11 @@
 import { getAnthropicClient } from "@/lib/anthropic";
 import { getOpenAIClient, isOpenAIConfigured } from "@/lib/openai";
 import { getGoogleAIClient, isGoogleAIConfigured } from "@/lib/google-ai";
+import {
+  checkAIUsageAllowance,
+  estimateTokensFromText,
+  recordAIUsage,
+} from "@/lib/services/ai/usage";
 
 export type AIProvider = "anthropic" | "openai" | "google";
 
@@ -121,9 +126,22 @@ export async function completeForFeature(
   feature: keyof typeof FEATURE_MODELS,
   system: string,
   userPrompt: string,
-  maxTokens = 1024
+  maxTokens = 1024,
+  options?: { workspaceId?: string }
 ): Promise<string> {
   const { provider, model } = FEATURE_MODELS[feature];
+  const workspaceId = options?.workspaceId;
+  let resolvedPlan: "starter" | "pro" | "team" | null = null;
+  const inputTokens =
+    estimateTokensFromText(system) + estimateTokensFromText(userPrompt);
+
+  if (workspaceId) {
+    const access = await checkAIUsageAllowance(workspaceId, inputTokens);
+    if (!access.allowed) {
+      throw new Error(access.reason);
+    }
+    resolvedPlan = access.plan;
+  }
 
   // Fall back through providers if the primary key is absent
   const order: AIProvider[] = buildFallbackChain(provider);
@@ -138,6 +156,15 @@ export async function completeForFeature(
         messages: [{ role: "user", content: userPrompt }],
         maxTokens,
       });
+      if (workspaceId && resolvedPlan) {
+        recordAIUsage({
+          workspaceId,
+          plan: resolvedPlan,
+          feature,
+          inputTokens,
+          outputTokens: estimateTokensFromText(result.text),
+        });
+      }
       return result.text;
     } catch {
       continue;

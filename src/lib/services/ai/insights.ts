@@ -308,7 +308,8 @@ export async function generateInsights(
       "insights",
       SYSTEM_PROMPT,
       `Analyze this financial data and generate spending insights:\n${JSON.stringify(context, null, 2)}`,
-      1024
+      1024,
+      { workspaceId }
     );
 
     const validated = validateInsights(text);

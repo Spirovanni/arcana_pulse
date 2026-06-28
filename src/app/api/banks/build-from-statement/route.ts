@@ -119,14 +119,23 @@ Rules:
 - Internal bank transfers, moving money between own accounts → account_transfers
 - Return the JSON array and NOTHING else.`;
 
-async function aiCategorise(descriptions: string[]): Promise<Category[]> {
+async function aiCategorise(
+  descriptions: string[],
+  workspaceId: string
+): Promise<Category[]> {
   if (descriptions.length === 0) return [];
 
   // Gemini Flash can handle 1500 descriptions in one shot — build the payload
   const prompt = JSON.stringify(descriptions);
 
   try {
-    const raw = await completeForFeature("categorize", SYSTEM_PROMPT, prompt, 8192);
+    const raw = await completeForFeature(
+      "categorize",
+      SYSTEM_PROMPT,
+      prompt,
+      8192,
+      { workspaceId }
+    );
     // Extract JSON array from response (strip any surrounding text)
     const match = raw.match(/\[[\s\S]*\]/);
     if (!match) throw new Error("No JSON array in AI response");
@@ -238,7 +247,7 @@ async function handlePost(
 
   // ── AI Categorisation ──────────────────────────────────────────────────────
   const descriptions = parsed.transactions.map((t) => t.title);
-  const aiCategories = await aiCategorise(descriptions);
+  const aiCategories = await aiCategorise(descriptions, workspaceId);
 
   const transactions = parsed.transactions.map((t, i) => ({
     ...t,

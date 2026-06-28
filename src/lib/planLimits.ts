@@ -25,6 +25,8 @@ export interface PlanLimits {
   exportEnabled: boolean;
   /** Whether audit log access is enabled (and for how many days) */
   auditLogDays: number | null;
+  /** Monthly AI token allowance. null = unlimited */
+  aiMonthlyTokens: number | null;
 }
 
 const LIMITS: Record<WorkspacePlan, PlanLimits> = {
@@ -35,6 +37,7 @@ const LIMITS: Record<WorkspacePlan, PlanLimits> = {
     aiEnabled: false,
     exportEnabled: false,
     auditLogDays: null,
+    aiMonthlyTokens: 0,
   },
   pro: {
     maxBankAccounts: null,
@@ -43,6 +46,7 @@ const LIMITS: Record<WorkspacePlan, PlanLimits> = {
     aiEnabled: true,
     exportEnabled: true,
     auditLogDays: 30,
+    aiMonthlyTokens: 250_000,
   },
   team: {
     maxBankAccounts: null,
@@ -51,6 +55,7 @@ const LIMITS: Record<WorkspacePlan, PlanLimits> = {
     aiEnabled: true,
     exportEnabled: true,
     auditLogDays: 365,
+    aiMonthlyTokens: 1_000_000,
   },
 };
 

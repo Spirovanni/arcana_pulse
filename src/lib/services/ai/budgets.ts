@@ -256,7 +256,8 @@ export async function generateBudgetRecommendations(
       "budgets",
       SYSTEM_PROMPT,
       `Generate budget recommendations based on this financial data:\n${JSON.stringify(context, null, 2)}`,
-      1024
+      1024,
+      { workspaceId }
     );
 
     const validated = validateRecommendations(text);

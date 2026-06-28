@@ -175,7 +175,8 @@ export async function generateForecastWithSummary(
       "forecast",
       SYSTEM_PROMPT,
       `Summarize this cash flow forecast:\n${JSON.stringify(context, null, 2)}`,
-      1024
+      1024,
+      { workspaceId }
     );
 
     const trimmed = text.trim();

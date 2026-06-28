@@ -494,7 +494,12 @@ export default function PortfolioPage() {
       const res = await fetch("/api/ai/portfolio-insights", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ holdings: mockAllHoldings, accounts: mockAccounts, totalValue }),
+        body: JSON.stringify({
+          holdings: mockAllHoldings,
+          accounts: mockAccounts,
+          totalValue,
+          workspaceId: DEFAULT_WORKSPACE_ID,
+        }),
       });
       const data = await res.json();
       if (data.insights) setInsights(data.insights);
@@ -523,7 +528,10 @@ export default function PortfolioPage() {
       const res = await fetch("/api/ai/tax-loss-harvesting", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ summary: tlhSummary }),
+        body: JSON.stringify({
+          summary: tlhSummary,
+          workspaceId: DEFAULT_WORKSPACE_ID,
+        }),
       });
       const data = await res.json();
       if (data.suggestions) setTlhSuggestions(data.suggestions);

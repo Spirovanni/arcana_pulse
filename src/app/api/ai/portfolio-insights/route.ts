@@ -150,10 +150,11 @@ function fallback(
 
 export async function POST(req: NextRequest) {
   try {
-    const { holdings, accounts, totalValue } = await req.json() as {
+    const { holdings, accounts, totalValue, workspaceId } = await req.json() as {
       holdings: Holding[];
       accounts: InvestmentAccount[];
       totalValue: number;
+      workspaceId?: string;
     };
 
     if (!holdings || holdings.length === 0) {
@@ -193,7 +194,8 @@ export async function POST(req: NextRequest) {
         "portfolio_insights",
         SYSTEM_PROMPT,
         `Analyze this portfolio and generate insights:\n${JSON.stringify(context, null, 2)}`,
-        1024
+        1024,
+        workspaceId ? { workspaceId } : undefined
       );
       const validated = validate(text);
       if (validated) return NextResponse.json({ insights: validated });

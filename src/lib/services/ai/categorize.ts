@@ -254,7 +254,13 @@ export async function categorizeBatch(
       ? `${fewShot}\nCategorize these transactions:\n${JSON.stringify(userContent, null, 2)}`
       : `Categorize these transactions:\n${JSON.stringify(userContent, null, 2)}`;
 
-    const text = await completeForFeature("categorize", SYSTEM_PROMPT, userPrompt, 1024);
+    const text = await completeForFeature(
+      "categorize",
+      SYSTEM_PROMPT,
+      userPrompt,
+      1024,
+      workspaceId ? { workspaceId } : undefined
+    );
 
     return validateAndMapResults(text, inputs);
   } catch {

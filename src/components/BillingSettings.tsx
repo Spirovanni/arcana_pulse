@@ -22,6 +22,13 @@ export default function BillingSettings({ currentPlan }: BillingSettingsProps) {
   const [loading, setLoading] = useState<PlanId | null>(null);
   const [portalLoading, setPortalLoading] = useState(false);
   const [toast, setToast] = useState<{ type: "success" | "info" | "warn"; msg: string } | null>(null);
+  const [usage, setUsage] = useState<{
+    tokenLimit: number | null;
+    tokensUsed: number;
+    tokensRemaining: number | null;
+    periodKey: string;
+    requestsUsed: number;
+  } | null>(null);
 
   // Handle return from Stripe checkout / portal
   useEffect(() => {
@@ -41,6 +48,32 @@ export default function BillingSettings({ currentPlan }: BillingSettingsProps) {
     const t = setTimeout(() => setToast(null), 6000);
     return () => clearTimeout(t);
   }, [searchParams]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadUsage = async () => {
+      try {
+        const res = await fetch("/api/ai/usage");
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!cancelled && data.usage) {
+          setUsage({
+            tokenLimit: data.usage.tokenLimit,
+            tokensUsed: data.usage.tokensUsed,
+            tokensRemaining: data.usage.tokensRemaining,
+            periodKey: data.usage.periodKey,
+            requestsUsed: data.usage.requestsUsed,
+          });
+        }
+      } catch {
+        // non-critical
+      }
+    };
+    void loadUsage();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   async function handleUpgrade(planId: PlanId) {
     if (planId === currentPlan) return;
@@ -221,6 +254,45 @@ export default function BillingSettings({ currentPlan }: BillingSettingsProps) {
           );
         })}
       </div>
+
+      {usage && (
+        <div className="rounded-sm border border-outline bg-surface-container p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <h4 className="text-[10px] uppercase tracking-[2px] text-secondary font-bold">
+              AI Token Usage
+            </h4>
+            <span className="text-[10px] text-secondary">
+              Period: {usage.periodKey}
+            </span>
+          </div>
+          <div className="flex items-baseline justify-between">
+            <span className="text-sm text-on-surface">
+              {usage.tokensUsed.toLocaleString()} tokens used
+            </span>
+            <span className="text-xs text-secondary">
+              {usage.tokenLimit == null
+                ? "Unlimited"
+                : `${(usage.tokensRemaining ?? 0).toLocaleString()} remaining`}
+            </span>
+          </div>
+          {usage.tokenLimit != null && (
+            <div className="h-2 rounded-full bg-outline/30 overflow-hidden">
+              <div
+                className="h-full rounded-full bg-primary transition-all"
+                style={{
+                  width: `${Math.min(
+                    100,
+                    (usage.tokensUsed / Math.max(1, usage.tokenLimit)) * 100
+                  )}%`,
+                }}
+              />
+            </div>
+          )}
+          <p className="text-[10px] text-secondary">
+            AI requests this period: {usage.requestsUsed.toLocaleString()}
+          </p>
+        </div>
+      )}
     </div>
   );
 }

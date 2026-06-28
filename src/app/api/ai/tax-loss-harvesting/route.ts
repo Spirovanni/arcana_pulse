@@ -77,7 +77,10 @@ function fallback(summary: TLHSummary): TLHSuggestion[] {
 
 export async function POST(req: NextRequest) {
   try {
-    const { summary } = await req.json() as { summary: TLHSummary };
+    const { summary, workspaceId } = await req.json() as {
+      summary: TLHSummary;
+      workspaceId?: string;
+    };
 
     if (!summary || summary.opportunities.length === 0) {
       return NextResponse.json({ suggestions: [] });
@@ -111,7 +114,8 @@ export async function POST(req: NextRequest) {
         "tlh",
         SYSTEM_PROMPT,
         `Generate tax-loss harvesting suggestions for this portfolio:\n${JSON.stringify(context, null, 2)}`,
-        1024
+        1024,
+        workspaceId ? { workspaceId } : undefined
       );
       let cleaned = text.trim().replace(/^```(?:json)?\s*/, "").replace(/```\s*$/, "");
 
