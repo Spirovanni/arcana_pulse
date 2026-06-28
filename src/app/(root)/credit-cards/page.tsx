@@ -6,6 +6,7 @@ import { formatCurrency, formatDate } from "@/lib/utils";
 import { CATEGORY_LABELS } from "@/lib/constants";
 import type { Category, Transaction, Bank } from "@/lib/types";
 import UploadBankModal, { type BuildResult } from "@/components/UploadBankModal";
+import { getIssuerLogoUrl } from "@/lib/issuerLogos";
 
 // ── Category filter sets ──────────────────────────────────────────────────────
 
@@ -22,6 +23,26 @@ const CC_FALLBACK_CATEGORIES = new Set<Category>([
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 type CardAccount = Bank & { transactions: Transaction[] };
+
+function IssuerMark({ institutionName }: { institutionName: string }) {
+  const [imgFailed, setImgFailed] = useState(false);
+  const logoUrl = getIssuerLogoUrl(institutionName);
+
+  if (!logoUrl || imgFailed) {
+    return <CreditCard className="w-4 h-4 text-amber-300" />;
+  }
+
+  return (
+    <img
+      src={logoUrl}
+      alt={`${institutionName} logo`}
+      className="h-4 w-auto max-w-[28px] object-contain"
+      loading="lazy"
+      referrerPolicy="no-referrer"
+      onError={() => setImgFailed(true)}
+    />
+  );
+}
 
 // ── Helper: load transactions for a bank ────────────────────────────────────
 
@@ -221,7 +242,7 @@ export default function CreditCardsPage() {
                 >
                   <div className="flex items-center gap-3">
                     <div className="w-8 h-8 rounded-lg bg-amber-500/15 border border-amber-500/30 flex items-center justify-center">
-                      <CreditCard className="w-4 h-4 text-amber-300" />
+                      <IssuerMark institutionName={account.institutionName} />
                     </div>
                     <div className="text-left">
                       <p className="text-sm font-semibold text-white">
