@@ -1,14 +1,14 @@
 "use client";
 
 import { useState, useEffect, Suspense } from "react";
-import { getWorkspace, getCurrentUser, DEFAULT_WORKSPACE_ID } from "@/lib/services/workspace";
 import { ShieldCheck, ShieldOff, Copy, Check, Clock, Activity, Download, Trash2, AlertTriangle } from "lucide-react";
-import { signOut } from "next-auth/react";
+import { signOut, useSession } from "next-auth/react";
 import TeamSettings from "@/components/TeamSettings";
 import BillingSettings from "@/components/BillingSettings";
 import Image from "next/image";
 import { formatDate } from "@/lib/utils";
 import type { AuditLogEntry } from "@/lib/services/db/auditLog";
+import type { Workspace, User } from "@/lib/types";
 
 type MfaView = "idle" | "setup" | "confirm" | "recovery";
 
@@ -32,10 +32,11 @@ const ACTION_LABELS: Record<string, string> = {
 };
 
 export default function SettingsPage() {
-  const workspace = getWorkspace(DEFAULT_WORKSPACE_ID);
-  const user = getCurrentUser();
+  const { data: session, status } = useSession();
 
-  const [workspaceState, setWorkspaceState] = useState(workspace);
+  const [workspaceState, setWorkspaceState] = useState<Workspace | null>(null);
+  const [profileUser, setProfileUser] = useState<User | null>(null);
+  const [settingsLoading, setSettingsLoading] = useState(true);
   const [toggleLoading, setToggleLoading] = useState(false);
 
   const [mfaEnabled, setMfaEnabled] = useState(false);
@@ -57,18 +58,48 @@ export default function SettingsPage() {
   const [exportLoading, setExportLoading] = useState(false);
 
   useEffect(() => {
-    if (!workspace) return;
-    fetch(`/api/workspace?id=${workspace.workspaceId}`)
-      .then((res) => res.json())
-      .then((data) => {
-        if (data && data.workspace) {
-          setWorkspaceState(data.workspace);
-        }
-      })
-      .catch((err) => console.error("Failed to fetch workspace settings:", err));
-  }, [workspace?.workspaceId]);
+    if (status !== "authenticated") {
+      if (status === "unauthenticated") setSettingsLoading(false);
+      return;
+    }
 
-  if (!workspace || !workspaceState) return null;
+    let cancelled = false;
+    async function loadSettingsData() {
+      setSettingsLoading(true);
+      try {
+        const res = await fetch("/api/workspace");
+        const data = await res.json().catch(() => ({} as { workspace?: Workspace; user?: User }));
+        if (!cancelled && res.ok) {
+          setWorkspaceState(data.workspace ?? null);
+          setProfileUser(data.user ?? null);
+        }
+      } catch (err) {
+        console.error("Failed to fetch workspace settings:", err);
+      } finally {
+        if (!cancelled) setSettingsLoading(false);
+      }
+    }
+
+    void loadSettingsData();
+    return () => {
+      cancelled = true;
+    };
+  }, [status]);
+
+  if (settingsLoading || status === "loading") {
+    return (
+      <div className="rounded-sm bg-surface-container-high border border-outline p-6 animate-pulse h-40" />
+    );
+  }
+
+  if (!workspaceState) return null;
+
+  const role = profileUser?.role ?? session?.user?.role ?? "viewer";
+  const displayName =
+    profileUser
+      ? `${profileUser.firstName} ${profileUser.lastName}`.trim()
+      : `${session?.user?.firstName ?? ""} ${session?.user?.lastName ?? ""}`.trim();
+  const displayEmail = profileUser?.email ?? session?.user?.email ?? "";
 
   async function handleToggleTrading() {
     if (!workspaceState) return;
@@ -189,9 +220,10 @@ export default function SettingsPage() {
   }
 
   async function loadAuditLogs() {
+    if (!workspaceState) return;
     setAuditLoading(true);
     try {
-      const res = await fetch(`/api/audit?workspaceId=${workspace!.workspaceId}&limit=30`);
+      const res = await fetch(`/api/audit?workspaceId=${workspaceState.workspaceId}&limit=30`);
       const data = await res.json();
       setAuditLogs(data.logs ?? []);
       setAuditLoaded(true);
@@ -217,17 +249,17 @@ export default function SettingsPage() {
         <h3 className="text-[9px] uppercase tracking-[2px] text-secondary font-bold mb-4">Workspace</h3>
         <div className="space-y-0">
           {[
-            { label: "Workspace Name", value: workspace.name },
-            { label: "Plan", value: <span className="capitalize">{workspace.plan}</span> },
+            { label: "Workspace Name", value: workspaceState.name },
+            { label: "Plan", value: <span className="capitalize">{workspaceState.plan}</span> },
             {
               label: "Status",
               value: (
                 <span className="inline-block px-2 py-0.5 rounded-sm text-[9px] font-bold uppercase tracking-wider bg-green-500/10 text-arcana-success">
-                  {workspace.status}
+                  {workspaceState.status}
                 </span>
               ),
             },
-            { label: "Created", value: formatDate(workspace.createdAt) },
+            { label: "Created", value: formatDate(workspaceState.createdAt) },
           ].map(({ label, value }, i, arr) => (
             <div
               key={label}
@@ -261,7 +293,7 @@ export default function SettingsPage() {
           </div>
           <button
             type="button"
-            disabled={!["owner", "admin"].includes(user.role) || toggleLoading}
+            disabled={!["owner", "admin"].includes(role) || toggleLoading}
             onClick={handleToggleTrading}
             className={`flex-shrink-0 px-4 py-2.5 rounded-sm border text-[10px] uppercase tracking-[1px] font-bold transition-all ${
               workspaceState.tradingPaused
@@ -279,9 +311,9 @@ export default function SettingsPage() {
         <h3 className="text-[9px] uppercase tracking-[2px] text-secondary font-bold mb-4">Profile</h3>
         <div className="space-y-0">
           {[
-            { label: "Name", value: `${user.firstName} ${user.lastName}` },
-            { label: "Email", value: user.email },
-            { label: "Role", value: <span className="capitalize">{user.role}</span> },
+            { label: "Name", value: displayName || "—" },
+            { label: "Email", value: displayEmail || "—" },
+            { label: "Role", value: <span className="capitalize">{role}</span> },
           ].map(({ label, value }, i, arr) => (
             <div
               key={label}
@@ -574,7 +606,7 @@ export default function SettingsPage() {
 
       {/* Subscription & Billing */}
       <Suspense fallback={<div className="rounded-sm bg-surface-container-high border border-outline p-6 animate-pulse h-40" />}>
-        <BillingSettings currentPlan={workspace.plan} />
+        <BillingSettings currentPlan={workspaceState.plan} />
       </Suspense>
 
       {/* Sandbox Notice */}
