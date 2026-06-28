@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { TrendingDown, Plus, Pencil, Trash2 } from "lucide-react";
+import { TrendingDown, Plus, Pencil, Trash2, ChevronDown, ChevronUp } from "lucide-react";
 import ExportButton from "@/components/ExportButton";
 import EmptyState from "@/components/EmptyState";
 import {
@@ -9,23 +9,27 @@ import {
   createTransaction,
   updateTransaction,
   deleteTransaction,
-  getCategoryBreakdown,
   sumByType,
 } from "@/lib/services/transactions";
 import { DEFAULT_WORKSPACE_ID } from "@/lib/services/workspace";
-import { formatCurrency, formatDate } from "@/lib/utils";
+import { formatCurrency, formatDate, cn } from "@/lib/utils";
 import type {
   Transaction,
   CreateTransactionInput,
   UpdateTransactionInput,
+  Category,
 } from "@/lib/types";
 import TransactionForm from "@/components/TransactionForm";
 import DeleteConfirmation from "@/components/DeleteConfirmation";
+import { CATEGORY_HIERARCHY, CATEGORY_LABELS } from "@/lib/constants";
 
 export default function ExpensePage() {
   const [showForm, setShowForm] = useState(false);
   const [editingTxn, setEditingTxn] = useState<Transaction | null>(null);
   const [deletingTxn, setDeletingTxn] = useState<Transaction | null>(null);
+  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({
+    debt_payments: true,
+  });
   const [version, setVersion] = useState(0);
   const bump = useCallback(() => setVersion((v) => v + 1), []);
 
@@ -37,7 +41,62 @@ export default function ExpensePage() {
   );
   const expenseRecords = result.items;
   const totalExpense = sumByType(DEFAULT_WORKSPACE_ID, "expense");
-  const breakdown = getCategoryBreakdown(DEFAULT_WORKSPACE_ID, "expense");
+
+  const expenseDefs = CATEGORY_HIERARCHY.filter((entry) => entry.type === "expense");
+  const parentByCategory = new Map<Category, { parent: Category; isSub: boolean }>();
+  expenseDefs.forEach((entry) => {
+    parentByCategory.set(entry.id, { parent: entry.id, isSub: false });
+    entry.subcategories.forEach((sub) => {
+      parentByCategory.set(sub.id, { parent: entry.id, isSub: true });
+    });
+  });
+
+  const debtLoanCategories = new Set<Category>([
+    "debt_personal_loan",
+    "debt_student_loan",
+    "debt_medical",
+    "debt_bnpl",
+    "debt_collections",
+  ]);
+
+  const groupedExpenses = new Map<
+    Category,
+    { label: string; total: number; subs: Map<string, number> }
+  >();
+
+  expenseRecords.forEach((txn) => {
+    const category = txn.category as Category;
+    const matched = parentByCategory.get(category);
+    const parent = matched?.parent ?? category;
+    if (!groupedExpenses.has(parent)) {
+      groupedExpenses.set(parent, {
+        label: CATEGORY_LABELS[parent] ?? parent,
+        total: 0,
+        subs: new Map<string, number>(),
+      });
+    }
+    const group = groupedExpenses.get(parent)!;
+    group.total += txn.amount;
+
+    let subLabel = matched?.isSub ? CATEGORY_LABELS[category] ?? category : "General";
+    if (parent === "debt_payments") {
+      if (category === "debt_credit_card") subLabel = "Credit Cards";
+      else if (debtLoanCategories.has(category)) subLabel = "Loans";
+      else subLabel = "Other Debt";
+    }
+    group.subs.set(subLabel, (group.subs.get(subLabel) ?? 0) + txn.amount);
+  });
+
+  const organizedExpenseGroups = Array.from(groupedExpenses.entries())
+    .map(([id, value]) => ({
+      id,
+      label: value.label,
+      total: value.total,
+      subs: Array.from(value.subs.entries())
+        .map(([label, amount]) => ({ label, amount }))
+        .sort((a, b) => b.amount - a.amount),
+    }))
+    .sort((a, b) => b.total - a.total);
 
   function handleCreate(data: CreateTransactionInput | UpdateTransactionInput) {
     const input = data as CreateTransactionInput;
@@ -103,28 +162,81 @@ export default function ExpensePage() {
       </div>
 
       {/* Expense by category chart */}
-      {breakdown.length > 0 && (
+      {organizedExpenseGroups.length > 0 && (
         <div className="rounded-xl bg-arcana-surface border border-arcana-border p-5">
           <h3 className="text-sm font-semibold text-white mb-4">
             Expenses by Category
           </h3>
           <div className="space-y-3">
-            {breakdown.map((item) => (
-              <div key={item.category}>
-                <div className="flex justify-between text-sm mb-1">
-                  <span className="text-slate-300">{item.label}</span>
-                  <span className="text-white font-medium">
-                    {formatCurrency(item.amount)}
-                  </span>
+            {organizedExpenseGroups.map((group) => {
+              const isExpanded = expandedGroups[group.id] ?? false;
+              const canExpand = group.subs.length > 1 || group.id === "debt_payments";
+              const parentWidth = totalExpense > 0 ? (group.total / totalExpense) * 100 : 0;
+              return (
+                <div key={group.id} className="rounded-lg border border-arcana-border/70 bg-arcana-navy/30 p-3">
+                  <div className="flex justify-between items-center text-sm mb-2">
+                    <div className="flex items-center gap-2">
+                      {canExpand ? (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setExpandedGroups((prev) => ({
+                              ...prev,
+                              [group.id]: !isExpanded,
+                            }))
+                          }
+                          className="text-slate-400 hover:text-white transition-colors"
+                          title={isExpanded ? "Collapse subcategories" : "Expand subcategories"}
+                        >
+                          {isExpanded ? (
+                            <ChevronUp className="w-4 h-4" />
+                          ) : (
+                            <ChevronDown className="w-4 h-4" />
+                          )}
+                        </button>
+                      ) : (
+                        <span className="w-4 h-4" />
+                      )}
+                      <span className="text-slate-200 font-medium">{group.label}</span>
+                    </div>
+                    <span className="text-white font-medium">{formatCurrency(group.total)}</span>
+                  </div>
+                  <div className="h-2 rounded-full bg-arcana-navy overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-arcana-danger"
+                      style={{ width: `${parentWidth}%` }}
+                    />
+                  </div>
+
+                  {canExpand && isExpanded && (
+                    <div className="mt-3 space-y-2 pl-6">
+                      {group.subs.map((sub) => (
+                        <div key={`${group.id}-${sub.label}`}>
+                          <div className="flex justify-between text-xs mb-1">
+                            <span
+                              className={cn(
+                                "text-slate-400",
+                                group.id === "debt_payments" && sub.label === "Credit Cards" && "text-amber-300",
+                                group.id === "debt_payments" && sub.label === "Loans" && "text-cyan-300"
+                              )}
+                            >
+                              {sub.label}
+                            </span>
+                            <span className="text-slate-300">{formatCurrency(sub.amount)}</span>
+                          </div>
+                          <div className="h-1.5 rounded-full bg-arcana-navy/80 overflow-hidden">
+                            <div
+                              className="h-full rounded-full bg-arcana-danger/70"
+                              style={{ width: `${group.total > 0 ? (sub.amount / group.total) * 100 : 0}%` }}
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
-                <div className="h-2 rounded-full bg-arcana-navy overflow-hidden">
-                  <div
-                    className="h-full rounded-full bg-arcana-danger"
-                    style={{ width: `${item.percentage}%` }}
-                  />
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
