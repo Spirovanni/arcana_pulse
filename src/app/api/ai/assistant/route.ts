@@ -53,7 +53,8 @@ export async function POST(request: NextRequest) {
 
     const usageCheck = await checkAIUsageAllowance(
       workspaceId,
-      estimatedInputTokens
+      estimatedInputTokens,
+      "assistant"
     );
     if (!usageCheck.allowed) {
       return NextResponse.json({ error: usageCheck.reason }, { status: 402 });

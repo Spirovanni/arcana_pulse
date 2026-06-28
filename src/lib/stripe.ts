@@ -47,6 +47,7 @@ export const PLANS: PlanDefinition[] = [
     features: [
       "1 connected bank account",
       "90-day transaction history",
+      "10,000 AI tokens / month",
       "Income & expense views",
       "Manual transaction CRUD",
       "Basic dashboard",
@@ -62,7 +63,7 @@ export const PLANS: PlanDefinition[] = [
     features: [
       "Unlimited bank accounts",
       "Full transaction history",
-      "AI financial insights",
+      "250,000 AI tokens / month",
       "CSV & PDF exports",
       "Budget tracking & goals",
       "Audit log (30 days)",
@@ -79,6 +80,7 @@ export const PLANS: PlanDefinition[] = [
     description: "Pro features for households and teams.",
     features: [
       "Everything in Pro",
+      "1,000,000 AI tokens / month",
       "Up to 10 workspace members",
       "Role-based access control",
       "Shared dashboards",

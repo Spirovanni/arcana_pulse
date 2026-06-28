@@ -35,6 +35,35 @@ export interface AIUsageSnapshot {
 
 const CHARS_PER_TOKEN = 4;
 const usageStore = new Map<string, UsageRecord>();
+const DEFAULT_FEATURE = "assistant";
+
+const FEATURE_COST_MULTIPLIER: Record<string, number> = {
+  assistant: 1.0,
+  categorize: 0.35,
+  insights: 1.25,
+  budgets: 1.15,
+  forecast: 1.4,
+  goals: 1.1,
+  portfolio_insights: 1.5,
+  tlh: 1.35,
+};
+
+const FEATURE_BASE_FEE: Record<string, number> = {
+  assistant: 18,
+  categorize: 6,
+  insights: 24,
+  budgets: 22,
+  forecast: 28,
+  goals: 20,
+  portfolio_insights: 26,
+  tlh: 24,
+};
+
+const PLAN_EFFICIENCY_MULTIPLIER: Record<WorkspacePlan, number> = {
+  starter: 1.15,
+  pro: 1.0,
+  team: 0.85,
+};
 
 function getPeriodKey(now = new Date()): string {
   return `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}`;
@@ -47,6 +76,28 @@ function buildStoreKey(workspaceId: string, periodKey: string): string {
 export function estimateTokensFromText(text: string): number {
   if (!text) return 0;
   return Math.ceil(text.length / CHARS_PER_TOKEN);
+}
+
+function getFeatureMultiplier(feature: string): number {
+  return FEATURE_COST_MULTIPLIER[feature] ?? 1.1;
+}
+
+function getFeatureBaseFee(feature: string): number {
+  return FEATURE_BASE_FEE[feature] ?? 15;
+}
+
+function calculateBilledTokens(params: {
+  plan: WorkspacePlan;
+  feature: string;
+  inputTokens: number;
+  outputTokens: number;
+}): number {
+  const featureMultiplier = getFeatureMultiplier(params.feature);
+  const planMultiplier = PLAN_EFFICIENCY_MULTIPLIER[params.plan] ?? 1.0;
+  const baseFee = getFeatureBaseFee(params.feature);
+  const raw = Math.max(1, params.inputTokens) + Math.max(0, params.outputTokens);
+  const weighted = Math.ceil(raw * featureMultiplier * planMultiplier);
+  return Math.max(baseFee, weighted);
 }
 
 function toSnapshot(record: UsageRecord): AIUsageSnapshot {
@@ -131,7 +182,8 @@ export async function getAIUsageSnapshot(
 
 export async function checkAIUsageAllowance(
   workspaceId: string,
-  estimatedTokens = 1
+  estimatedTokens = 1,
+  feature = DEFAULT_FEATURE
 ): Promise<
   | { allowed: true; plan: WorkspacePlan; snapshot: AIUsageSnapshot }
   | { allowed: false; reason: string; plan: WorkspacePlan; snapshot: AIUsageSnapshot }
@@ -150,7 +202,13 @@ export async function checkAIUsageAllowance(
     return { allowed: true, plan, snapshot };
   }
 
-  if (snapshot.tokensUsed + Math.max(1, estimatedTokens) > tokenLimit) {
+  const estimatedCharge = calculateBilledTokens({
+    plan,
+    feature,
+    inputTokens: Math.max(1, estimatedTokens),
+    outputTokens: 0,
+  });
+  if (snapshot.tokensUsed + estimatedCharge > tokenLimit) {
     return {
       allowed: false,
       reason: `Your ${plan} plan AI token limit (${tokenLimit.toLocaleString()} per month) has been reached.`,
@@ -173,7 +231,12 @@ export async function recordAIUsage(params: {
     params.workspaceId,
     params.plan
   );
-  const totalTokens = Math.max(0, params.inputTokens) + Math.max(0, params.outputTokens);
+  const totalTokens = calculateBilledTokens({
+    plan: params.plan,
+    feature: params.feature,
+    inputTokens: params.inputTokens,
+    outputTokens: params.outputTokens,
+  });
 
   record.requestsUsed += 1;
   record.tokensUsed += totalTokens;

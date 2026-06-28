@@ -136,7 +136,7 @@ export async function completeForFeature(
     estimateTokensFromText(system) + estimateTokensFromText(userPrompt);
 
   if (workspaceId) {
-    const access = await checkAIUsageAllowance(workspaceId, inputTokens);
+    const access = await checkAIUsageAllowance(workspaceId, inputTokens, feature);
     if (!access.allowed) {
       throw new Error(access.reason);
     }

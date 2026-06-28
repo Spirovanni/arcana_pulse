@@ -34,10 +34,10 @@ const LIMITS: Record<WorkspacePlan, PlanLimits> = {
     maxBankAccounts: 1,
     maxMembers: 1,
     transactionHistoryDays: 90,
-    aiEnabled: false,
+    aiEnabled: true,
     exportEnabled: false,
     auditLogDays: null,
-    aiMonthlyTokens: 0,
+    aiMonthlyTokens: 10_000,
   },
   pro: {
     maxBankAccounts: null,
