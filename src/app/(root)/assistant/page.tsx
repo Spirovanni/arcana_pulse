@@ -16,6 +16,7 @@ import {
 import { DEFAULT_WORKSPACE_ID } from "@/lib/services/workspace";
 import type { AssistantModelOption } from "@/lib/services/ai/assistant";
 import { ASSISTANT_MODELS } from "@/lib/services/ai/assistant";
+import { notifyAiUsageUpdated } from "@/lib/aiUsageRefresh";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -290,6 +291,7 @@ export default function AssistantPage() {
 
         setMessages((prev) => [...prev, assistantMsg]);
         void speakAssistantReply(assistantMsg.content);
+        if (res.ok) notifyAiUsageUpdated();
       } catch {
         setMessages((prev) => [
           ...prev,

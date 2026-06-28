@@ -9,6 +9,7 @@ import BudgetRecommendations from "@/components/BudgetRecommendations";
 import SavingsGoalsWidget from "@/components/SavingsGoalsWidget";
 import InsightCards from "@/components/InsightCards";
 import LastAnalysisStamp from "@/components/LastAnalysisStamp";
+import { notifyAiUsageUpdated } from "@/lib/aiUsageRefresh";
 import type {
   SpendingInsight,
   CashFlowForecast,
@@ -54,16 +55,19 @@ export default function AnalyticsPage() {
         const d = await insRes.json();
         setInsights(d.insights ?? []);
         setInsightsLastAnalysisAt(d.lastAnalysisAt ?? null);
+        notifyAiUsageUpdated();
       }
       if (forRes?.ok) {
         const d = await forRes.json();
         setForecast(d.forecast ?? null);
         setForecastLastAnalysisAt(d.lastAnalysisAt ?? null);
+        notifyAiUsageUpdated();
       }
       if (recRes?.ok) {
         const d = await recRes.json();
         setBudgetRecs(d.recommendations ?? []);
         setBudgetsLastAnalysisAt(d.lastAnalysisAt ?? null);
+        notifyAiUsageUpdated();
       }
       if (budRes?.ok) { const d = await budRes.json(); setBudgets(d.budgets ?? []); }
       if (goalRes?.ok) { const d = await goalRes.json(); setSavingsGoals(d.goals ?? []); }
@@ -71,6 +75,7 @@ export default function AnalyticsPage() {
         const d = await projRes.json();
         setGoalProjections(d.projections ?? []);
         setGoalsLastAnalysisAt(d.lastAnalysisAt ?? null);
+        notifyAiUsageUpdated();
       }
     } finally {
       setInsightsLoading(false); setForecastLoading(false); setBudgetsLoading(false); setGoalsLoading(false);

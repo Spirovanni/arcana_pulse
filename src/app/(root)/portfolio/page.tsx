@@ -68,6 +68,7 @@ import { formatCurrency, formatDate } from "@/lib/utils";
 import PlanGate from "@/components/PlanGate";
 import type { SavingsGoal } from "@/lib/types";
 import { BarChart, Bar } from "recharts";
+import { notifyAiUsageUpdated } from "@/lib/aiUsageRefresh";
 
 // ── Static mock performance history (fallback) ───────────────────────────────
 const MOCK_PERFORMANCE_HISTORY = [
@@ -567,7 +568,10 @@ export default function PortfolioPage() {
         }),
       });
       const data = await res.json();
-      if (data.insights) setInsights(data.insights);
+      if (data.insights) {
+        setInsights(data.insights);
+        notifyAiUsageUpdated();
+      }
     } catch { /* non-critical */ }
     finally { setInsightsLoading(false); setInsightsFetched(true); }
   }, [mockAllHoldings, mockAccounts, totalValue]);
@@ -599,7 +603,10 @@ export default function PortfolioPage() {
         }),
       });
       const data = await res.json();
-      if (data.suggestions) setTlhSuggestions(data.suggestions);
+      if (data.suggestions) {
+        setTlhSuggestions(data.suggestions);
+        notifyAiUsageUpdated();
+      }
     } catch { /* non-critical */ }
     finally { setTlhLoading(false); setTlhFetched(true); }
   }, [tlhSummary]);

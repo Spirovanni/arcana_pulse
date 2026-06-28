@@ -42,6 +42,7 @@ import type {
   GoalType,
 } from "@/lib/types";
 import { GOAL_TYPE_CONFIG } from "@/lib/goalQuestionnaires";
+import { notifyAiUsageUpdated } from "@/lib/aiUsageRefresh";
 
 export default function GoalsPage() {
   const [goals, setGoals] = useState<SavingsGoal[]>([]);
@@ -74,6 +75,7 @@ export default function GoalsPage() {
         const data = await projRes.json();
         setProjections(data.projections ?? []);
         setLastAnalysisAt(data.lastAnalysisAt ?? null);
+        notifyAiUsageUpdated();
       }
     } catch {
       // Silently fail

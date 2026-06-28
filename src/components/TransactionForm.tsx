@@ -10,6 +10,7 @@ import type {
   UpdateTransactionInput,
 } from "@/lib/types";
 import { CATEGORY_HIERARCHY } from "@/lib/constants";
+import { notifyAiUsageUpdated } from "@/lib/aiUsageRefresh";
 
 const INCOME_GROUPS = CATEGORY_HIERARCHY.filter((c) => c.type === "income");
 const EXPENSE_GROUPS = CATEGORY_HIERARCHY.filter((c) => c.type === "expense");
@@ -65,9 +66,10 @@ export default function TransactionForm({
         }),
       });
       const data = await res.json() as { category?: string; confidence?: number };
-      if (data.category) {
+      if (res.ok && data.category) {
         setCategory(data.category as Category);
         setAiConfidence(data.confidence ?? null);
+        notifyAiUsageUpdated();
       }
     } catch {
       // silent fail

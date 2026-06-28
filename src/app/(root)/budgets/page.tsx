@@ -15,6 +15,7 @@ import { DEFAULT_WORKSPACE_ID } from "@/lib/services/workspace";
 import { CATEGORY_LABELS } from "@/lib/constants";
 import { formatCurrency } from "@/lib/utils";
 import { computeDashboardMetrics } from "@/lib/services/dashboard";
+import { notifyAiUsageUpdated } from "@/lib/aiUsageRefresh";
 import LastAnalysisStamp from "@/components/LastAnalysisStamp";
 import type {
   BudgetRecommendation,
@@ -90,6 +91,7 @@ export default function BudgetsPage() {
         setEvaluationCompletedAt(data.evaluationCompletedAt ?? data.lastAnalysisAt ?? null);
         setEvaluationScope(data.evaluationScope ?? "all");
         setEvaluatedTransactionCount(data.evaluatedTransactionCount ?? 0);
+        notifyAiUsageUpdated();
       }
       if (budRes.ok) {
         const data = await budRes.json();
