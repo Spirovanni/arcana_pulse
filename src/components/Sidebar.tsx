@@ -20,6 +20,7 @@ import {
   Target,
   Brain,
   CreditCard,
+  HandCoins,
   Bot,
   BookMarked,
   Shield,
@@ -215,21 +216,27 @@ export default function Sidebar() {
                   {!collapsed && section.id === "banking" && (
                     <div className="pl-8 space-y-1.5 py-1">
                       <Link
-                        href="/expense?focus=credit-cards"
+                        href="/credit-cards"
                         className={cn(
-                          "block text-[10px] uppercase tracking-[1.7px] transition-colors",
-                          "text-secondary hover:text-amber-300"
+                          "flex items-center gap-2 text-[10px] uppercase tracking-[1.7px] transition-colors rounded-sm px-1.5 py-1",
+                          pathname.startsWith("/credit-cards")
+                            ? "text-amber-300 bg-amber-500/10"
+                            : "text-secondary hover:text-amber-300 hover:bg-amber-500/5"
                         )}
                       >
+                        <CreditCard className="w-3.5 h-3.5" />
                         Credit Cards
                       </Link>
                       <Link
-                        href="/expense?focus=loans"
+                        href="/loans"
                         className={cn(
-                          "block text-[10px] uppercase tracking-[1.7px] transition-colors",
-                          "text-secondary hover:text-cyan-300"
+                          "flex items-center gap-2 text-[10px] uppercase tracking-[1.7px] transition-colors rounded-sm px-1.5 py-1",
+                          pathname.startsWith("/loans")
+                            ? "text-cyan-300 bg-cyan-500/10"
+                            : "text-secondary hover:text-cyan-300 hover:bg-cyan-500/5"
                         )}
                       >
+                        <HandCoins className="w-3.5 h-3.5" />
                         Loans
                       </Link>
                     </div>
