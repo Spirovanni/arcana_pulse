@@ -1,18 +1,26 @@
 import { NextRequest, NextResponse } from "next/server";
 import { plaidClient } from "@/lib/plaid";
 import { ProcessorTokenCreateRequestProcessorEnum } from "plaid";
-import { addBank, updateBank, getBanksByWorkspace } from "@/lib/services/banks";
+import * as dbBanks from "@/lib/services/db/banks";
 import { dwollaClient } from "@/lib/dwolla";
 import { requireAuth } from "@/lib/auth/withAuth";
-import { getWorkspace } from "@/lib/services/workspace";
 import { canAddBankAccount } from "@/lib/planLimits";
+import { resolveWorkspacePlan } from "@/lib/services/workspacePlan";
+import { isAppwriteConfigured } from "@/lib/appwrite";
+import type { Bank } from "@/lib/types";
 
 export async function POST(request: NextRequest) {
   const auth = await requireAuth(request, { requiredRole: "member", enforceWorkspace: false });
   if (!auth.ok) return auth.response;
-  const { session } = auth;
 
   try {
+    if (!isAppwriteConfigured()) {
+      return NextResponse.json(
+        { error: "Appwrite not configured" },
+        { status: 503 }
+      );
+    }
+
     const body = await request.json();
     const { publicToken, workspaceId = auth.workspaceId } = body as {
       publicToken: string;
@@ -25,15 +33,19 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+    if (workspaceId !== auth.workspaceId) {
+      return NextResponse.json(
+        { error: "Access to this workspace is not permitted" },
+        { status: 403 }
+      );
+    }
 
     // ── Plan enforcement: check bank account limit ────────────────────────
-    const workspace = getWorkspace(workspaceId);
-    if (workspace) {
-      const existingBanks = getBanksByWorkspace(workspaceId);
-      const check = canAddBankAccount(workspace.plan, existingBanks.length);
-      if (!check.allowed) {
-        return NextResponse.json({ error: check.reason, planLimit: true }, { status: 403 });
-      }
+    const plan = await resolveWorkspacePlan(workspaceId);
+    const existingBanks = await dbBanks.getBanksByWorkspace(workspaceId);
+    const check = canAddBankAccount(plan, existingBanks.length);
+    if (!check.allowed) {
+      return NextResponse.json({ error: check.reason, planLimit: true }, { status: 403 });
     }
 
     // Exchange public token for access token
@@ -64,10 +76,10 @@ export async function POST(request: NextRequest) {
     }
 
     // Persist each linked account and create Dwolla funding sources
-    const linkedBanks = [];
+    const linkedBanks: Bank[] = [];
     for (const account of accounts) {
       const mask = account.mask ?? "0000";
-      const bank = addBank({
+      const bank = await dbBanks.addBank({
         workspaceId,
         institutionName,
         accountId: account.account_id,
@@ -108,7 +120,7 @@ export async function POST(request: NextRequest) {
             "";
 
           if (fundingSourceUrl) {
-            updateBank(bank.bankId, { fundingSourceUrl });
+            await dbBanks.updateBank(bank.bankId, { fundingSourceUrl });
             bank.fundingSourceUrl = fundingSourceUrl;
           }
         }

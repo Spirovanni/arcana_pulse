@@ -27,7 +27,6 @@ import EmptyState from "@/components/EmptyState";
 import StatementUpload from "@/components/StatementUpload";
 import UploadBankModal, { type BuildResult as ModalBuildResult } from "@/components/UploadBankModal";
 import {
-  getBanksByWorkspace,
   DEFAULT_WORKSPACE_ID,
 } from "@/lib/services/workspace";
 import { listTransactions } from "@/lib/services/transactions";
@@ -71,7 +70,8 @@ function MyBanksPageContent() {
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const _ = version;
-  const banks = getBanksByWorkspace(DEFAULT_WORKSPACE_ID);
+  const [banks, setBanks] = useState<Bank[]>([]);
+  const [banksLoading, setBanksLoading] = useState(true);
 
   // ── Saved statements state ──────────────────────────────────
   const [savedFiles, setSavedFiles] = useState<SavedFile[]>([]);
@@ -129,6 +129,29 @@ function MyBanksPageContent() {
   const [linkToken, setLinkToken] = useState<string | null>(null);
   const [linking, setLinking] = useState(false);
   const [syncingBankId, setSyncingBankId] = useState<string | null>(null);
+
+  // Fetch persisted banks from Appwrite-backed API
+  useEffect(() => {
+    let cancelled = false;
+    async function loadBanks() {
+      setBanksLoading(true);
+      try {
+        const res = await fetch("/api/banks");
+        const data = await res.json().catch(() => ({} as { banks?: Bank[] }));
+        if (!cancelled && res.ok) {
+          setBanks(data.banks ?? []);
+        }
+      } catch {
+        if (!cancelled) setBanks([]);
+      } finally {
+        if (!cancelled) setBanksLoading(false);
+      }
+    }
+    void loadBanks();
+    return () => {
+      cancelled = true;
+    };
+  }, [version]);
 
   // Fetch saved statement files for this user
   useEffect(() => {
@@ -249,7 +272,6 @@ function MyBanksPageContent() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             publicToken,
-            workspaceId: DEFAULT_WORKSPACE_ID,
           }),
         });
         const data = await res.json();
@@ -537,7 +559,11 @@ function MyBanksPageContent() {
         <p className="text-xs text-slate-400 mt-0.5 mb-4">Checking and savings accounts linked via Plaid</p>
       </div>
 
-      {banks.length === 0 ? (
+      {banksLoading ? (
+        <div className="rounded-xl bg-arcana-surface border border-arcana-border p-8 flex items-center justify-center">
+          <Loader2 className="w-5 h-5 animate-spin text-primary" />
+        </div>
+      ) : banks.length === 0 ? (
         <EmptyState
           icon={Landmark}
           title="No banks connected"
