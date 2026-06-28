@@ -16,10 +16,45 @@ export default function TopBar() {
 
   // Hooks must always be called unconditionally — before any early return
   const [imgSrc, setImgSrc] = useState<string | undefined>(primaryImageUrl || fallbackImageUrl);
+  const [tokenSummary, setTokenSummary] = useState<string>("...");
 
   useEffect(() => {
     setImgSrc(primaryImageUrl || fallbackImageUrl);
   }, [primaryImageUrl, fallbackImageUrl]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadUsage = async () => {
+      try {
+        const res = await fetch("/api/ai/usage");
+        if (!res.ok) return;
+        const data = await res.json();
+        const usage = data.usage as
+          | {
+              tokenLimit: number | null;
+              tokensUsed: number;
+            }
+          | undefined;
+        if (!usage || cancelled) return;
+
+        if (usage.tokenLimit == null) {
+          setTokenSummary(`${usage.tokensUsed.toLocaleString()} tokens used`);
+          return;
+        }
+        setTokenSummary(
+          `${Math.max(0, usage.tokenLimit - usage.tokensUsed).toLocaleString()} tokens left`
+        );
+      } catch {
+        // non-critical, keep top bar lean
+      }
+    };
+
+    void loadUsage();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   if (!user) return null;
 
@@ -47,8 +82,13 @@ export default function TopBar() {
             </div>
           )}
         </div>
-        <span className="text-sm text-on-surface font-medium tracking-wide group-hover:text-primary transition-colors">
-          {fullName}
+        <span className="flex flex-col leading-tight">
+          <span className="text-sm text-on-surface font-medium tracking-wide group-hover:text-primary transition-colors">
+            {fullName}
+          </span>
+          <span className="text-[10px] uppercase tracking-[1.2px] text-secondary">
+            {tokenSummary}
+          </span>
         </span>
       </Link>
     </div>

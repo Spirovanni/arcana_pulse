@@ -12,6 +12,15 @@ export default function ProfilePage() {
   const [localAvatar, setLocalAvatar] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState("");
+  const [usage, setUsage] = useState<{
+    tokenLimit: number | null;
+    tokensUsed: number;
+    tokensRemaining: number | null;
+    periodKey: string;
+    requestsUsed: number;
+    featureUsage: Record<string, { requests: number; tokens: number }>;
+    lastUsedAt: string | null;
+  } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const user = session?.user as any;
@@ -25,6 +34,26 @@ export default function ProfilePage() {
       setImgSrc(primaryImageUrl || fallbackImageUrl);
     }
   }, [primaryImageUrl, fallbackImageUrl, user]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadUsage = async () => {
+      try {
+        const res = await fetch("/api/ai/usage");
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!cancelled && data.usage) {
+          setUsage(data.usage);
+        }
+      } catch {
+        // non-critical
+      }
+    };
+    void loadUsage();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   if (status === "loading") {
     return (
@@ -272,6 +301,86 @@ export default function ProfilePage() {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* AI Token Usage */}
+      <div className="rounded-sm bg-surface-container-high border border-outline p-6 w-full min-w-0">
+        <h3 className="text-[9px] uppercase tracking-[2px] text-secondary font-bold mb-6 flex items-center gap-2">
+          <ImagePlus className="size-3.5 text-primary" />
+          AI Token Usage Breakdown
+        </h3>
+
+        {!usage ? (
+          <p className="text-sm text-secondary">Loading usage details...</p>
+        ) : (
+          <div className="space-y-5">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+              <div className="rounded-sm border border-outline bg-surface-container p-3">
+                <p className="text-[10px] uppercase tracking-widest text-secondary">Period</p>
+                <p className="text-sm text-on-surface mt-1">{usage.periodKey}</p>
+              </div>
+              <div className="rounded-sm border border-outline bg-surface-container p-3">
+                <p className="text-[10px] uppercase tracking-widest text-secondary">Used</p>
+                <p className="text-sm text-on-surface mt-1">{usage.tokensUsed.toLocaleString()} tokens</p>
+              </div>
+              <div className="rounded-sm border border-outline bg-surface-container p-3">
+                <p className="text-[10px] uppercase tracking-widest text-secondary">Remaining</p>
+                <p className="text-sm text-on-surface mt-1">
+                  {usage.tokenLimit == null
+                    ? "Unlimited"
+                    : `${(usage.tokensRemaining ?? 0).toLocaleString()} tokens`}
+                </p>
+              </div>
+              <div className="rounded-sm border border-outline bg-surface-container p-3">
+                <p className="text-[10px] uppercase tracking-widest text-secondary">Requests</p>
+                <p className="text-sm text-on-surface mt-1">{usage.requestsUsed.toLocaleString()}</p>
+              </div>
+            </div>
+
+            {usage.tokenLimit != null && (
+              <div>
+                <div className="h-2 rounded-full bg-outline/30 overflow-hidden">
+                  <div
+                    className="h-full rounded-full bg-primary transition-all"
+                    style={{
+                      width: `${Math.min(
+                        100,
+                        (usage.tokensUsed / Math.max(1, usage.tokenLimit)) * 100
+                      )}%`,
+                    }}
+                  />
+                </div>
+                <p className="text-[10px] text-secondary mt-2">
+                  {Math.min(100, Math.round((usage.tokensUsed / Math.max(1, usage.tokenLimit)) * 100))}% of monthly token budget consumed
+                </p>
+              </div>
+            )}
+
+            <div className="rounded-sm border border-outline bg-surface-container p-3">
+              <p className="text-[10px] uppercase tracking-widest text-secondary mb-3">By Feature</p>
+              {Object.keys(usage.featureUsage).length === 0 ? (
+                <p className="text-sm text-secondary">No feature usage recorded yet.</p>
+              ) : (
+                <div className="space-y-2">
+                  {Object.entries(usage.featureUsage)
+                    .sort(([, a], [, b]) => b.tokens - a.tokens)
+                    .map(([feature, stats]) => (
+                      <div key={feature} className="flex items-center justify-between text-sm">
+                        <span className="text-on-surface capitalize">{feature.replace(/_/g, " ")}</span>
+                        <span className="text-secondary">
+                          {stats.tokens.toLocaleString()} tokens · {stats.requests.toLocaleString()} requests
+                        </span>
+                      </div>
+                    ))}
+                </div>
+              )}
+            </div>
+
+            <p className="text-[10px] text-secondary">
+              Last usage event: {usage.lastUsedAt ? new Date(usage.lastUsedAt).toLocaleString() : "N/A"}
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );
