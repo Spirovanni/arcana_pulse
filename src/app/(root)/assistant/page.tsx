@@ -1,7 +1,18 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
-import { Send, Loader2, Sparkles, User, ChevronDown, Check } from "lucide-react";
+import {
+  Send,
+  Loader2,
+  Sparkles,
+  User,
+  ChevronDown,
+  Check,
+  Mic,
+  Square,
+  Volume2,
+  VolumeX,
+} from "lucide-react";
 import { DEFAULT_WORKSPACE_ID } from "@/lib/services/workspace";
 import type { AssistantModelOption } from "@/lib/services/ai/assistant";
 import { ASSISTANT_MODELS } from "@/lib/services/ai/assistant";
@@ -16,6 +27,24 @@ interface Message {
   content: string;
   model?: string;
 }
+
+type BrowserSpeechRecognition = {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  onresult: ((event: SpeechRecognitionEvent) => void) | null;
+  onerror: ((event: { error: string }) => void) | null;
+  onend: (() => void) | null;
+  start: () => void;
+  stop: () => void;
+};
+
+type SpeechRecognitionEvent = {
+  results: ArrayLike<{
+    isFinal: boolean;
+    0: { transcript: string };
+  }>;
+};
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -132,12 +161,94 @@ export default function AssistantPage() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [listening, setListening] = useState(false);
+  const [voiceEnabled, setVoiceEnabled] = useState(true);
   const [selectedModel, setSelectedModel] = useState<AssistantModelOption>(ASSISTANT_MODELS[0]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const recognitionRef = useRef<BrowserSpeechRecognition | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading]);
+
+  useEffect(() => {
+    return () => {
+      recognitionRef.current?.stop();
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
+    };
+  }, []);
+
+  const speakAssistantReply = useCallback(
+    async (text: string) => {
+      if (!voiceEnabled || !text.trim()) return;
+      try {
+        const res = await fetch("/api/ai/assistant/voice", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            text,
+            workspaceId: DEFAULT_WORKSPACE_ID,
+          }),
+        });
+        if (!res.ok) return;
+        const blob = await res.blob();
+        const audioUrl = URL.createObjectURL(blob);
+
+        if (audioRef.current) {
+          audioRef.current.pause();
+          audioRef.current = null;
+        }
+        const audio = new Audio(audioUrl);
+        audioRef.current = audio;
+        void audio.play().catch(() => undefined);
+        audio.onended = () => {
+          URL.revokeObjectURL(audioUrl);
+        };
+      } catch {
+        // Voice playback is optional; fail silently.
+      }
+    },
+    [voiceEnabled]
+  );
+
+  const stopListening = useCallback(() => {
+    recognitionRef.current?.stop();
+    setListening(false);
+  }, []);
+
+  const startListening = useCallback(() => {
+    if (typeof window === "undefined") return;
+    const SpeechRecognitionCtor =
+      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognitionCtor) return;
+
+    if (!recognitionRef.current) {
+      const recognition: BrowserSpeechRecognition = new SpeechRecognitionCtor();
+      recognition.continuous = false;
+      recognition.interimResults = true;
+      recognition.lang = "en-US";
+      recognition.onresult = (event: SpeechRecognitionEvent) => {
+        const transcript = Array.from(event.results)
+          .map((r) => r[0].transcript)
+          .join(" ");
+        setInput(transcript);
+      };
+      recognition.onerror = () => {
+        setListening(false);
+      };
+      recognition.onend = () => {
+        setListening(false);
+      };
+      recognitionRef.current = recognition;
+    }
+
+    setListening(true);
+    recognitionRef.current.start();
+  }, []);
 
   const sendMessage = useCallback(
     async (text: string) => {
@@ -178,6 +289,7 @@ export default function AssistantPage() {
         };
 
         setMessages((prev) => [...prev, assistantMsg]);
+        void speakAssistantReply(assistantMsg.content);
       } catch {
         setMessages((prev) => [
           ...prev,
@@ -191,7 +303,7 @@ export default function AssistantPage() {
         setLoading(false);
       }
     },
-    [loading, messages, selectedModel]
+    [loading, messages, selectedModel, speakAssistantReply]
   );
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
@@ -338,6 +450,35 @@ export default function AssistantPage() {
               disabled={loading}
               className="flex-1 px-4 py-2.5 rounded-lg bg-arcana-navy border border-arcana-border text-white text-sm placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-arcana-blue resize-none disabled:opacity-50"
             />
+
+            {/* Voice input toggle */}
+            <button
+              type="button"
+              onClick={listening ? stopListening : startListening}
+              disabled={loading}
+              title={listening ? "Stop listening" : "Start voice input"}
+              className={`flex items-center justify-center w-10 h-10 rounded-lg border transition-colors flex-shrink-0 ${
+                listening
+                  ? "bg-red-500/20 border-red-400/30 text-red-300"
+                  : "bg-arcana-navy border-arcana-border text-slate-300 hover:border-arcana-blue"
+              } disabled:opacity-50 disabled:cursor-not-allowed`}
+            >
+              {listening ? <Square className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+            </button>
+
+            {/* Voice output toggle */}
+            <button
+              type="button"
+              onClick={() => setVoiceEnabled((v) => !v)}
+              title={voiceEnabled ? "Disable voice replies" : "Enable voice replies"}
+              className={`flex items-center justify-center w-10 h-10 rounded-lg border transition-colors flex-shrink-0 ${
+                voiceEnabled
+                  ? "bg-arcana-blue/20 border-arcana-blue/30 text-arcana-blue"
+                  : "bg-arcana-navy border-arcana-border text-slate-400 hover:border-arcana-blue"
+              }`}
+            >
+              {voiceEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
+            </button>
 
             {/* Send button */}
             <button

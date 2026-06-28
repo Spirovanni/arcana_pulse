@@ -398,14 +398,23 @@ export default function LandingPage() {
 
             <div className="flex flex-col sm:flex-row gap-4 pt-2">
               {status === "authenticated" ? (
-                <button
-                  type="button"
-                  onClick={() => router.push("/dashboard")}
-                  className="btn-metallic px-8 py-4 font-bold text-sm uppercase tracking-[2px] hover:opacity-90 active:scale-95 transition-all flex items-center justify-center gap-3 ai-glow"
-                >
-                  Enter Dashboard
-                  <ArrowRight className="size-5" />
-                </button>
+                <>
+                  <button
+                    type="button"
+                    onClick={() => router.push("/assistant")}
+                    className="btn-metallic px-8 py-4 font-bold text-sm uppercase tracking-[2px] hover:opacity-90 active:scale-95 transition-all flex items-center justify-center gap-3 ai-glow"
+                  >
+                    Open AI Assistant
+                    <ArrowRight className="size-5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => router.push("/dashboard")}
+                    className="px-8 py-4 font-bold text-sm uppercase tracking-[2px] text-secondary border border-outline hover:border-primary/40 hover:text-on-surface transition-all flex items-center justify-center"
+                  >
+                    Go to Dashboard
+                  </button>
+                </>
               ) : (
                 <>
                   <button
@@ -413,7 +422,7 @@ export default function LandingPage() {
                     onClick={() => router.push("/sign-up")}
                     className="btn-metallic px-8 py-4 font-bold text-sm uppercase tracking-[2px] hover:opacity-90 active:scale-95 transition-all flex items-center justify-center gap-3 ai-glow"
                   >
-                    Start AI Interview
+                    Register for AI Assistant
                     <ArrowRight className="size-5" />
                   </button>
                   <button
@@ -421,11 +430,21 @@ export default function LandingPage() {
                     onClick={() => router.push("/sign-in")}
                     className="px-8 py-4 font-bold text-sm uppercase tracking-[2px] text-secondary border border-outline hover:border-primary/40 hover:text-on-surface transition-all flex items-center justify-center"
                   >
-                    Sign In
+                    Already registered? Sign in
                   </button>
                 </>
               )}
             </div>
+
+            {status === "authenticated" ? (
+              <p className="text-xs uppercase tracking-[2px] text-primary/80">
+                AI advisor unlocked for your account.
+              </p>
+            ) : (
+              <p className="text-xs uppercase tracking-[2px] text-secondary/80">
+                Register to unlock the live AI financial advisor experience.
+              </p>
+            )}
 
             {/* Trust signals */}
             <div className="flex flex-wrap items-center gap-6 pt-2">
@@ -682,18 +701,18 @@ export default function LandingPage() {
               <div className="flex flex-col sm:flex-row gap-4">
                 <button
                   type="button"
-                  onClick={() => router.push("/dashboard")}
+                  onClick={() => router.push("/assistant")}
                   className="btn-metallic px-10 py-4 font-bold text-sm uppercase tracking-[2px] hover:opacity-90 active:scale-95 transition-all flex items-center gap-3 justify-center ai-glow"
                 >
-                  Enter Dashboard
+                  Launch AI Assistant
                   <ArrowRight className="size-5" />
                 </button>
                 <button
                   type="button"
-                  onClick={() => signOut({ callbackUrl: "/" })}
-                  className="px-10 py-4 font-bold text-sm uppercase tracking-[2px] text-secondary border border-outline hover:text-red-400 hover:border-red-900 transition-all text-center"
+                  onClick={() => router.push("/dashboard")}
+                  className="px-10 py-4 font-bold text-sm uppercase tracking-[2px] text-secondary border border-outline hover:text-on-surface hover:border-outline-variant transition-all text-center"
                 >
-                  Log out
+                  View Dashboard
                 </button>
               </div>
             ) : (
@@ -703,7 +722,7 @@ export default function LandingPage() {
                   onClick={() => router.push("/sign-up")}
                   className="btn-metallic px-10 py-4 font-bold text-sm uppercase tracking-[2px] hover:opacity-90 active:scale-95 transition-all flex items-center justify-center gap-3 ai-glow"
                 >
-                  Start AI Interview
+                  Register to Access AI
                   <ArrowRight className="size-5" />
                 </button>
                 <button
