@@ -15,6 +15,8 @@ import {
   Play,
   BarChart2,
   Zap,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import {
   AreaChart,
@@ -53,6 +55,7 @@ export default function GoalsPage() {
   } | null>(null);
   const [lastAnalysisAt, setLastAnalysisAt] = useState<string | null>(null);
   const [goalError, setGoalError] = useState<string>("");
+  const [expandedPlans, setExpandedPlans] = useState<Record<string, boolean>>({});
 
   const fetchData = useCallback(async (forceAnalysis = false) => {
     setLoading(true);
@@ -518,12 +521,28 @@ export default function GoalsPage() {
 
                   {goal.aiPlan && (
                     <div className="mt-3 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2">
-                      <p className="text-[10px] uppercase tracking-widest text-primary mb-1">
-                        AI Execution Plan
-                      </p>
-                      <pre className="whitespace-pre-wrap text-xs text-slate-300 leading-relaxed font-sans">
-                        {goal.aiPlan}
-                      </pre>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setExpandedPlans((prev) => ({
+                            ...prev,
+                            [goal.goalId]: !prev[goal.goalId],
+                          }))
+                        }
+                        className="w-full flex items-center justify-between text-[10px] uppercase tracking-widest text-primary mb-1"
+                      >
+                        <span>AI Execution Plan</span>
+                        {expandedPlans[goal.goalId] ? (
+                          <ChevronUp className="w-3.5 h-3.5" />
+                        ) : (
+                          <ChevronDown className="w-3.5 h-3.5" />
+                        )}
+                      </button>
+                      {expandedPlans[goal.goalId] && (
+                        <pre className="whitespace-pre-wrap text-xs text-slate-300 leading-relaxed font-sans">
+                          {goal.aiPlan}
+                        </pre>
+                      )}
                     </div>
                   )}
                 </div>
