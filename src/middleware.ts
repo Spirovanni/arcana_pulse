@@ -57,6 +57,27 @@ const RATE_LIMITS: Array<{
     windowMs: 60_000,
     label: "mcp",
   },
+  // Alpaca order placement — strict to prevent burst submits
+  {
+    test: (p, m) => m === "POST" && p === "/api/alpaca/orders",
+    limit: 8,
+    windowMs: 60_000,
+    label: "alpaca-orders",
+  },
+  // Alpaca symbol search can be chatty while typing
+  {
+    test: (p) => p === "/api/alpaca/assets",
+    limit: 40,
+    windowMs: 60_000,
+    label: "alpaca-assets",
+  },
+  // Other Alpaca endpoints — protect provider quota before global API fallback
+  {
+    test: (p) => p.startsWith("/api/alpaca/"),
+    limit: 80,
+    windowMs: 60_000,
+    label: "alpaca",
+  },
   // General API (100 / min)
   {
     test: (p) => p.startsWith("/api/"),

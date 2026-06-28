@@ -7,6 +7,7 @@
 import { env } from "@/lib/env";
 import { alpacaCircuit } from "./resilience/circuit-breaker";
 import { withRetry } from "./resilience/retry";
+import { isRetryableError } from "./resilience/errors";
 import * as Sentry from "@sentry/nextjs";
 
 // ─── Base URLs ────────────────────────────────────────────────────────────────
@@ -82,6 +83,12 @@ async function alpacaFetch(url: string, init: RequestInit = {}): Promise<Respons
         maxRetries: 3,
         baseDelayMs: 200,
         maxDelayMs: 5000,
+        shouldRetry: (error) => {
+          if (error instanceof AlpacaAPIError && error.status === 429) {
+            return false;
+          }
+          return isRetryableError(error);
+        },
         onRetry: (attempt, error) => {
           Sentry.captureMessage(`Alpaca retry ${attempt} for ${url}`, {
             level: "warning",

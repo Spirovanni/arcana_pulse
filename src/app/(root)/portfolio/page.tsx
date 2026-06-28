@@ -147,6 +147,7 @@ function OrderPanel({ onOrderPlaced }: { onOrderPlaced: () => void }) {
   const [assetSearch, setAssetSearch] = useState("");
   const [showDropdown, setShowDropdown] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [cooldownSeconds, setCooldownSeconds] = useState(0);
   const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null);
   const searchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -166,8 +167,17 @@ function OrderPanel({ onOrderPlaced }: { onOrderPlaced: () => void }) {
     }, 350);
   }, [assetSearch]);
 
+  useEffect(() => {
+    if (cooldownSeconds <= 0) return;
+    const timeout = setTimeout(() => {
+      setCooldownSeconds((prev) => Math.max(0, prev - 1));
+    }, 1000);
+    return () => clearTimeout(timeout);
+  }, [cooldownSeconds]);
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (cooldownSeconds > 0) return;
     setSubmitting(true);
     setResult(null);
     try {
@@ -184,7 +194,22 @@ function OrderPanel({ onOrderPlaced }: { onOrderPlaced: () => void }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
-      const data = await res.json();
+      const retryAfterRaw = res.headers.get("Retry-After");
+      const retryAfter = Number.parseInt(retryAfterRaw ?? "", 10);
+      const data = await res.json().catch(() => ({} as { error?: string; order?: { orderId: string } }));
+
+      if (res.status === 429) {
+        const cooldown = Number.isFinite(retryAfter) && retryAfter > 0 ? Math.min(retryAfter, 300) : 15;
+        setCooldownSeconds(cooldown);
+        setResult({
+          ok: false,
+          message:
+            data.error ??
+            `Too many order attempts. Please wait ${cooldown} seconds before trying again.`,
+        });
+        return;
+      }
+
       if (res.ok && data.order) {
         setResult({ ok: true, message: `Order submitted: ${data.order.orderId.slice(0, 8)}…` });
         setSymbol(""); setQty(""); setLimitPrice(""); setAssetSearch("");
@@ -340,7 +365,7 @@ function OrderPanel({ onOrderPlaced }: { onOrderPlaced: () => void }) {
         {/* Submit */}
         <button
           type="submit"
-          disabled={submitting || !symbol || !qty}
+          disabled={submitting || cooldownSeconds > 0 || !symbol || !qty}
           className={`w-full py-3 rounded-lg text-sm font-bold uppercase tracking-wider transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
             side === "buy"
               ? "bg-green-500 hover:bg-green-400 text-white"
@@ -350,6 +375,10 @@ function OrderPanel({ onOrderPlaced }: { onOrderPlaced: () => void }) {
           {submitting ? (
             <span className="flex items-center justify-center gap-2">
               <Loader2 className="w-4 h-4 animate-spin" /> Submitting…
+            </span>
+          ) : cooldownSeconds > 0 ? (
+            <span className="flex items-center justify-center gap-2">
+              <Clock className="w-4 h-4" /> Retry in {cooldownSeconds}s
             </span>
           ) : (
             `${side.toUpperCase()} ${symbol || "—"}`

@@ -1,6 +1,6 @@
 export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
-import { alpacaGet, alpacaPost, isAlpacaConfigured, AlpacaConfigError } from "@/lib/alpaca";
+import { alpacaGet, alpacaPost, isAlpacaConfigured, AlpacaAPIError, AlpacaConfigError } from "@/lib/alpaca";
 import { requireAuth } from "@/lib/auth/withAuth";
 import { isAppwriteConfigured } from "@/lib/appwrite";
 import { getWorkspace } from "@/lib/services/db/workspace";
@@ -55,6 +55,19 @@ const ALLOWED_SYMBOLS = ["AAPL", "MSFT", "GOOG", "GOOGL", "AMZN", "NVDA", "TSLA"
 const MAX_NOTIONAL_LIMIT = 10000;
 const MAX_MARKET_QTY_LIMIT = 500;
 
+function providerThrottledResponse(): NextResponse {
+  return NextResponse.json(
+    {
+      error:
+        "Alpaca paper-trading is temporarily rate-limited. Please wait a moment and try again.",
+    },
+    {
+      status: 429,
+      headers: { "Retry-After": "60" },
+    }
+  );
+}
+
 // GET — list orders
 export async function GET(req: NextRequest) {
   const auth = await requireAuth(req, { requiredRole: "member" });
@@ -77,6 +90,9 @@ export async function GET(req: NextRequest) {
   } catch (err) {
     if (err instanceof AlpacaConfigError) {
       return NextResponse.json({ configured: false, orders: [] }, { status: 200 });
+    }
+    if (err instanceof AlpacaAPIError && err.status === 429) {
+      return providerThrottledResponse();
     }
     console.error("[Alpaca GET /orders]", err);
     return NextResponse.json({ error: "Failed to fetch orders" }, { status: 500 });
@@ -321,7 +337,13 @@ export async function POST(req: NextRequest) {
     if (err instanceof AlpacaConfigError) {
       return NextResponse.json({ error: "Alpaca not configured" }, { status: 400 });
     }
+    if (err instanceof AlpacaAPIError && err.status === 429) {
+      return providerThrottledResponse();
+    }
     console.error("[Alpaca POST /orders]", err);
+    if (err instanceof AlpacaAPIError && err.status >= 400 && err.status < 500) {
+      return NextResponse.json({ error: "Order request was rejected by Alpaca." }, { status: err.status });
+    }
     const message = err instanceof Error ? err.message : "Failed to place order";
     return NextResponse.json({ error: message }, { status: 500 });
   }

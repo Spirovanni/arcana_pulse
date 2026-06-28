@@ -12,6 +12,7 @@ export interface RetryOptions {
   baseDelayMs?: number;
   maxDelayMs?: number;
   onRetry?: (attempt: number, error: Error) => void;
+  shouldRetry?: (error: unknown) => boolean;
 }
 
 function sleep(ms: number): Promise<void> {
@@ -36,6 +37,7 @@ export async function withRetry<T>(
   const baseDelayMs = options?.baseDelayMs ?? 200;
   const maxDelayMs = options?.maxDelayMs ?? 5000;
   const onRetry = options?.onRetry;
+  const shouldRetry = options?.shouldRetry;
 
   let lastError: Error;
 
@@ -46,7 +48,8 @@ export async function withRetry<T>(
       lastError = error instanceof Error ? error : new Error(String(error));
 
       // Non-retryable → fail immediately
-      if (!isRetryableError(error)) throw lastError;
+      const retryable = shouldRetry ? shouldRetry(error) : isRetryableError(error);
+      if (!retryable) throw lastError;
 
       // Last attempt → fail
       if (attempt === maxRetries) throw lastError;
