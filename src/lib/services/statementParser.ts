@@ -28,6 +28,8 @@ export interface ParseResult {
   transactions: ParsedTransaction[];
   skipped: number;        // rows that couldn't be parsed
   format: "csv" | "text";
+  /** Institution name detected from file content (may be undefined if not found) */
+  institutionName?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -65,6 +67,89 @@ function inferCategory(title: string): Category {
     if (rule.pattern.test(title)) return rule.category;
   }
   return "other";
+}
+
+// ---------------------------------------------------------------------------
+// Institution name detection from CSV content
+// ---------------------------------------------------------------------------
+
+/**
+ * Known issuers — ordered so more specific names (e.g. "Navy Federal") come
+ * before generic ones (e.g. "Federal").
+ */
+const ISSUER_PATTERNS: [RegExp, string][] = [
+  // ── Credit card specific ──────────────────────────────────────────────────
+  [/american\s*express|amex/i,           "American Express"],
+  [/chase\s*sapphire/i,                  "Chase Sapphire"],
+  [/chase\s*freedom/i,                   "Chase Freedom"],
+  [/chase\s*ink/i,                       "Chase Ink"],
+  [/chase/i,                             "Chase"],
+  [/capital\s*one\s*venture/i,           "Capital One Venture"],
+  [/capital\s*one\s*quicksilver/i,       "Capital One Quicksilver"],
+  [/capital\s*one\s*savor/i,             "Capital One Savor"],
+  [/capital\s*one/i,                     "Capital One"],
+  [/citi\s*double\s*cash/i,              "Citi Double Cash"],
+  [/citi\s*custom\s*cash/i,              "Citi Custom Cash"],
+  [/citi\s*premier/i,                    "Citi Premier"],
+  [/citi(?:bank|corp)?/i,                "Citi"],
+  [/discover\s*it/i,                     "Discover it"],
+  [/discover/i,                          "Discover"],
+  [/bank\s*of\s*america\s*(?:customized|travel|cash)/i, "Bank of America"],
+  [/bank\s*of\s*america|bofa/i,          "Bank of America"],
+  [/wells\s*fargo\s*active\s*cash/i,     "Wells Fargo Active Cash"],
+  [/wells\s*fargo/i,                     "Wells Fargo"],
+  [/navy\s*federal/i,                    "Navy Federal"],
+  [/usaa/i,                              "USAA"],
+  [/us\s*bank\s*altitude/i,              "U.S. Bank Altitude"],
+  [/us\s*bank/i,                         "U.S. Bank"],
+  [/pnc/i,                               "PNC Bank"],
+  [/synchrony/i,                         "Synchrony"],
+  [/barclays|barclaycard/i,              "Barclays"],
+  [/goldman\s*sachs|apple\s*card/i,      "Apple Card"],
+  [/amazon\s*prime\s*(?:visa|rewards)/i, "Amazon Prime Rewards"],
+  [/costco\s*anywhere/i,                 "Costco Anywhere Visa"],
+  [/paypal\s*(?:cashback|credit)/i,      "PayPal Credit"],
+  [/td\s*bank/i,                         "TD Bank"],
+  [/fifth\s*third/i,                     "Fifth Third Bank"],
+  [/regions\s*bank/i,                    "Regions Bank"],
+  // ── Loan / auto / student ─────────────────────────────────────────────────
+  [/sallie\s*mae/i,                      "Sallie Mae"],
+  [/navient/i,                           "Navient"],
+  [/great\s*lakes/i,                     "Great Lakes"],
+  [/mohela/i,                            "MOHELA"],
+  [/fedloan/i,                           "FedLoan"],
+  [/sofi/i,                              "SoFi"],
+  [/earnest/i,                           "Earnest"],
+  [/commonbond/i,                        "CommonBond"],
+  [/ally\s*(?:financial|bank|auto)/i,    "Ally Financial"],
+  [/gm\s*financial/i,                    "GM Financial"],
+  [/ford\s*motor\s*credit/i,             "Ford Motor Credit"],
+  [/toyota\s*financial/i,                "Toyota Financial"],
+  [/honda\s*financial/i,                 "Honda Financial"],
+  [/lightstream/i,                       "LightStream"],
+  [/marcus/i,                            "Marcus by Goldman Sachs"],
+  [/lending\s*club/i,                    "LendingClub"],
+  [/prosper/i,                           "Prosper"],
+  [/avant/i,                             "Avant"],
+  [/affirm/i,                            "Affirm"],
+  [/afterpay/i,                          "Afterpay"],
+  [/klarna/i,                            "Klarna"],
+  [/sezzle/i,                            "Sezzle"],
+];
+
+/**
+ * Scan the raw CSV/text content for a recognisable institution or issuer name.
+ * Checks the first 20 lines (pre-transaction header area) and every data cell.
+ * Returns undefined if nothing is found.
+ */
+export function detectInstitutionFromContent(content: string): string | undefined {
+  // Only scan the top of the file — institution info is almost always there
+  const preview = content.split(/\r?\n/).slice(0, 20).join(" ");
+
+  for (const [re, name] of ISSUER_PATTERNS) {
+    if (re.test(preview)) return name;
+  }
+  return undefined;
 }
 
 function inferType(amount: number, title: string): TransactionType {
@@ -262,12 +347,15 @@ function parseText(text: string): ParseResult {
  */
 export function parseStatement(content: string, filename: string): ParseResult {
   const lower = filename.toLowerCase();
+  const institutionName = detectInstitutionFromContent(content);
 
   // CSV file or content that looks like CSV (has multiple commas on first line)
   if (lower.endsWith(".csv") || (content.split("\n")[0] ?? "").split(",").length > 3) {
-    return parseCsv(content);
+    const result = parseCsv(content);
+    return { ...result, institutionName };
   }
 
   // Otherwise treat as plain text (PDF text-extraction output)
-  return parseText(content);
+  const result = parseText(content);
+  return { ...result, institutionName };
 }

@@ -225,9 +225,9 @@ async function handlePost(
     return NextResponse.json({ error: "No transactions could be parsed from this file" }, { status: 422 });
   }
 
-  // Infer bank details
+  // Infer bank details — priority: user-supplied > content-detected > filename-hint
   const hints = parseFilenameHints(filenameForHints);
-  const institutionName = body.institutionName ?? hints.institution;
+  const institutionName = body.institutionName ?? parsed.institutionName ?? hints.institution;
   const accountMask     = body.accountMask     ?? hints.mask;
 
   // Determine statement period for display
