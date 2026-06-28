@@ -33,10 +33,18 @@ import path from "path";
 const STATEMENTS_ROOT = path.join(process.cwd(), "public", "statements");
 
 const VALID_CATEGORIES: Category[] = [
-  "salary", "freelance", "investment", "refund", "other_income",
-  "housing", "transportation", "food", "utilities", "healthcare",
-  "entertainment", "shopping", "education", "subscriptions",
-  "travel", "transfer", "other",
+  // Income
+  "salary", "freelance", "business_income", "investments", "gov_benefits",
+  "refunds", "gifts", "other_income",
+  // Expense
+  "housing", "transportation", "food_dining", "utilities", "healthcare",
+  "personal_care", "entertainment", "shopping", "education", "family_childcare",
+  "pets", "subscriptions", "travel", "insurance", "financial_fees", "taxes",
+  "charity", "debt_payments", "business_expenses", "other_expenses",
+  // Transfer
+  "savings_investments", "account_transfers", "pay_person",
+  // Legacy fallback
+  "other",
 ];
 
 // ── Extract institution name + account mask from filename ───────────────────
@@ -75,18 +83,40 @@ function parseFilenameHints(filename: string): { institution: string; mask: stri
 
 const SYSTEM_PROMPT = `You are a financial transaction categoriser. Given a JSON array of transaction descriptions, return ONLY a JSON array of category strings (same length, same order). Choose the most accurate category for each transaction from this list:
 
-salary, freelance, investment, refund, other_income, housing, transportation, food, utilities, healthcare, entertainment, shopping, education, subscriptions, travel, transfer, other
+INCOME: salary, freelance, business_income, investments, gov_benefits, refunds, gifts, other_income
+EXPENSE: housing, transportation, food_dining, utilities, healthcare, personal_care, entertainment, shopping, education, family_childcare, pets, subscriptions, travel, insurance, financial_fees, taxes, charity, debt_payments, business_expenses, other_expenses
+TRANSFER: savings_investments, account_transfers, pay_person
 
 Rules:
-- Direct deposits / payroll → salary
-- Gas stations, parking, Uber, Lyft, airlines → transportation
-- Restaurants, cafes, fast food, grocery stores → food
-- Netflix, Spotify, Hulu, Amazon Prime, Apple → subscriptions
-- Rent, mortgage, HOA → housing
-- Electric, water, internet, phone → utilities
-- Doctors, dentists, gyms, pharmacies → healthcare
-- Retail stores, Amazon, online shopping → shopping
-- ATM, Zelle, Venmo, wire transfer → transfer
+- Direct deposits / payroll / wages → salary
+- Freelance contracts, gig work (Uber driver, Fiverr) → freelance
+- Business revenue, product sales → business_income
+- Dividends, interest, capital gains → investments
+- Social Security, unemployment, disability benefits → gov_benefits
+- Tax refunds, purchase refunds, reimbursements → refunds
+- Cash gifts, prizes → gifts
+- Rent, mortgage, HOA, home maintenance → housing
+- Gas stations, parking, Uber/Lyft rides, public transit, car payments → transportation
+- Grocery stores, restaurants, fast food, cafes, food delivery → food_dining
+- Electric, water, gas, internet, phone bills → utilities
+- Doctors, dentists, pharmacies, gyms, therapy → healthcare
+- Haircuts, salons, spa, beauty products → personal_care
+- Movies, concerts, video games, hobbies → entertainment
+- Retail stores, Amazon, clothing, online shopping → shopping
+- Tuition, books, online courses → education
+- Childcare, daycare, baby supplies → family_childcare
+- Pet food, vet, pet grooming → pets
+- Netflix, Spotify, SaaS subscriptions, memberships → subscriptions
+- Flights, hotels, vacation rentals → travel
+- Life, disability, umbrella insurance (not health/auto) → insurance
+- Bank fees, ATM fees, overdraft, wire fees → financial_fees
+- IRS, tax payments, estimated quarterly taxes → taxes
+- Donations, charitable giving, tithing → charity
+- Credit card payments, loan payments → debt_payments
+- Office supplies, marketing, business software → business_expenses
+- ATM cash withdrawals, Zelle/Venmo/PayPal payments to people → pay_person
+- Transfers to savings, investments, retirement accounts → savings_investments
+- Internal bank transfers, moving money between own accounts → account_transfers
 - Return the JSON array and NOTHING else.`;
 
 async function aiCategorise(descriptions: string[]): Promise<Category[]> {

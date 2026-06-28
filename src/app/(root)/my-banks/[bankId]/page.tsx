@@ -21,7 +21,8 @@ import {
   Check,
 } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/utils";
-import { CATEGORY_LABELS } from "@/lib/constants";
+import { CATEGORY_LABELS, CATEGORY_HIERARCHY } from "@/lib/constants";
+import type { CategoryDef } from "@/lib/constants";
 import type { Bank, Category } from "@/lib/types";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -57,29 +58,58 @@ interface StatementData {
 }
 
 const CATEGORY_COLORS: Record<string, string> = {
-  food:           "#f97316",
-  transportation: "#3b82f6",
-  shopping:       "#a855f7",
-  subscriptions:  "#ec4899",
-  utilities:      "#06b6d4",
-  healthcare:     "#10b981",
-  housing:        "#ef4444",
-  entertainment:  "#f59e0b",
-  education:      "#8b5cf6",
-  travel:         "#14b8a6",
-  salary:         "#22c55e",
-  investment:     "#6366f1",
-  freelance:      "#f59e0b",
-  refund:         "#34d399",
-  other_income:   "#a3e635",
-  transfer:       "#94a3b8",
-  other:          "#64748b",
+  // Income
+  salary:            "#22c55e",
+  freelance:         "#86efac",
+  business_income:   "#4ade80",
+  investments:       "#6366f1",
+  gov_benefits:      "#a78bfa",
+  refunds:           "#34d399",
+  gifts:             "#f472b6",
+  other_income:      "#a3e635",
+  // Expense
+  housing:           "#ef4444",
+  transportation:    "#3b82f6",
+  food_dining:       "#f97316",
+  utilities:         "#06b6d4",
+  healthcare:        "#10b981",
+  personal_care:     "#ec4899",
+  entertainment:     "#f59e0b",
+  shopping:          "#a855f7",
+  education:         "#8b5cf6",
+  family_childcare:  "#fb923c",
+  pets:              "#84cc16",
+  subscriptions:     "#d946ef",
+  travel:            "#14b8a6",
+  insurance:         "#64748b",
+  financial_fees:    "#78716c",
+  taxes:             "#dc2626",
+  charity:           "#e879f9",
+  debt_payments:     "#b91c1c",
+  business_expenses: "#0ea5e9",
+  other_expenses:    "#94a3b8",
+  // Transfer
+  savings_investments: "#2563eb",
+  account_transfers:   "#475569",
+  pay_person:          "#7c3aed",
+  // Legacy
+  investment: "#6366f1",
+  refund:     "#34d399",
+  food:       "#f97316",
+  transfer:   "#94a3b8",
+  other:      "#64748b",
 };
 
 const LS_KEY  = "arcana:statement-banks";
 const LS_META = "arcana:statement-banks-meta";
 
 // ── Recategorise Modal ────────────────────────────────────────────────────────
+
+const TYPE_BADGE: Record<"income" | "expense" | "transfer", string> = {
+  income:   "text-green-400 bg-green-900/30",
+  expense:  "text-red-400 bg-red-900/30",
+  transfer: "text-blue-400 bg-blue-900/30",
+};
 
 function RecategoriseModal({
   txn,
@@ -91,8 +121,18 @@ function RecategoriseModal({
   onSaved: (transactionId: string, newCategory: Category) => void;
 }) {
   const [selected, setSelected] = useState<Category>(txn.category);
+  const [activeCat, setActiveCat] = useState<CategoryDef | null>(null);
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+
+  function pickParent(cat: CategoryDef) {
+    setSelected(cat.id);
+    setActiveCat(cat);
+  }
+
+  function pickSub(id: Category) {
+    setSelected(id);
+  }
 
   async function save() {
     if (!txn.transactionId) return;
@@ -101,11 +141,7 @@ function RecategoriseModal({
     try {
       const res = await fetch(
         `/api/transactions/${txn.transactionId}/override-category`,
-        {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ category: selected }),
-        }
+        { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ category: selected }) }
       );
       if (!res.ok) {
         const data = await res.json().catch(() => ({})) as { error?: string };
@@ -120,15 +156,19 @@ function RecategoriseModal({
     }
   }
 
+  const incomeGroups   = CATEGORY_HIERARCHY.filter((c) => c.type === "income");
+  const expenseGroups  = CATEGORY_HIERARCHY.filter((c) => c.type === "expense");
+  const transferGroups = CATEGORY_HIERARCHY.filter((c) => c.type === "transfer");
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
       style={{ background: "rgba(0,0,0,0.65)", backdropFilter: "blur(4px)" }}
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <div className="w-full max-w-sm rounded-2xl bg-arcana-surface border border-arcana-border shadow-2xl overflow-hidden">
+      <div className="w-full max-w-md rounded-2xl bg-arcana-surface border border-arcana-border shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-arcana-border">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-arcana-border shrink-0">
           <div className="flex items-center gap-2">
             <Tag className="w-4 h-4 text-arcana-sky" />
             <h2 className="text-sm font-semibold text-white">Recategorise</h2>
@@ -138,48 +178,112 @@ function RecategoriseModal({
           </button>
         </div>
 
-        <div className="px-5 py-4 space-y-4">
+        <div className="overflow-y-auto flex-1 px-5 py-4 space-y-4">
           {/* Transaction summary */}
           <div className="rounded-lg bg-arcana-navy/60 px-4 py-3 space-y-1.5">
             <p className="text-sm font-medium text-white leading-snug">{txn.title}</p>
             <div className="flex items-center justify-between">
               <p className="text-xs text-slate-500">{formatDate(txn.date)}</p>
-              <p className={`text-sm font-semibold tabular-nums ${
-                txn.transactionType === "income" ? "text-green-400" : "text-red-400"
-              }`}>
+              <p className={`text-sm font-semibold tabular-nums ${txn.transactionType === "income" ? "text-green-400" : "text-red-400"}`}>
                 {txn.transactionType === "income" ? "+" : "−"}{formatCurrency(txn.amount)}
               </p>
             </div>
           </div>
 
-          {/* Category grid */}
-          <div className="space-y-1.5">
-            <p className="text-[10px] font-medium text-slate-500 uppercase tracking-wider">Choose a category</p>
-            <div className="grid grid-cols-2 gap-1.5 max-h-60 overflow-y-auto pr-1">
-              {(Object.entries(CATEGORY_LABELS) as [Category, string][]).map(([cat, label]) => (
-                <button
-                  key={cat}
-                  type="button"
-                  onClick={() => setSelected(cat)}
-                  className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-left transition-all ${
-                    selected === cat
-                      ? "bg-arcana-blue/20 border border-arcana-blue text-white"
-                      : "bg-arcana-navy/40 border border-arcana-border text-slate-400 hover:border-arcana-blue/40 hover:text-slate-300"
-                  }`}
-                >
-                  <span
-                    className="w-2 h-2 rounded-full shrink-0"
-                    style={{ backgroundColor: CATEGORY_COLORS[cat] ?? "#64748b" }}
-                  />
-                  <span className="truncate flex-1">{label}</span>
-                  {selected === cat && <Check className="w-3 h-3 text-arcana-sky shrink-0" />}
-                </button>
-              ))}
-            </div>
+          {/* Current selection pill */}
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] text-slate-500 uppercase tracking-wider">Selected:</span>
+            <span className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-arcana-blue/20 border border-arcana-blue/50 text-xs text-white">
+              <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: CATEGORY_COLORS[selected] ?? CATEGORY_COLORS[activeCat?.id ?? ""] ?? "#64748b" }} />
+              {CATEGORY_LABELS[selected] ?? selected}
+            </span>
           </div>
 
-          {err && <p className="text-xs text-red-400">{err}</p>}
+          {/* Subcategory view */}
+          {activeCat ? (
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setActiveCat(null)}
+                  className="flex items-center gap-1 text-xs text-arcana-sky hover:text-white transition-colors"
+                >
+                  <ChevronLeft className="w-3.5 h-3.5" />
+                  All categories
+                </button>
+                <span className="text-slate-600">·</span>
+                <span className="text-xs font-medium text-white">{activeCat.name}</span>
+              </div>
 
+              {/* "Use category only" option */}
+              <button
+                type="button"
+                onClick={() => setSelected(activeCat.id)}
+                className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-left transition-all border ${
+                  selected === activeCat.id
+                    ? "bg-arcana-blue/20 border-arcana-blue text-white"
+                    : "bg-arcana-navy/40 border-arcana-border text-slate-400 hover:border-arcana-blue/40 hover:text-slate-300"
+                }`}
+              >
+                <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: CATEGORY_COLORS[activeCat.id] ?? "#64748b" }} />
+                <span className="flex-1">{activeCat.name} <span className="text-slate-600">(general)</span></span>
+                {selected === activeCat.id && <Check className="w-3 h-3 text-arcana-sky shrink-0" />}
+              </button>
+
+              <div className="grid grid-cols-1 gap-1">
+                {activeCat.subcategories.map((sub) => (
+                  <button
+                    key={sub.id}
+                    type="button"
+                    onClick={() => pickSub(sub.id)}
+                    className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-left transition-all border ${
+                      selected === sub.id
+                        ? "bg-arcana-blue/20 border-arcana-blue text-white"
+                        : "bg-arcana-navy/40 border-arcana-border text-slate-400 hover:border-arcana-blue/40 hover:text-slate-300"
+                    }`}
+                  >
+                    <span className="w-1.5 h-1.5 rounded-full shrink-0 bg-slate-500" />
+                    <span className="flex-1">{sub.name}</span>
+                    {selected === sub.id && <Check className="w-3 h-3 text-arcana-sky shrink-0" />}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : (
+            /* Top-level category view — grouped by type */
+            <div className="space-y-4">
+              {([["income", incomeGroups], ["expense", expenseGroups], ["transfer", transferGroups]] as const).map(([type, groups]) => (
+                <div key={type}>
+                  <p className={`text-[10px] font-semibold uppercase tracking-wider mb-1.5 px-1 ${TYPE_BADGE[type]}`}>
+                    {type}
+                  </p>
+                  <div className="grid grid-cols-2 gap-1">
+                    {(groups as CategoryDef[]).map((cat) => {
+                      const isActive = selected === cat.id || cat.subcategories.some((s) => s.id === selected);
+                      return (
+                        <button
+                          key={cat.id}
+                          type="button"
+                          onClick={() => pickParent(cat)}
+                          className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-left transition-all border ${
+                            isActive
+                              ? "bg-arcana-blue/20 border-arcana-blue text-white"
+                              : "bg-arcana-navy/40 border-arcana-border text-slate-400 hover:border-arcana-blue/40 hover:text-slate-300"
+                          }`}
+                        >
+                          <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: CATEGORY_COLORS[cat.id] ?? "#64748b" }} />
+                          <span className="truncate flex-1">{cat.name}</span>
+                          <ChevronLeft className="w-3 h-3 shrink-0 rotate-180 text-slate-600" />
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {err && <p className="text-xs text-red-400">{err}</p>}
           {!txn.transactionId && (
             <p className="text-xs text-amber-500 leading-relaxed">
               This transaction was loaded from a local file. Re-import the CSV to enable recategorisation.
@@ -188,7 +292,7 @@ function RecategoriseModal({
         </div>
 
         {/* Footer */}
-        <div className="px-5 py-4 border-t border-arcana-border flex gap-3">
+        <div className="px-5 py-4 border-t border-arcana-border flex gap-3 shrink-0">
           <button
             type="button"
             onClick={onClose}
