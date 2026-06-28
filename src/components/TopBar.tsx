@@ -30,7 +30,7 @@ export default function TopBar() {
 
     const loadUsage = async () => {
       try {
-        const res = await fetch("/api/ai/usage");
+        const res = await fetch("/api/ai/usage", { cache: "no-store" });
         if (!res.ok) return;
         const data = await res.json();
         const usage = data.usage as
@@ -52,10 +52,23 @@ export default function TopBar() {
     const onFocus = () => {
       void loadUsage();
     };
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") {
+        void loadUsage();
+      }
+    };
+    const interval = window.setInterval(() => {
+      if (document.visibilityState === "visible") {
+        void loadUsage();
+      }
+    }, 15000);
     window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVisibility);
     return () => {
       cancelled = true;
+      window.clearInterval(interval);
       window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onVisibility);
     };
   }, [pathname]);
 
