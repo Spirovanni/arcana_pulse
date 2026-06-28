@@ -335,29 +335,31 @@ export default function AssistantPage() {
   const selectedBadgeClass = BADGE_COLORS[selectedModel.badgeColor] ?? BADGE_COLORS.purple;
 
   return (
-    <div className="space-y-4 lg:space-y-6">
+    <div className="mx-auto w-full max-w-6xl space-y-5 lg:space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-white">Financial Assistant</h1>
-          <p className="text-sm text-slate-400 mt-1">
-            Ask me anything about your finances
-          </p>
-        </div>
-        {/* Active model badge */}
-        <div className={`hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs ${selectedBadgeClass}`}>
-          <Sparkles className="w-3 h-3" />
-          {selectedModel.label}
+      <div className="rounded-2xl border border-arcana-border bg-arcana-surface/80 px-5 py-4 sm:px-6 sm:py-5">
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-white">Financial Assistant</h1>
+            <p className="text-sm text-slate-400 mt-1">
+              Ask me anything about your finances
+            </p>
+          </div>
+          {/* Active model badge */}
+          <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs ${selectedBadgeClass}`}>
+            <Sparkles className="w-3 h-3" />
+            {selectedModel.label}
+          </div>
         </div>
       </div>
 
       {/* Chat container */}
       <div
-        className="rounded-xl bg-arcana-surface border border-arcana-border flex flex-col"
-        style={{ minHeight: "620px", height: "calc(100vh - 250px)" }}
+        className="rounded-2xl bg-arcana-surface border border-arcana-border flex flex-col shadow-[0_10px_40px_rgba(0,0,0,0.25)]"
+        style={{ minHeight: "560px", height: "calc(100vh - 300px)" }}
       >
         {/* Messages area */}
-        <div className="flex-1 overflow-y-auto p-5 space-y-4">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-5 lg:p-6 space-y-5">
           {/* Empty state */}
           {messages.length === 0 && !loading && (
             <div className="flex flex-col items-center justify-center h-full text-center">
@@ -454,36 +456,41 @@ export default function AssistantPage() {
         </div>
 
         {/* Input bar */}
-        <div className="border-t border-arcana-border p-4 space-y-3">
+        <div className="border-t border-arcana-border bg-arcana-navy/20 p-3 sm:p-4 lg:p-5 space-y-3">
           <div className="flex items-center justify-between gap-3">
-            <button
-              type="button"
-              onClick={listening ? stopListening : startListening}
-              disabled={loading}
-              className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg border text-xs font-semibold uppercase tracking-wider transition-colors ${
-                listening
-                  ? "bg-red-500/20 border-red-400/30 text-red-300"
-                  : voiceMode
-                  ? "bg-arcana-blue/20 border-arcana-blue/40 text-arcana-blue"
-                  : "bg-arcana-navy border-arcana-border text-slate-300 hover:border-arcana-blue"
-              } disabled:opacity-50 disabled:cursor-not-allowed`}
-            >
-              {listening ? <Square className="w-3.5 h-3.5" /> : <Mic className="w-3.5 h-3.5" />}
-              {listening ? "Listening..." : voiceMode ? "Talk Mode" : "Tap To Talk"}
-            </button>
-            <button
-              type="button"
-              onClick={() => setVoiceMode((v) => !v)}
-              className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg border text-xs font-semibold uppercase tracking-wider transition-colors ${
-                voiceMode
-                  ? "bg-arcana-blue/20 border-arcana-blue/40 text-arcana-blue"
-                  : "bg-arcana-navy border-arcana-border text-slate-400 hover:border-arcana-blue"
-              }`}
-              title="When enabled, speech is sent automatically when listening ends."
-            >
-              <Sparkles className="w-3.5 h-3.5" />
-              Auto Send Voice
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={listening ? stopListening : startListening}
+                disabled={loading}
+                className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg border text-xs font-semibold uppercase tracking-wider transition-colors ${
+                  listening
+                    ? "bg-red-500/20 border-red-400/30 text-red-300"
+                    : voiceMode
+                    ? "bg-arcana-blue/20 border-arcana-blue/40 text-arcana-blue"
+                    : "bg-arcana-navy border-arcana-border text-slate-300 hover:border-arcana-blue"
+                } disabled:opacity-50 disabled:cursor-not-allowed`}
+              >
+                {listening ? <Square className="w-3.5 h-3.5" /> : <Mic className="w-3.5 h-3.5" />}
+                {listening ? "Listening..." : voiceMode ? "Talk Mode" : "Tap To Talk"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setVoiceMode((v) => !v)}
+                className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg border text-xs font-semibold uppercase tracking-wider transition-colors ${
+                  voiceMode
+                    ? "bg-arcana-blue/20 border-arcana-blue/40 text-arcana-blue"
+                    : "bg-arcana-navy border-arcana-border text-slate-400 hover:border-arcana-blue"
+                }`}
+                title="When enabled, speech is sent automatically when listening ends."
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                Auto Send Voice
+              </button>
+            </div>
+            <div className="hidden sm:block text-[10px] uppercase tracking-wider text-slate-500">
+              {voiceMode ? "Voice mode enabled" : "Manual send mode"}
+            </div>
           </div>
 
           <div className="flex items-end gap-2">
@@ -496,9 +503,9 @@ export default function AssistantPage() {
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder="Ask about your finances..."
-              rows={1}
+              rows={2}
               disabled={loading}
-              className="flex-1 px-4 py-2.5 rounded-lg bg-arcana-navy border border-arcana-border text-white text-sm placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-arcana-blue resize-none disabled:opacity-50"
+              className="flex-1 min-h-[44px] max-h-32 px-4 py-2.5 rounded-lg bg-arcana-navy border border-arcana-border text-white text-sm placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-arcana-blue resize-none disabled:opacity-50"
             />
 
             {/* Voice output toggle */}
