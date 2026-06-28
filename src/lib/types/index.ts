@@ -157,6 +157,7 @@ export interface Transaction {
   transactionId: string;
   workspaceId: string;
   bankId: string | null;
+  institutionName?: string;
   sourceType: SourceType;
   transactionType: TransactionType;
   title: string;

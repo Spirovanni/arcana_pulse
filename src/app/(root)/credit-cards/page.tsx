@@ -330,6 +330,7 @@ export default function CreditCardsPage() {
               <thead>
                 <tr className="border-b border-arcana-border bg-arcana-navy/50">
                   <th className="px-5 py-3 text-left text-[10px] uppercase tracking-[1.4px] text-slate-400">Title</th>
+                  <th className="px-5 py-3 text-left text-[10px] uppercase tracking-[1.4px] text-slate-400">Card Company</th>
                   <th className="px-5 py-3 text-left text-[10px] uppercase tracking-[1.4px] text-slate-400">Category</th>
                   <th className="px-5 py-3 text-left text-[10px] uppercase tracking-[1.4px] text-slate-400">Date</th>
                   <th className="px-5 py-3 text-right text-[10px] uppercase tracking-[1.4px] text-slate-400">Amount</th>
@@ -339,6 +340,7 @@ export default function CreditCardsPage() {
                 {fallbackItems.map((txn) => (
                   <tr key={txn.transactionId} className="border-b border-arcana-border/60 last:border-0 hover:bg-arcana-navy/20 transition-colors">
                     <td className="px-5 py-3 text-white max-w-[280px] truncate">{txn.title}</td>
+                    <td className="px-5 py-3 text-slate-300 text-xs">{txn.institutionName ?? "Statement Upload"}</td>
                     <td className="px-5 py-3 text-slate-400 text-xs">
                       {CATEGORY_LABELS[txn.category as Category] ?? txn.category}
                     </td>

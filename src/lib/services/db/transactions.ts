@@ -6,6 +6,7 @@ import {
 } from "@/lib/appwrite";
 import { CATEGORY_LABELS } from "@/lib/constants";
 import { ID } from "node-appwrite";
+import * as dbBanks from "@/lib/services/db/banks";
 import type {
   Transaction,
   TransactionFilter,
@@ -22,11 +23,16 @@ import type { Models } from "node-appwrite";
 // Document → entity mapper
 // ---------------------------------------------------------------------------
 
-function toTransaction(doc: Models.Document & Record<string, any>): Transaction {
+function toTransaction(
+  doc: Models.Document & Record<string, any>,
+  institutionNameByBankId?: Map<string, string>
+): Transaction {
+  const bankId = doc.bankId ?? null;
   return {
     transactionId: doc.$id,
     workspaceId: doc.workspaceId,
-    bankId: doc.bankId ?? null,
+    bankId,
+    institutionName: bankId ? institutionNameByBankId?.get(bankId) : undefined,
     sourceType: doc.sourceType,
     transactionType: doc.transactionType,
     title: doc.title,
@@ -81,6 +87,11 @@ export async function listTransactions(
     queries
   );
 
+  const banks = await dbBanks.getBanksByWorkspace(filter.workspaceId);
+  const institutionNameByBankId = new Map(
+    banks.map((bank) => [bank.bankId, bank.institutionName] as const)
+  );
+
   // For total count, run a separate query without pagination
   const countQueries = queries.filter(
     (q) =>
@@ -99,7 +110,7 @@ export async function listTransactions(
   const totalPages = Math.ceil(total / pageSize);
 
   return {
-    items: result.documents.map(toTransaction),
+    items: result.documents.map((doc) => toTransaction(doc, institutionNameByBankId)),
     total,
     page,
     pageSize,
@@ -116,7 +127,14 @@ export async function getTransaction(
       COLLECTIONS.transactions,
       transactionId
     );
-    return toTransaction(doc);
+    let institutionNameByBankId: Map<string, string> | undefined;
+    if (doc.bankId) {
+      const bank = await dbBanks.getBankById(doc.bankId);
+      if (bank) {
+        institutionNameByBankId = new Map([[bank.bankId, bank.institutionName]]);
+      }
+    }
+    return toTransaction(doc, institutionNameByBankId);
   } catch {
     return null;
   }
@@ -135,7 +153,11 @@ export async function getRecentTransactions(
       Query.limit(limit),
     ]
   );
-  return result.documents.map(toTransaction);
+  const banks = await dbBanks.getBanksByWorkspace(workspaceId);
+  const institutionNameByBankId = new Map(
+    banks.map((bank) => [bank.bankId, bank.institutionName] as const)
+  );
+  return result.documents.map((doc) => toTransaction(doc, institutionNameByBankId));
 }
 
 // ---------------------------------------------------------------------------
