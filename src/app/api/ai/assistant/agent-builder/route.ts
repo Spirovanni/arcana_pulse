@@ -5,6 +5,7 @@ import { completeForFeature } from "@/lib/ai-router";
 type BuilderRequest = {
   exportMode?: "prompt" | "json";
   workspaceId?: string;
+  firstSentence?: string;
   companyName?: string;
   appName?: string;
   agentName?: string;
@@ -138,6 +139,7 @@ function buildFallbackJson(params: {
   companyName: string;
   appName: string;
   agentName: string;
+  firstSentence: string | null;
   tone: string;
   goals: string;
   includePostCallWebhook: boolean;
@@ -146,7 +148,9 @@ function buildFallbackJson(params: {
 }): AgentBuilderConfig {
   return {
     name: params.agentName,
-    first_message: `Hi, this is ${params.agentName} from ${params.appName}. How can I help you today?`,
+    first_message:
+      params.firstSentence ??
+      `Hi, this is ${params.agentName} from ${params.appName}. How can I help you today?`,
     prompt: buildFallbackPrompt({
       companyName: params.companyName,
       appName: params.appName,
@@ -255,6 +259,10 @@ export async function POST(request: NextRequest) {
   const companyName = normalizeText(body.companyName, "Arcana Credit Union");
   const appName = normalizeText(body.appName, "Arcana Pulse");
   const agentName = normalizeText(body.agentName, "Arcana Voice Advisor");
+  const firstSentence =
+    typeof body.firstSentence === "string" && body.firstSentence.trim().length > 0
+      ? body.firstSentence.trim()
+      : null;
   const primaryAudience = normalizeText(
     body.primaryAudience,
     "Consumers seeking guidance on budgeting, cash flow, and financial planning."
@@ -285,7 +293,8 @@ export async function POST(request: NextRequest) {
 - Compliance notes: ${complianceNotes}
 - Must include end_call policy: ${mustUseEndCall ? "yes" : "no"}
 - Include dynamic variable map: ${enableDynamicVariables ? "yes" : "no"}
-- Include post-call webhook blueprint: ${includePostCallWebhook ? "yes" : "no"}`;
+- Include post-call webhook blueprint: ${includePostCallWebhook ? "yes" : "no"}
+${firstSentence ? `- Preferred first sentence: ${firstSentence}` : ""}`;
 
   const userPrompt = `Generate the ${exportMode === "json" ? "JSON configuration" : "markdown prompt template"} now for:
 Agent name: ${agentName}
@@ -350,6 +359,7 @@ Requirements:
           companyName,
           appName,
           agentName,
+          firstSentence,
           tone,
           goals,
           includePostCallWebhook,
@@ -412,6 +422,7 @@ Requirements:
       companyName,
       appName,
       agentName,
+      firstSentence,
       tone,
       goals,
       includePostCallWebhook,

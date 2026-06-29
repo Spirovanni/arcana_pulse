@@ -41,8 +41,11 @@ const DEFAULT_FORM: BuilderForm = {
 export default function AssistantAgentBuilderPage() {
   const [form, setForm] = useState<BuilderForm>(DEFAULT_FORM);
   const [loading, setLoading] = useState(false);
+  const [firstSentenceLoading, setFirstSentenceLoading] = useState(false);
+  const [firstSentenceCopied, setFirstSentenceCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [firstSentence, setFirstSentence] = useState("");
   const [result, setResult] = useState<{
     exportMode: "prompt" | "json";
     exportText: string;
@@ -65,6 +68,7 @@ export default function AssistantAgentBuilderPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           workspaceId: DEFAULT_WORKSPACE_ID,
+          firstSentence,
           ...form,
         }),
       });
@@ -107,6 +111,46 @@ export default function AssistantAgentBuilderPage() {
     window.setTimeout(() => setCopied(false), 1500);
   }
 
+  async function generateFirstSentence() {
+    setFirstSentenceLoading(true);
+    setError(null);
+    setFirstSentenceCopied(false);
+    try {
+      const response = await fetch("/api/ai/assistant/agent-builder/first-sentence", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          workspaceId: DEFAULT_WORKSPACE_ID,
+          companyName: form.companyName,
+          appName: form.appName,
+          agentName: form.agentName,
+          primaryAudience: form.primaryAudience,
+          goals: form.goals,
+          tone: form.tone,
+        }),
+      });
+      const payload = (await response.json().catch(() => ({}))) as {
+        firstSentence?: string;
+        error?: string;
+      };
+      if (!response.ok || !payload.firstSentence) {
+        throw new Error(payload.error ?? "Failed to generate first sentence.");
+      }
+      setFirstSentence(payload.firstSentence);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to generate first sentence.");
+    } finally {
+      setFirstSentenceLoading(false);
+    }
+  }
+
+  async function copyFirstSentence() {
+    if (!firstSentence) return;
+    await navigator.clipboard.writeText(firstSentence);
+    setFirstSentenceCopied(true);
+    window.setTimeout(() => setFirstSentenceCopied(false), 1500);
+  }
+
   function downloadOutput() {
     if (!textOutput) return;
     const mode = result?.exportMode ?? form.exportMode;
@@ -146,6 +190,45 @@ export default function AssistantAgentBuilderPage() {
 
       <div className="grid gap-4 lg:grid-cols-2">
         <div className="space-y-3 rounded-2xl border border-arcana-border bg-arcana-surface p-4">
+          <div className="rounded-xl border border-arcana-border bg-arcana-navy/40 p-3">
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-300">
+                First Sentence Generator
+              </h2>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => void generateFirstSentence()}
+                  disabled={firstSentenceLoading}
+                  className="inline-flex items-center gap-2 rounded-lg border border-arcana-border bg-arcana-navy px-2.5 py-1.5 text-xs text-slate-300 hover:border-arcana-blue disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {firstSentenceLoading ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Sparkles className="h-3.5 w-3.5" />
+                  )}
+                  Generate First Sentence
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void copyFirstSentence()}
+                  disabled={!firstSentence}
+                  className="inline-flex items-center gap-2 rounded-lg border border-arcana-border bg-arcana-navy px-2.5 py-1.5 text-xs text-slate-300 hover:border-arcana-blue disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <Copy className="h-3.5 w-3.5" />
+                  {firstSentenceCopied ? "Copied" : "Copy"}
+                </button>
+              </div>
+            </div>
+            <textarea
+              value={firstSentence}
+              onChange={(e) => setFirstSentence(e.target.value)}
+              placeholder='Click "Generate First Sentence" to draft your opener.'
+              rows={2}
+              className="w-full rounded-lg border border-arcana-border bg-arcana-navy px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-arcana-blue"
+            />
+          </div>
+
           {(
             [
               ["companyName", "Company Name"],
