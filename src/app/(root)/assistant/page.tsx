@@ -12,6 +12,7 @@ import {
   Square,
   Volume2,
   VolumeX,
+  X,
 } from "lucide-react";
 import { DEFAULT_WORKSPACE_ID } from "@/lib/services/workspace";
 import type { AssistantModelOption } from "@/lib/services/ai/assistant";
@@ -1073,7 +1074,16 @@ export default function AssistantPage() {
           {agentRuntimeWarning && (
             <div className="inline-flex items-center gap-2 rounded-lg border border-amber-400/30 bg-amber-400/10 px-3 py-2 text-xs text-amber-200">
               <span className="inline-block h-1.5 w-1.5 rounded-full bg-amber-300" />
-              {agentRuntimeWarning}
+              <span>{agentRuntimeWarning}</span>
+              <button
+                type="button"
+                onClick={() => setAgentRuntimeWarning(null)}
+                className="inline-flex h-4 w-4 items-center justify-center rounded text-amber-200/80 hover:bg-amber-300/20 hover:text-amber-100"
+                aria-label="Dismiss warning"
+                title="Dismiss warning"
+              >
+                <X className="h-3 w-3" />
+              </button>
             </div>
           )}
 
