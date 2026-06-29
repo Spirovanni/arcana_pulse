@@ -50,6 +50,8 @@ export default function TransactionForm({
   const [aiConfidence, setAiConfidence] = useState<number | null>(null);
 
   const categoryGroups = txnType === "income" ? INCOME_GROUPS : EXPENSE_GROUPS;
+  const isSyncedCategoryOnly =
+    mode === "edit" && transaction?.sourceType === "synced";
 
   async function suggestCategory() {
     if (!title.trim() || aiLoading) return;
@@ -169,6 +171,7 @@ export default function TransactionForm({
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="e.g. Monthly Salary"
+              disabled={isSyncedCategoryOnly}
               className="w-full px-3 py-2.5 rounded-lg bg-arcana-navy border border-arcana-border text-white text-sm placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-arcana-blue"
               required
             />
@@ -181,7 +184,7 @@ export default function TransactionForm({
                 type="button"
                 title="AI suggest category"
                 onClick={suggestCategory}
-                disabled={!title.trim() || aiLoading || txnType === "transfer"}
+                disabled={!title.trim() || aiLoading || txnType === "transfer" || isSyncedCategoryOnly}
                 className="flex items-center gap-1 px-2 py-1 rounded text-[10px] uppercase tracking-wider font-bold text-arcana-blue hover:bg-arcana-blue/10 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 {aiLoading ? (
@@ -229,6 +232,7 @@ export default function TransactionForm({
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
                 placeholder="0.00"
+                disabled={isSyncedCategoryOnly}
                 className="w-full pl-7 pr-3 py-2.5 rounded-lg bg-arcana-navy border border-arcana-border text-white text-sm placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-arcana-blue"
                 required
               />
@@ -241,6 +245,7 @@ export default function TransactionForm({
               type="date"
               value={date}
               onChange={(e) => setDate(e.target.value)}
+              disabled={isSyncedCategoryOnly}
               className="w-full px-3 py-2.5 rounded-lg bg-arcana-navy border border-arcana-border text-white text-sm focus:outline-none focus:ring-2 focus:ring-arcana-blue"
               required
             />
@@ -255,9 +260,16 @@ export default function TransactionForm({
               value={note}
               onChange={(e) => setNote(e.target.value)}
               placeholder="Add a note..."
+              disabled={isSyncedCategoryOnly}
               className="w-full px-3 py-2.5 rounded-lg bg-arcana-navy border border-arcana-border text-white text-sm placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-arcana-blue resize-none"
             />
           </div>
+
+          {isSyncedCategoryOnly && (
+            <p className="text-xs text-slate-400">
+              Synced transactions are read-only except for category reassignment.
+            </p>
+          )}
 
           <div className="flex gap-3 pt-2">
             <button
@@ -271,7 +283,11 @@ export default function TransactionForm({
               type="submit"
               className="flex-1 py-2.5 rounded-lg bg-arcana-blue text-white text-sm font-medium hover:bg-blue-600 transition-colors"
             >
-              {mode === "create" ? "Add" : "Save Changes"}
+              {mode === "create"
+                ? "Add"
+                : isSyncedCategoryOnly
+                ? "Save Category"
+                : "Save Changes"}
             </button>
           </div>
         </form>

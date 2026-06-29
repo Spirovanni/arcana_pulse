@@ -140,11 +140,21 @@ function TransactionsContent() {
   async function handleUpdate(data: CreateTransactionInput | UpdateTransactionInput) {
     if (!editingTxn) return;
     setMutationError(null);
-    const res = await fetch(`/api/transactions/${editingTxn.transactionId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
-    });
+    const res =
+      editingTxn.sourceType === "synced"
+        ? await fetch(
+            `/api/transactions/${editingTxn.transactionId}/override-category`,
+            {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ category: data.category }),
+            }
+          )
+        : await fetch(`/api/transactions/${editingTxn.transactionId}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(data),
+          });
     if (!res.ok) {
       const d = await res.json().catch(() => ({})) as { error?: string };
       setMutationError(d.error ?? "Failed to update transaction");
@@ -347,10 +357,17 @@ function TransactionsContent() {
                 </tr>
               </thead>
               <tbody>
-                {result.items.map((txn) => (
+                {result.items.map((txn) => {
+                  const canEdit = txn.sourceType === "manual" || txn.sourceType === "synced";
+                  return (
                   <tr
                     key={txn.transactionId}
-                    className="border-b border-arcana-border last:border-0 hover:bg-arcana-navy/30 transition-colors"
+                    onClick={canEdit ? () => { setMutationError(null); setEditingTxn(txn); } : undefined}
+                    className={`border-b border-arcana-border last:border-0 transition-colors ${
+                      canEdit
+                        ? "hover:bg-arcana-navy/30 cursor-pointer"
+                        : "hover:bg-arcana-navy/20"
+                    }`}
                   >
                     {/* Title */}
                     <td className="px-5 py-3">
@@ -430,7 +447,7 @@ function TransactionsContent() {
                         <div className="flex gap-1 justify-end">
                           <button
                             type="button"
-                            onClick={() => { setMutationError(null); setEditingTxn(txn); }}
+                            onClick={(event) => { event.stopPropagation(); setMutationError(null); setEditingTxn(txn); }}
                             className="p-2 rounded text-slate-400 hover:text-white hover:bg-arcana-navy transition-colors"
                             title="Edit"
                           >
@@ -438,7 +455,7 @@ function TransactionsContent() {
                           </button>
                           <button
                             type="button"
-                            onClick={() => setDeletingTxn(txn)}
+                            onClick={(event) => { event.stopPropagation(); setDeletingTxn(txn); }}
                             className="p-2 rounded text-slate-400 hover:text-arcana-danger hover:bg-red-500/10 transition-colors"
                             title="Delete"
                           >
@@ -447,13 +464,13 @@ function TransactionsContent() {
                         </div>
                       )}
                       {txn.sourceType === "synced" && (
-                        <div className="flex justify-end" title="Synced — open bank detail to recategorise">
-                          <Tag className="w-3 h-3 text-slate-600" />
+                        <div className="flex justify-end" title="Click row to recategorize">
+                          <Tag className="w-3 h-3 text-arcana-sky/80" />
                         </div>
                       )}
                     </td>
                   </tr>
-                ))}
+                )})}
               </tbody>
             </table>
           </div>
