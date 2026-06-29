@@ -147,6 +147,7 @@ export default function AssistantPage() {
   const [listening, setListening] = useState(false);
   const [transcribing, setTranscribing] = useState(false);
   const [voiceMode, setVoiceMode] = useState(false);
+  const [freeFlowActive, setFreeFlowActive] = useState(false);
   const [voiceEnabled, setVoiceEnabled] = useState(true);
   const [selectedModel, setSelectedModel] = useState<AssistantModelOption>(ASSISTANT_MODELS[0]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -154,11 +155,19 @@ export default function AssistantPage() {
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const sendMessageRef = useRef<(text: string) => Promise<void>>(async () => undefined);
+  const sendMessageRef = useRef<
+    (text: string, options?: { fromVoice?: boolean }) => Promise<void>
+  >(async () => undefined);
+  const startListeningRef = useRef<() => void>(() => undefined);
+  const freeFlowActiveRef = useRef(false);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading]);
+
+  useEffect(() => {
+    freeFlowActiveRef.current = freeFlowActive;
+  }, [freeFlowActive]);
 
   useEffect(() => {
     return () => {
@@ -174,7 +183,7 @@ export default function AssistantPage() {
   }, []);
 
   const speakAssistantReply = useCallback(
-    async (text: string) => {
+    async (text: string): Promise<void> => {
       if (!voiceEnabled || !text.trim()) return;
       try {
         const res = await fetch("/api/ai/assistant/voice", {
@@ -195,10 +204,17 @@ export default function AssistantPage() {
         }
         const audio = new Audio(audioUrl);
         audioRef.current = audio;
-        void audio.play().catch(() => undefined);
-        audio.onended = () => {
-          URL.revokeObjectURL(audioUrl);
-        };
+        await new Promise<void>((resolve) => {
+          audio.onended = () => {
+            URL.revokeObjectURL(audioUrl);
+            resolve();
+          };
+          audio.onerror = () => {
+            URL.revokeObjectURL(audioUrl);
+            resolve();
+          };
+          void audio.play().catch(() => resolve());
+        });
       } catch {
         // Voice playback is optional; fail silently.
       }
@@ -212,6 +228,11 @@ export default function AssistantPage() {
     }
     setListening(false);
   }, []);
+
+  const stopFreeFlow = useCallback(() => {
+    setFreeFlowActive(false);
+    stopListening();
+  }, [stopListening]);
 
   const transcribeAudio = useCallback(async (audioBlob: Blob): Promise<string> => {
     try {
@@ -283,6 +304,7 @@ export default function AssistantPage() {
         recorder.onerror = () => {
           setListening(false);
           mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
+          setFreeFlowActive(false);
           setMessages((prev) => [
             ...prev,
             {
@@ -314,7 +336,7 @@ export default function AssistantPage() {
           setInput(transcript);
 
           if (voiceMode) {
-            void sendMessageRef.current(transcript);
+            void sendMessageRef.current(transcript, { fromVoice: true });
             setInput("");
           }
         };
@@ -323,6 +345,7 @@ export default function AssistantPage() {
         recorder.start();
       } catch (error) {
         setListening(false);
+        setFreeFlowActive(false);
         const reason =
           error instanceof DOMException && error.name === "NotAllowedError"
             ? "Microphone access is blocked. Please allow microphone permissions for this site."
@@ -339,8 +362,20 @@ export default function AssistantPage() {
     })();
   }, [transcribeAudio, voiceMode]);
 
+  useEffect(() => {
+    startListeningRef.current = startListening;
+  }, [startListening]);
+
+  const startFreeFlow = useCallback(() => {
+    setVoiceMode(true);
+    setFreeFlowActive(true);
+    if (!listening && !transcribing && !loading) {
+      startListeningRef.current();
+    }
+  }, [listening, transcribing, loading]);
+
   const sendMessage = useCallback(
-    async (text: string) => {
+    async (text: string, options?: { fromVoice?: boolean }) => {
       if (!text.trim() || loading) return;
 
       const userMsg: Message = {
@@ -355,6 +390,7 @@ export default function AssistantPage() {
       setInput("");
       setLoading(true);
 
+      let shouldResumeFreeFlow = false;
       try {
         const res = await fetch("/api/ai/assistant", {
           method: "POST",
@@ -378,7 +414,12 @@ export default function AssistantPage() {
         };
 
         setMessages((prev) => [...prev, assistantMsg]);
-        void speakAssistantReply(assistantMsg.content);
+        if (options?.fromVoice && freeFlowActiveRef.current) {
+          await speakAssistantReply(assistantMsg.content);
+          shouldResumeFreeFlow = true;
+        } else {
+          void speakAssistantReply(assistantMsg.content);
+        }
         if (res.ok) notifyAiUsageUpdated();
       } catch {
         setMessages((prev) => [
@@ -391,9 +432,21 @@ export default function AssistantPage() {
         ]);
       } finally {
         setLoading(false);
+        if (
+          shouldResumeFreeFlow &&
+          freeFlowActiveRef.current &&
+          !listening &&
+          !transcribing
+        ) {
+          window.setTimeout(() => {
+            if (freeFlowActiveRef.current) {
+              startListeningRef.current();
+            }
+          }, 450);
+        }
       }
     },
-    [loading, messages, selectedModel, speakAssistantReply]
+    [loading, messages, selectedModel, speakAssistantReply, listening, transcribing]
   );
 
   useEffect(() => {
@@ -562,10 +615,25 @@ export default function AssistantPage() {
                 <Sparkles className="w-3.5 h-3.5" />
                 Auto Send Voice
               </button>
+              <button
+                type="button"
+                onClick={freeFlowActive ? stopFreeFlow : startFreeFlow}
+                className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg border text-xs font-semibold uppercase tracking-wider transition-colors ${
+                  freeFlowActive
+                    ? "bg-red-500/20 border-red-400/30 text-red-300"
+                    : "bg-arcana-navy border-arcana-border text-slate-300 hover:border-arcana-blue"
+                }`}
+                title="Continuous hands-free conversation powered by ElevenLabs transcription and voice output."
+              >
+                {freeFlowActive ? <Square className="w-3.5 h-3.5" /> : <Mic className="w-3.5 h-3.5" />}
+                {freeFlowActive ? "Stop Free Flow" : "Free Flow Agent"}
+              </button>
             </div>
             <div className="hidden sm:block text-[10px] uppercase tracking-wider text-slate-500">
               {transcribing
                 ? "Transcribing with ElevenLabs..."
+                : freeFlowActive
+                ? "Free flow conversation active"
                 : voiceMode
                 ? "Voice mode enabled"
                 : "Manual send mode"}
