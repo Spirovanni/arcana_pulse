@@ -14,6 +14,8 @@
  */
 
 import { Client, Databases, IndexType, OrderBy } from "node-appwrite";
+import fs from "fs";
+import path from "path";
 
 const DATABASE_ID =
   process.env.APPWRITE_DATABASE_ID ?? "arcana_pulse";
@@ -23,18 +25,53 @@ const DATABASE_NAME = "Arcana Pulse";
 // Init
 // ---------------------------------------------------------------------------
 
+function loadEnvFromFile(filePath: string) {
+  if (!fs.existsSync(filePath)) return;
+  const raw = fs.readFileSync(filePath, "utf8");
+  for (const line of raw.split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) continue;
+    const idx = trimmed.indexOf("=");
+    if (idx <= 0) continue;
+    const key = trimmed.slice(0, idx).trim();
+    let value = trimmed.slice(idx + 1).trim();
+    if (
+      (value.startsWith('"') && value.endsWith('"')) ||
+      (value.startsWith("'") && value.endsWith("'"))
+    ) {
+      value = value.slice(1, -1);
+    }
+    if (!(key in process.env)) process.env[key] = value;
+  }
+}
+
+const envRoot = process.cwd();
+loadEnvFromFile(path.join(envRoot, ".env.local"));
+loadEnvFromFile(path.join(envRoot, ".env"));
+
 const endpoint =
   process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT ??
   process.env.APPWRITE_ENDPOINT ??
   "https://cloud.appwrite.io/v1";
 const projectId =
   process.env.APPWRITE_PROJECT_ID ??
+  process.env.APPWRITE_PROJECT ??
   process.env.NEXT_PUBLIC_APPWRITE_PROJECT;
-const apiKey = process.env.APPWRITE_API_KEY;
+const apiKey =
+  process.env.APPWRITE_API_KEY ??
+  process.env.APPWRITE_KEY ??
+  process.env.APPWRITE_API_TOKEN;
 
 if (!projectId || !apiKey) {
+  const missing: string[] = [];
+  if (!projectId) {
+    missing.push("APPWRITE_PROJECT_ID (or APPWRITE_PROJECT / NEXT_PUBLIC_APPWRITE_PROJECT)");
+  }
+  if (!apiKey) {
+    missing.push("APPWRITE_API_KEY (or APPWRITE_KEY / APPWRITE_API_TOKEN)");
+  }
   console.error(
-    "Missing required env vars: APPWRITE_PROJECT_ID, APPWRITE_API_KEY"
+    `Missing required env vars: ${missing.join(", ")}`
   );
   process.exit(1);
 }
@@ -54,9 +91,25 @@ async function ensureDatabase() {
   try {
     await db.get(DATABASE_ID);
     console.log(`  Database "${DATABASE_ID}" already exists`);
-  } catch {
-    await db.create(DATABASE_ID, DATABASE_NAME);
-    console.log(`  Created database "${DATABASE_ID}"`);
+  } catch (err: unknown) {
+    const code = (err as { code?: number } | null)?.code;
+    if (code !== 404) {
+      throw err;
+    }
+    try {
+      await db.create(DATABASE_ID, DATABASE_NAME);
+      console.log(`  Created database "${DATABASE_ID}"`);
+    } catch (createErr: unknown) {
+      const createCode = (createErr as { code?: number } | null)?.code;
+      const createType = (createErr as { type?: string } | null)?.type;
+      if (createCode === 403 && createType === "additional_resource_not_allowed") {
+        throw new Error(
+          `Unable to create database "${DATABASE_ID}" because your Appwrite plan has reached the database limit. ` +
+            `Set APPWRITE_DATABASE_ID to an existing database ID in your env, or upgrade your Appwrite plan.`
+        );
+      }
+      throw createErr;
+    }
   }
 }
 
