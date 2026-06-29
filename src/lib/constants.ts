@@ -267,6 +267,7 @@ export const NAV_ITEMS: NavItem[] = [
   { label: "Algo Strategies", href: "/algo-strategies", icon: "Bot" },
   { label: "Budgets", href: "/budgets", icon: "Wallet" },
   { label: "Goals", href: "/goals", icon: "Target" },
+  { label: "Credit Monitoring", href: "/credit-monitoring", icon: "Shield" },
   { label: "Advisor Academy", href: "/intelligence/career", icon: "Brain" },
   { label: "Transactions", href: "/transactions", icon: "ArrowLeftRight" },
   { label: "Income", href: "/income", icon: "TrendingUp" },

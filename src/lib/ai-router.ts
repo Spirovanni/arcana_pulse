@@ -67,6 +67,7 @@ export const FEATURE_MODELS: Record<string, { provider: AIProvider; model: strin
   budgets:             { provider: "google",     model: MODELS.GEMINI_FLASH },
   forecast:            { provider: "google",     model: MODELS.GEMINI_PRO },
   goals:               { provider: "anthropic",  model: MODELS.CLAUDE_HAIKU },
+  credit_monitoring:   { provider: "anthropic",  model: MODELS.CLAUDE_SONNET },
 };
 
 // ─── Core completion ─────────────────────────────────────────────────────────

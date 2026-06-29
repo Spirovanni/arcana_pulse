@@ -66,7 +66,7 @@ const NAV_SECTIONS: Array<{ id: string; label: string; hrefs: string[] }> = [
   {
     id: "banking",
     label: "Banking & Cashflow",
-    hrefs: ["/my-banks", "/transactions", "/income", "/expense", "/transfer", "/budgets", "/goals"],
+    hrefs: ["/my-banks", "/transactions", "/income", "/expense", "/transfer", "/budgets", "/goals", "/credit-monitoring"],
   },
   {
     id: "investing",

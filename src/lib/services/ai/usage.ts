@@ -46,6 +46,7 @@ const FEATURE_COST_MULTIPLIER: Record<string, number> = {
   goals: 1.1,
   portfolio_insights: 1.5,
   tlh: 1.35,
+  credit_monitoring: 1.3,
 };
 
 const FEATURE_BASE_FEE: Record<string, number> = {
@@ -57,6 +58,7 @@ const FEATURE_BASE_FEE: Record<string, number> = {
   goals: 20,
   portfolio_insights: 26,
   tlh: 24,
+  credit_monitoring: 24,
 };
 
 const PLAN_EFFICIENCY_MULTIPLIER: Record<WorkspacePlan, number> = {
