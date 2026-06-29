@@ -167,6 +167,7 @@ export default function AssistantPage() {
   >("idle");
   const [agentMicMuted, setAgentMicMuted] = useState(false);
   const [agentRuntimeWarning, setAgentRuntimeWarning] = useState<string | null>(null);
+  const [voiceRuntimeWarning, setVoiceRuntimeWarning] = useState<string | null>(null);
   const [selectedModel, setSelectedModel] = useState<AssistantModelOption>(ASSISTANT_MODELS[0]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -291,7 +292,23 @@ export default function AssistantPage() {
             workspaceId: DEFAULT_WORKSPACE_ID,
           }),
         });
-        if (!res.ok) return;
+        if (!res.ok) {
+          const responseText = await res.text().catch(() => "");
+          let actionHint =
+            "Action: verify ElevenLabs key, default voice ID, and available quota, then retry.";
+          if (res.status === 503) {
+            actionHint =
+              "Action: set ELEVENLABS_API_KEY and ELEVENLABS_DEFAULT_VOICE_ID on the server, then redeploy.";
+          } else if (res.status === 429) {
+            actionHint = "Action: ElevenLabs quota/rate limit hit. Wait briefly or increase plan limits.";
+          }
+          setVoiceRuntimeWarning(
+            `Voice reply failed (${res.status}). ${actionHint}${responseText ? " Details available in network logs." : ""}`
+          );
+          setIsAssistantSpeaking(false);
+          return;
+        }
+        setVoiceRuntimeWarning(null);
         const blob = await res.blob();
         const audioUrl = URL.createObjectURL(blob);
         stopAssistantSpeech();
@@ -320,7 +337,9 @@ export default function AssistantPage() {
           void audio.play().catch(() => finish());
         });
       } catch {
-        // Voice playback is optional; fail silently.
+        setVoiceRuntimeWarning(
+          "Voice reply failed (network). Action: check internet connectivity and server logs, then retry."
+        );
         setIsAssistantSpeaking(false);
       }
     },
@@ -1081,6 +1100,22 @@ export default function AssistantPage() {
                 className="inline-flex h-4 w-4 items-center justify-center rounded text-amber-200/80 hover:bg-amber-300/20 hover:text-amber-100"
                 aria-label="Dismiss warning"
                 title="Dismiss warning"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </div>
+          )}
+
+          {voiceRuntimeWarning && (
+            <div className="inline-flex items-center gap-2 rounded-lg border border-amber-400/30 bg-amber-400/10 px-3 py-2 text-xs text-amber-200">
+              <span className="inline-block h-1.5 w-1.5 rounded-full bg-amber-300" />
+              <span>{voiceRuntimeWarning}</span>
+              <button
+                type="button"
+                onClick={() => setVoiceRuntimeWarning(null)}
+                className="inline-flex h-4 w-4 items-center justify-center rounded text-amber-200/80 hover:bg-amber-300/20 hover:text-amber-100"
+                aria-label="Dismiss voice warning"
+                title="Dismiss voice warning"
               >
                 <X className="h-3 w-3" />
               </button>
