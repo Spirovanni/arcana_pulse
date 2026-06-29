@@ -42,14 +42,14 @@ export default function AssistantAgentBuilderPage() {
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [result, setResult] = useState<{
-    config: Record<string, unknown>;
+    exportText: string;
     generatedAt?: string;
     fallbackUsed?: boolean;
   } | null>(null);
 
-  const jsonOutput = useMemo(() => {
-    if (!result?.config) return "";
-    return JSON.stringify(result.config, null, 2);
+  const textOutput = useMemo(() => {
+    if (!result?.exportText) return "";
+    return result.exportText;
   }, [result]);
 
   async function generateConfig() {
@@ -66,16 +66,16 @@ export default function AssistantAgentBuilderPage() {
         }),
       });
       const payload = (await response.json().catch(() => ({}))) as {
-        config?: Record<string, unknown>;
+        exportText?: string;
         error?: string;
         generatedAt?: string;
         fallbackUsed?: boolean;
       };
-      if (!response.ok || !payload.config) {
-        throw new Error(payload.error ?? "Failed to generate ElevenLabs config.");
+      if (!response.ok || !payload.exportText) {
+        throw new Error(payload.error ?? "Failed to generate ElevenLabs prompt export.");
       }
       setResult({
-        config: payload.config,
+        exportText: payload.exportText,
         generatedAt: payload.generatedAt,
         fallbackUsed: payload.fallbackUsed,
       });
@@ -88,8 +88,8 @@ export default function AssistantAgentBuilderPage() {
   }
 
   async function copyOutput() {
-    if (!jsonOutput) return;
-    await navigator.clipboard.writeText(jsonOutput);
+    if (!textOutput) return;
+    await navigator.clipboard.writeText(textOutput);
     setCopied(true);
     window.setTimeout(() => setCopied(false), 1500);
   }
@@ -101,7 +101,7 @@ export default function AssistantAgentBuilderPage() {
           <div>
             <h1 className="text-2xl font-bold text-white">ElevenLabs Agent Builder</h1>
             <p className="mt-1 text-sm text-slate-400">
-              Generate a ready-to-paste, production-focused agent JSON config tailored to your users.
+              Generate a ready-to-paste prompt export tailored to your users.
             </p>
           </div>
           <span className="inline-flex items-center gap-1.5 rounded-lg border border-arcana-blue/40 bg-arcana-blue/10 px-2.5 py-1 text-xs text-arcana-blue">
@@ -182,23 +182,23 @@ export default function AssistantAgentBuilderPage() {
             className="inline-flex items-center gap-2 rounded-lg bg-arcana-blue px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-600 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-            Generate ElevenLabs Config
+            Generate Prompt Export
           </button>
         </div>
 
         <div className="space-y-3 rounded-2xl border border-arcana-border bg-arcana-surface p-4">
           <div className="flex items-center justify-between gap-3">
             <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-300">
-              Ready-to-paste JSON
+              Ready-to-paste Prompt
             </h2>
             <button
               type="button"
               onClick={() => void copyOutput()}
-              disabled={!jsonOutput}
+              disabled={!textOutput}
               className="inline-flex items-center gap-2 rounded-lg border border-arcana-border bg-arcana-navy px-3 py-1.5 text-xs text-slate-300 hover:border-arcana-blue disabled:cursor-not-allowed disabled:opacity-50"
             >
               <Copy className="h-3.5 w-3.5" />
-              {copied ? "Copied" : "Copy JSON"}
+              {copied ? "Copied" : "Copy Prompt"}
             </button>
           </div>
 
@@ -211,8 +211,8 @@ export default function AssistantAgentBuilderPage() {
 
           <textarea
             readOnly
-            value={jsonOutput}
-            placeholder='Click "Generate ElevenLabs Config" to create your custom JSON.'
+            value={textOutput}
+            placeholder='Click "Generate Prompt Export" to create your custom template.'
             className="h-[640px] w-full rounded-lg border border-arcana-border bg-arcana-navy px-3 py-2 font-mono text-xs text-slate-200 focus:outline-none"
           />
         </div>
