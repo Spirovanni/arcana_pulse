@@ -25,6 +25,8 @@ const CSP = [
   // Allow Google Fonts files + local data URIs
   "font-src 'self' data: https://fonts.gstatic.com",
   "img-src 'self' data: blob: https://lh3.googleusercontent.com https://cloud.appwrite.io",
+  // Allow browser audio playback from blob URLs returned by /api/ai/assistant/voice
+  "media-src 'self' blob: data: https://api.elevenlabs.io",
   // connect-src: fixed Sentry ingest (o*.ingest wildcard is invalid CSP syntax)
   "connect-src 'self' https://*.appwrite.io https://*.sentry.io https://o4511051723112448.ingest.us.sentry.io https://cdn.plaid.com https://sandbox.plaid.com https://production.plaid.com https://api-sandbox.dwolla.com https://api.dwolla.com https://api.stripe.com https://js.stripe.com https://accounts.google.com https://api.elevenlabs.io wss://api.elevenlabs.io wss://realtime.ably.io https://vercel.live",
   "frame-src https://cdn.plaid.com https://js.stripe.com https://accounts.google.com",
