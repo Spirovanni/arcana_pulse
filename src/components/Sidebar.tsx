@@ -24,6 +24,7 @@ import {
   Bot,
   BookMarked,
   Shield,
+  ShieldCheck,
   PanelLeftClose,
   PanelLeftOpen,
   FolderTree,
@@ -54,6 +55,7 @@ const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
   Bot,
   BookMarked,
   Shield,
+  ShieldCheck,
   FolderTree,
 };
 

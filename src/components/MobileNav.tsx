@@ -24,6 +24,7 @@ import {
   CreditCard,
   BookMarked,
   Shield,
+  ShieldCheck,
   Bot,
 } from "lucide-react";
 import { NAV_ITEMS } from "@/lib/constants";
@@ -49,6 +50,7 @@ const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
   CreditCard,
   BookMarked,
   Shield,
+  ShieldCheck,
   Bot,
 };
 
