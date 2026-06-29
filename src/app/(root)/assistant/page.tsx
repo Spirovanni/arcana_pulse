@@ -145,6 +145,7 @@ export default function AssistantPage() {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [listening, setListening] = useState(false);
+  const [transcribing, setTranscribing] = useState(false);
   const [voiceMode, setVoiceMode] = useState(false);
   const [voiceEnabled, setVoiceEnabled] = useState(true);
   const [selectedModel, setSelectedModel] = useState<AssistantModelOption>(ASSISTANT_MODELS[0]);
@@ -294,7 +295,13 @@ export default function AssistantPage() {
           audioChunksRef.current = [];
           if (blob.size === 0) return;
 
-          const transcript = await transcribeAudio(blob);
+          setTranscribing(true);
+          let transcript = "";
+          try {
+            transcript = await transcribeAudio(blob);
+          } finally {
+            setTranscribing(false);
+          }
           if (!transcript) return;
           setInput(transcript);
 
@@ -537,9 +544,20 @@ export default function AssistantPage() {
               </button>
             </div>
             <div className="hidden sm:block text-[10px] uppercase tracking-wider text-slate-500">
-              {voiceMode ? "Voice mode enabled" : "Manual send mode"}
+              {transcribing
+                ? "Transcribing with ElevenLabs..."
+                : voiceMode
+                ? "Voice mode enabled"
+                : "Manual send mode"}
             </div>
           </div>
+
+          {transcribing && (
+            <div className="inline-flex items-center gap-2 rounded-lg border border-arcana-blue/30 bg-arcana-blue/10 px-3 py-2 text-xs text-arcana-blue">
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              Transcribing with ElevenLabs...
+            </div>
+          )}
 
           <div className="flex items-end gap-2">
             {/* Model selector */}
