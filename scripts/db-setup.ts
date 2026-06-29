@@ -17,8 +17,8 @@ import { Client, Databases, IndexType, OrderBy } from "node-appwrite";
 import fs from "fs";
 import path from "path";
 
-let DATABASE_ID = (process.env.APPWRITE_DATABASE_ID ?? "").trim();
-const DATABASE_NAME = process.env.APPWRITE_DATABASE_NAME ?? "Arcana Pulse";
+let DATABASE_ID = "";
+let DATABASE_NAME = "Arcana Pulse";
 
 // ---------------------------------------------------------------------------
 // Init
@@ -47,6 +47,9 @@ function loadEnvFromFile(filePath: string) {
 const envRoot = process.cwd();
 loadEnvFromFile(path.join(envRoot, ".env.local"));
 loadEnvFromFile(path.join(envRoot, ".env"));
+
+DATABASE_ID = (process.env.APPWRITE_DATABASE_ID ?? "").trim();
+DATABASE_NAME = process.env.APPWRITE_DATABASE_NAME ?? "Arcana Pulse";
 
 const endpoint =
   process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT ??
