@@ -192,6 +192,33 @@ reversed  → (terminal)
 
 ---
 
+### 7. `creditMonitoring`
+
+> User-scoped credit report persistence: saved reports, AI strategy revisions, score timeline points, and reminders.
+
+| Attribute | Type | Required | Size/Constraints | Description |
+|-----------|------|----------|------------------|-------------|
+| `$id` | Document ID | auto | — | Maps to `reportId` |
+| `workspaceId` | string | yes | max 36 | Parent workspace |
+| `userId` | string | yes | max 36 | Owner user |
+| `title` | string | yes | max 160 | Report title |
+| `reportText` | string | yes | max 60000 | Uploaded/pasted report content |
+| `currentScore` | integer | no | 300-850 | Latest known score |
+| `targetScore` | integer | no | 300-850 | Goal score |
+| `strategyRevisionsJson` | string | no | max 60000 | JSON array of AI strategy revisions |
+| `timelineJson` | string | no | max 60000 | JSON array of score timeline entries |
+| `remindersJson` | string | no | max 60000 | JSON array of reminder tasks |
+| `lastAnalyzedAt` | datetime | no | — | Last AI strategy generation timestamp |
+| `status` | enum | yes | `active`, `archived` | Report status |
+
+**Indexes:**
+
+| Name | Type | Attributes | Order |
+|------|------|------------|-------|
+| `idx_workspace_user` | key | `[workspaceId, userId]` | ASC, ASC |
+
+---
+
 ## Entity Relationship Diagram
 
 ```
@@ -201,12 +228,13 @@ reversed  → (terminal)
 └──────┬───────┘
        │ 1
        │
-       ├────────────┐──────────────┐──────────────┐
+       ├────────────┐──────────────┐──────────────┐──────────────┐
        │ N          │ N            │ N            │ N
-┌──────┴───────┐ ┌──┴──────────┐ ┌┴─────────────┐ ┌┴─────────────┐
+┌──────┴───────┐ ┌──┴──────────┐ ┌┴─────────────┐ ┌┴─────────────┐ ┌┴──────────────────┐
 │    users     │ │    banks    │ │ transactions │ │  transfers   │
-│ $id = usr-*  │ │ $id = bnk-* │ │ $id = txn-*  │ │ $id = xfr-*  │
-└──────┬───────┘ └──────┬──────┘ └──────────────┘ └──────────────┘
+│ $id = usr-*  │ │ $id = bnk-* │ │ $id = txn-*  │ │ $id = xfr-*  │ │ creditMonitoring   │
+└──────┬───────┘ └──────┬──────┘ └──────────────┘ └──────────────┘ │ $id = report-*      │
+       │                                                         └─────────────────────┘
        │ 1              │ 1              ▲                ▲
        │                │               │                │
        │                └───────────────┘                │

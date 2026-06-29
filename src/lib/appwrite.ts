@@ -42,6 +42,7 @@ export const COLLECTIONS = {
   investmentAccounts: "investmentAccounts",
   paperOrders:        "paperOrders",
   aiUsage:            process.env.APPWRITE_AI_USAGE_COLLECTION_ID     ?? "aiUsage",
+  creditMonitoring:   process.env.APPWRITE_CREDIT_MONITORING_COLLECTION_ID ?? "creditMonitoring",
 } as const;
 
 

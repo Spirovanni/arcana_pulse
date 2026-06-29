@@ -256,6 +256,46 @@ export interface MonthlyFlow {
   expense: number;
 }
 
+export interface CreditStrategyRevision {
+  revisionId: string;
+  createdAt: string;
+  strategy: string;
+  sourceChars: number;
+}
+
+export interface CreditTimelineEntry {
+  entryId: string;
+  recordedAt: string;
+  score: number;
+  note?: string;
+}
+
+export interface CreditReminder {
+  reminderId: string;
+  title: string;
+  dueDate: string;
+  completed: boolean;
+  notes?: string;
+  createdAt: string;
+}
+
+export interface CreditReport {
+  reportId: string;
+  workspaceId: string;
+  userId: string;
+  title: string;
+  reportText: string;
+  currentScore?: number;
+  targetScore?: number;
+  strategyRevisions: CreditStrategyRevision[];
+  timeline: CreditTimelineEntry[];
+  reminders: CreditReminder[];
+  lastAnalyzedAt?: string;
+  status: "active" | "archived";
+  createdAt: string;
+  updatedAt: string;
+}
+
 // ─── Dashboard Metrics ──────────────────────────────────────────────
 
 export interface DashboardMetrics {

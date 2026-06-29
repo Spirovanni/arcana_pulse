@@ -644,6 +644,105 @@ async function setupPaperOrders() {
 }
 
 // ---------------------------------------------------------------------------
+// Collection: creditMonitoring
+// ---------------------------------------------------------------------------
+
+async function setupCreditMonitoring() {
+  console.log("\n[creditMonitoring]");
+  await createCollection("creditMonitoring", "Credit Monitoring");
+
+  await db.createStringAttribute(
+    DATABASE_ID,
+    "creditMonitoring",
+    "workspaceId",
+    36,
+    true
+  );
+  await db.createStringAttribute(
+    DATABASE_ID,
+    "creditMonitoring",
+    "userId",
+    36,
+    true
+  );
+  await db.createStringAttribute(
+    DATABASE_ID,
+    "creditMonitoring",
+    "title",
+    160,
+    true
+  );
+  await db.createStringAttribute(
+    DATABASE_ID,
+    "creditMonitoring",
+    "reportText",
+    60000,
+    true
+  );
+  await db.createIntegerAttribute(
+    DATABASE_ID,
+    "creditMonitoring",
+    "currentScore",
+    false,
+    300,
+    850
+  );
+  await db.createIntegerAttribute(
+    DATABASE_ID,
+    "creditMonitoring",
+    "targetScore",
+    false,
+    300,
+    850
+  );
+  await db.createStringAttribute(
+    DATABASE_ID,
+    "creditMonitoring",
+    "strategyRevisionsJson",
+    60000,
+    false
+  );
+  await db.createStringAttribute(
+    DATABASE_ID,
+    "creditMonitoring",
+    "timelineJson",
+    60000,
+    false
+  );
+  await db.createStringAttribute(
+    DATABASE_ID,
+    "creditMonitoring",
+    "remindersJson",
+    60000,
+    false
+  );
+  await db.createDatetimeAttribute(
+    DATABASE_ID,
+    "creditMonitoring",
+    "lastAnalyzedAt",
+    false
+  );
+  await db.createEnumAttribute(
+    DATABASE_ID,
+    "creditMonitoring",
+    "status",
+    ["active", "archived"],
+    true
+  );
+
+  await wait(1500);
+
+  await db.createIndex(
+    DATABASE_ID,
+    "creditMonitoring",
+    "idx_workspace_user",
+    IndexType.Key,
+    ["workspaceId", "userId"],
+    [OrderBy.Asc, OrderBy.Asc]
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------------
 
@@ -661,6 +760,7 @@ async function main() {
   await setupTransfers();
   await setupSessions();
   await setupPaperOrders();
+  await setupCreditMonitoring();
 
   console.log("\nDone — all collections, attributes, and indexes created.");
 }
