@@ -6,6 +6,7 @@ import { formatCurrency, formatDate } from "@/lib/utils";
 import { CATEGORY_LABELS } from "@/lib/constants";
 import type { Category, Transaction, Bank } from "@/lib/types";
 import UploadBankModal, { type BuildResult } from "@/components/UploadBankModal";
+import TransactionForm from "@/components/TransactionForm";
 import { getIssuerLogoUrl } from "@/lib/issuerLogos";
 
 // ── Category filter sets ──────────────────────────────────────────────────────
@@ -67,6 +68,8 @@ export default function CreditCardsPage() {
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [expandedId, setExpandedId]           = useState<string | null>(null);
   const [refreshing, setRefreshing]           = useState(false);
+  const [editingTxn, setEditingTxn]           = useState<Transaction | null>(null);
+  const [mutationError, setMutationError]     = useState<string | null>(null);
 
   // ── Load card accounts ───────────────────────────────────────────────────
 
@@ -149,6 +152,30 @@ export default function CreditCardsPage() {
     setRefreshing(false);
   }, [loadCardAccounts, loadFallback]);
 
+  const handleUpdate = useCallback(async (data: Partial<Transaction>) => {
+    if (!editingTxn) return;
+    setMutationError(null);
+    const res =
+      editingTxn.sourceType === "synced"
+        ? await fetch(`/api/transactions/${editingTxn.transactionId}/override-category`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ category: data.category }),
+          })
+        : await fetch(`/api/transactions/${editingTxn.transactionId}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(data),
+          });
+    if (!res.ok) {
+      const payload = (await res.json().catch(() => ({}))) as { error?: string };
+      setMutationError(payload.error ?? "Failed to update transaction");
+      return;
+    }
+    setEditingTxn(null);
+    await handleRefresh();
+  }, [editingTxn, handleRefresh]);
+
   // ── Derived totals ───────────────────────────────────────────────────────
 
   const hasCardAccounts = cardAccounts.length > 0;
@@ -210,6 +237,19 @@ export default function CreditCardsPage() {
           onClose={() => setShowUploadModal(false)}
           onSuccess={handleUploadSuccess}
         />
+      )}
+      {editingTxn && (
+        <TransactionForm
+          mode="edit"
+          transaction={editingTxn}
+          onSubmit={handleUpdate}
+          onClose={() => setEditingTxn(null)}
+        />
+      )}
+      {mutationError && (
+        <div className="rounded-lg bg-red-900/20 border border-red-700/40 px-4 py-3 text-sm text-red-400">
+          {mutationError}
+        </div>
       )}
 
       {/* ── Uploaded card accounts ──────────────────────────────────────── */}
@@ -283,10 +323,18 @@ export default function CreditCardsPage() {
                             </tr>
                           </thead>
                           <tbody>
-                            {account.transactions.map((txn) => (
+                            {account.transactions.map((txn) => {
+                              const canEdit =
+                                txn.sourceType === "manual" || txn.sourceType === "synced";
+                              return (
                               <tr
                                 key={txn.transactionId}
-                                className="border-b border-arcana-border/60 last:border-0 hover:bg-arcana-navy/20 transition-colors"
+                                onClick={canEdit ? () => setEditingTxn(txn) : undefined}
+                                className={`border-b border-arcana-border/60 last:border-0 transition-colors ${
+                                  canEdit
+                                    ? "hover:bg-arcana-navy/20 cursor-pointer"
+                                    : "hover:bg-arcana-navy/10"
+                                }`}
                               >
                                 <td className="px-5 py-3 text-white max-w-[280px] truncate">{txn.title}</td>
                                 <td className="px-5 py-3">
@@ -297,7 +345,7 @@ export default function CreditCardsPage() {
                                 <td className="px-5 py-3 text-slate-500 text-xs">{formatDate(txn.date)}</td>
                                 <td className="px-5 py-3 text-right font-medium text-amber-300">{formatCurrency(txn.amount)}</td>
                               </tr>
-                            ))}
+                            )})}
                           </tbody>
                         </table>
                       </div>
@@ -358,8 +406,19 @@ export default function CreditCardsPage() {
                 </tr>
               </thead>
               <tbody>
-                {fallbackItems.map((txn) => (
-                  <tr key={txn.transactionId} className="border-b border-arcana-border/60 last:border-0 hover:bg-arcana-navy/20 transition-colors">
+                {fallbackItems.map((txn) => {
+                  const canEdit =
+                    txn.sourceType === "manual" || txn.sourceType === "synced";
+                  return (
+                  <tr
+                    key={txn.transactionId}
+                    onClick={canEdit ? () => setEditingTxn(txn) : undefined}
+                    className={`border-b border-arcana-border/60 last:border-0 transition-colors ${
+                      canEdit
+                        ? "hover:bg-arcana-navy/20 cursor-pointer"
+                        : "hover:bg-arcana-navy/10"
+                    }`}
+                  >
                     <td className="px-5 py-3 text-white max-w-[280px] truncate">{txn.title}</td>
                     <td className="px-5 py-3 text-slate-300 text-xs">{txn.institutionName ?? "Statement Upload"}</td>
                     <td className="px-5 py-3 text-slate-400 text-xs">
@@ -368,7 +427,7 @@ export default function CreditCardsPage() {
                     <td className="px-5 py-3 text-slate-500 text-xs">{formatDate(txn.date)}</td>
                     <td className="px-5 py-3 text-right font-medium text-amber-300">{formatCurrency(txn.amount)}</td>
                   </tr>
-                ))}
+                )})}
               </tbody>
             </table>
           </div>
