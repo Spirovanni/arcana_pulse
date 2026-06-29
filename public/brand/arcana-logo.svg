@@ -1,35 +1,59 @@
-<svg width="760" height="180" viewBox="0 0 760 180" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <rect width="180" height="180" rx="40" fill="#0B0B0B" />
-  <circle cx="90" cy="90" r="56" stroke="#C5A059" stroke-width="8" opacity="0.35" />
+<svg width="1200" height="300" viewBox="0 0 1200 300" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1200" height="300" fill="#070708"/>
   <path
-    d="M43 97c12 0 15-20 26-20s14 27 26 27 11-23 22-23 10 16 22 16h8"
-    stroke="#C5A059"
+    d="M52 151C52 94.12 96.12 50 153 50C209.88 50 254 94.12 254 151"
+    stroke="#D4AF37"
+    stroke-width="14"
+    stroke-linecap="round"
+  />
+  <path
+    d="M254 149C254 205.88 209.88 250 153 250C96.12 250 52 205.88 52 149"
+    stroke="#B8860B"
+    stroke-width="14"
+    stroke-linecap="round"
+  />
+  <path
+    d="M97 207L151 78L199 159H254"
+    stroke="#F2EEDC"
     stroke-width="10"
     stroke-linecap="round"
     stroke-linejoin="round"
   />
-  <circle cx="138" cy="97" r="9" fill="#C5A059" />
+  <path
+    d="M60 156H110L127 186L148 127L164 171L176 141L191 163H246"
+    stroke="#D4AF37"
+    stroke-width="8"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+  <path
+    d="M153 130L161 143L176 146L166 157L168 172L153 166L138 172L140 157L130 146L145 143L153 130Z"
+    fill="#D4AF37"
+  />
+
+  <line x1="310" y1="84" x2="310" y2="218" stroke="#B8860B" stroke-width="4" />
 
   <text
-    x="220"
-    y="98"
-    fill="#C5A059"
+    x="350"
+    y="148"
+    fill="#D4AF37"
     font-family="Inter, Arial, sans-serif"
-    font-size="68"
-    font-weight="700"
-    letter-spacing="4"
+    font-size="74"
+    font-weight="600"
+    letter-spacing="12"
   >
     ARCANA PULSE
   </text>
   <text
-    x="224"
-    y="132"
-    fill="#A3A3A3"
+    x="350"
+    y="196"
+    fill="#F2EEDC"
+    fill-opacity="0.9"
     font-family="Inter, Arial, sans-serif"
-    font-size="18"
+    font-size="28"
     font-weight="500"
-    letter-spacing="4"
+    letter-spacing="10"
   >
-    SOVEREIGN INTELLIGENCE
+    INTELLIGENCE FOR YOUR NEXT MOVE
   </text>
 </svg>

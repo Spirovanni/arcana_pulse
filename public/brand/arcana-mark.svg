@@ -1,12 +1,33 @@
-<svg width="256" height="256" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <rect width="64" height="64" rx="14" fill="#0B0B0B" />
-  <circle cx="32" cy="32" r="20" stroke="#C5A059" stroke-width="2.8" opacity="0.35" />
+<svg width="256" height="256" viewBox="0 0 256 256" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="256" height="256" rx="56" fill="#070708" />
   <path
-    d="M15 34c4 0 5-7 9-7s5 10 9 10 4-8 8-8 4 6 8 6h2"
-    stroke="#C5A059"
-    stroke-width="3.6"
+    d="M46 130C46 84.16 82.16 48 128 48C173.84 48 210 84.16 210 130"
+    stroke="#D4AF37"
+    stroke-width="14"
+    stroke-linecap="round"
+  />
+  <path
+    d="M210 126C210 171.84 173.84 208 128 208C82.16 208 46 171.84 46 126"
+    stroke="#B8860B"
+    stroke-width="14"
+    stroke-linecap="round"
+  />
+  <path
+    d="M83 174L126 71L164 136H210"
+    stroke="#F2EEDC"
+    stroke-width="10"
     stroke-linecap="round"
     stroke-linejoin="round"
   />
-  <circle cx="49" cy="35" r="3.2" fill="#C5A059" />
+  <path
+    d="M53 135H94L108 158L124 112L136 146L146 124L158 140H203"
+    stroke="#D4AF37"
+    stroke-width="8"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+  <path
+    d="M128 115L135 126L148 129L139 139L140 152L128 147L116 152L117 139L108 129L121 126L128 115Z"
+    fill="#D4AF37"
+  />
 </svg>
