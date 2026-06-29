@@ -157,12 +157,15 @@ export default function AssistantPage() {
   >("idle");
   const [silenceCountdownMs, setSilenceCountdownMs] = useState<number | null>(null);
   const [voiceEnabled, setVoiceEnabled] = useState(true);
+  const [allowSpeechInterrupt, setAllowSpeechInterrupt] = useState(true);
+  const [isAssistantSpeaking, setIsAssistantSpeaking] = useState(false);
   const [selectedModel, setSelectedModel] = useState<AssistantModelOption>(ASSISTANT_MODELS[0]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const currentAudioUrlRef = useRef<string | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const silenceIntervalRef = useRef<number | null>(null);
   const silenceStartedAtRef = useRef<number | null>(null);
@@ -194,6 +197,21 @@ export default function AssistantPage() {
     }
   }, []);
 
+  const stopAssistantSpeech = useCallback(() => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+      audioRef.current.onended = null;
+      audioRef.current.onerror = null;
+      audioRef.current = null;
+    }
+    if (currentAudioUrlRef.current) {
+      URL.revokeObjectURL(currentAudioUrlRef.current);
+      currentAudioUrlRef.current = null;
+    }
+    setIsAssistantSpeaking(false);
+  }, []);
+
   useEffect(() => {
     return () => {
       clearSilenceDetection();
@@ -201,12 +219,9 @@ export default function AssistantPage() {
         mediaRecorderRef.current.stop();
       }
       mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current = null;
-      }
+      stopAssistantSpeech();
     };
-  }, [clearSilenceDetection]);
+  }, [clearSilenceDetection, stopAssistantSpeech]);
 
   const speakAssistantReply = useCallback(
     async (text: string): Promise<void> => {
@@ -223,29 +238,37 @@ export default function AssistantPage() {
         if (!res.ok) return;
         const blob = await res.blob();
         const audioUrl = URL.createObjectURL(blob);
-
-        if (audioRef.current) {
-          audioRef.current.pause();
-          audioRef.current = null;
-        }
+        stopAssistantSpeech();
+        currentAudioUrlRef.current = audioUrl;
         const audio = new Audio(audioUrl);
         audioRef.current = audio;
+        setIsAssistantSpeaking(true);
         await new Promise<void>((resolve) => {
-          audio.onended = () => {
-            URL.revokeObjectURL(audioUrl);
+          const finish = () => {
+            if (audioRef.current === audio) {
+              audioRef.current = null;
+            }
+            if (currentAudioUrlRef.current === audioUrl) {
+              URL.revokeObjectURL(audioUrl);
+              currentAudioUrlRef.current = null;
+            }
+            setIsAssistantSpeaking(false);
             resolve();
+          };
+          audio.onended = () => {
+            finish();
           };
           audio.onerror = () => {
-            URL.revokeObjectURL(audioUrl);
-            resolve();
+            finish();
           };
-          void audio.play().catch(() => resolve());
+          void audio.play().catch(() => finish());
         });
       } catch {
         // Voice playback is optional; fail silently.
+        setIsAssistantSpeaking(false);
       }
     },
-    [voiceEnabled]
+    [stopAssistantSpeech, voiceEnabled]
   );
 
   const stopListening = useCallback(() => {
@@ -260,7 +283,8 @@ export default function AssistantPage() {
   const stopFreeFlow = useCallback(() => {
     setFreeFlowActive(false);
     stopListening();
-  }, [stopListening]);
+    stopAssistantSpeech();
+  }, [stopAssistantSpeech, stopListening]);
 
   const transcribeAudio = useCallback(async (audioBlob: Blob): Promise<string> => {
     try {
@@ -358,6 +382,12 @@ export default function AssistantPage() {
 
   const startListening = useCallback(() => {
     if (typeof window === "undefined") return;
+    if (isAssistantSpeaking) {
+      if (!allowSpeechInterrupt) {
+        return;
+      }
+      stopAssistantSpeech();
+    }
     if (!window.navigator.mediaDevices?.getUserMedia) {
       setMessages((prev) => [
         ...prev,
@@ -465,7 +495,16 @@ export default function AssistantPage() {
         ]);
       }
     })();
-  }, [clearSilenceDetection, setupFreeFlowSilenceDetection, transcribeAudio, voiceMode, loading]);
+  }, [
+    allowSpeechInterrupt,
+    clearSilenceDetection,
+    isAssistantSpeaking,
+    loading,
+    setupFreeFlowSilenceDetection,
+    stopAssistantSpeech,
+    transcribeAudio,
+    voiceMode,
+  ]);
 
   useEffect(() => {
     startListeningRef.current = startListening;
@@ -754,9 +793,24 @@ export default function AssistantPage() {
                 {freeFlowActive ? <Square className="w-3.5 h-3.5" /> : <Mic className="w-3.5 h-3.5" />}
                 {freeFlowActive ? "Stop Free Flow" : "Free Flow Agent"}
               </button>
+              <button
+                type="button"
+                onClick={() => setAllowSpeechInterrupt((prev) => !prev)}
+                className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg border text-xs font-semibold uppercase tracking-wider transition-colors ${
+                  allowSpeechInterrupt
+                    ? "bg-arcana-blue/20 border-arcana-blue/40 text-arcana-blue"
+                    : "bg-arcana-navy border-arcana-border text-slate-400 hover:border-arcana-blue"
+                }`}
+                title="When enabled, tapping the mic while the assistant is speaking will interrupt speech and start your turn."
+              >
+                <VolumeX className="w-3.5 h-3.5" />
+                Interrupt Speech
+              </button>
             </div>
             <div className="hidden sm:block text-[10px] uppercase tracking-wider text-slate-500">
-              {transcribing
+              {isAssistantSpeaking && allowSpeechInterrupt
+                ? "Assistant speaking — tap mic to interrupt"
+                : transcribing
                 ? "Transcribing with ElevenLabs..."
                 : freeFlowActive
                 ? "Free flow conversation active"
