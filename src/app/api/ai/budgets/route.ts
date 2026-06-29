@@ -3,30 +3,34 @@ import {
   evaluateBudgetRecommendations,
   generateBudgetRecommendations,
 } from "@/lib/services/ai/budgets";
+import { requireAuth } from "@/lib/auth/withAuth";
 import {
-  getAnalysisCache,
-  setAnalysisCache,
-} from "@/lib/services/ai/analysisCache";
+  getPersistedAnalysis,
+  upsertPersistedAnalysis,
+} from "@/lib/services/db/aiReports";
 
 export async function GET(request: NextRequest) {
+  const auth = await requireAuth(request, { requiredRole: "viewer" });
+  if (!auth.ok) return auth.response;
+
   try {
-    const workspaceId =
-      request.nextUrl.searchParams.get("workspaceId") ?? "ws-001";
+    const workspaceId = auth.workspaceId;
+    const userId = auth.session.user.userId;
     const force = request.nextUrl.searchParams.get("force") === "true";
     const evaluationScope =
       request.nextUrl.searchParams.get("evaluationScope") ?? "all";
     const preferImportedTransactions = evaluationScope === "imported";
-    const cacheKey = `budgets:${workspaceId}:${evaluationScope}`;
+    const reportKey = `budgets:${evaluationScope}`;
 
     if (!force) {
-      const cached = getAnalysisCache<
+      const persisted = await getPersistedAnalysis<
         Awaited<ReturnType<typeof generateBudgetRecommendations>>
-      >(cacheKey);
-      if (cached) {
+      >(workspaceId, userId, reportKey);
+      if (persisted) {
         return NextResponse.json({
-          recommendations: cached.value,
-          lastAnalysisAt: cached.analyzedAt,
-          evaluationCompletedAt: cached.analyzedAt,
+          recommendations: persisted.value,
+          lastAnalysisAt: persisted.analyzedAt,
+          evaluationCompletedAt: persisted.analyzedAt,
           evaluationScope,
           generatedFresh: false,
         });
@@ -45,12 +49,17 @@ export async function GET(request: NextRequest) {
       preferImportedTransactions,
     });
     const recommendations = evaluation.recommendations;
-    const cached = setAnalysisCache(cacheKey, recommendations);
+    const persisted = await upsertPersistedAnalysis(
+      workspaceId,
+      userId,
+      reportKey,
+      recommendations
+    );
 
     return NextResponse.json({
       recommendations,
-      lastAnalysisAt: cached.analyzedAt,
-      evaluationCompletedAt: cached.analyzedAt,
+      lastAnalysisAt: persisted.analyzedAt,
+      evaluationCompletedAt: persisted.analyzedAt,
       evaluationScope: evaluation.sourceScope,
       evaluatedTransactionCount: evaluation.transactionCount,
       generatedFresh: true,

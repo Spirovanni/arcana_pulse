@@ -1,26 +1,29 @@
 import { NextRequest, NextResponse } from "next/server";
 import { generateForecastWithSummary } from "@/lib/services/ai/forecast";
+import { requireAuth } from "@/lib/auth/withAuth";
 import {
-  getAnalysisCache,
-  setAnalysisCache,
-} from "@/lib/services/ai/analysisCache";
+  getPersistedAnalysis,
+  upsertPersistedAnalysis,
+} from "@/lib/services/db/aiReports";
 
 export async function GET(request: NextRequest) {
+  const auth = await requireAuth(request, { requiredRole: "viewer" });
+  if (!auth.ok) return auth.response;
+
   try {
-    const workspaceId =
-      request.nextUrl.searchParams.get("workspaceId") ?? "ws-001";
+    const workspaceId = auth.workspaceId;
+    const userId = auth.session.user.userId;
     const force = request.nextUrl.searchParams.get("force") === "true";
-    const cacheKey = `forecast:${workspaceId}`;
+    const reportKey = "forecast";
 
     if (!force) {
-      const cached =
-        getAnalysisCache<Awaited<ReturnType<typeof generateForecastWithSummary>>>(
-          cacheKey
-        );
-      if (cached) {
+      const persisted = await getPersistedAnalysis<
+        Awaited<ReturnType<typeof generateForecastWithSummary>>
+      >(workspaceId, userId, reportKey);
+      if (persisted) {
         return NextResponse.json({
-          forecast: cached.value,
-          lastAnalysisAt: cached.analyzedAt,
+          forecast: persisted.value,
+          lastAnalysisAt: persisted.analyzedAt,
           generatedFresh: false,
         });
       }
@@ -33,11 +36,16 @@ export async function GET(request: NextRequest) {
     }
 
     const forecast = await generateForecastWithSummary(workspaceId);
-    const cached = setAnalysisCache(cacheKey, forecast);
+    const persisted = await upsertPersistedAnalysis(
+      workspaceId,
+      userId,
+      reportKey,
+      forecast
+    );
 
     return NextResponse.json({
       forecast,
-      lastAnalysisAt: cached.analyzedAt,
+      lastAnalysisAt: persisted.analyzedAt,
       generatedFresh: true,
     });
   } catch (error: unknown) {

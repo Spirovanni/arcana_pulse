@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { completeForFeature } from "@/lib/ai-router";
+import { requireAuth } from "@/lib/auth/withAuth";
 import { generateId } from "@/lib/utils";
 import type { Holding, InvestmentAccount } from "@/lib/types";
+import {
+  getPersistedAnalysis,
+  upsertPersistedAnalysis,
+} from "@/lib/services/db/aiReports";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -149,16 +154,42 @@ function fallback(
 // ─── Route ────────────────────────────────────────────────────────────────────
 
 export async function POST(req: NextRequest) {
+  const auth = await requireAuth(req, { requiredRole: "viewer" });
+  if (!auth.ok) return auth.response;
+
   try {
-    const { holdings, accounts, totalValue, workspaceId } = await req.json() as {
+    const {
+      holdings,
+      accounts,
+      totalValue,
+      force,
+    } = (await req.json()) as {
       holdings: Holding[];
       accounts: InvestmentAccount[];
       totalValue: number;
-      workspaceId?: string;
+      force?: boolean;
     };
+    const workspaceId = auth.workspaceId;
+    const userId = auth.session.user.userId;
+    const reportKey = "portfolio_insights";
 
     if (!holdings || holdings.length === 0) {
       return NextResponse.json({ insights: [] });
+    }
+
+    if (!force) {
+      const persisted = await getPersistedAnalysis<PortfolioInsight[]>(
+        workspaceId,
+        userId,
+        reportKey
+      );
+      if (persisted) {
+        return NextResponse.json({
+          insights: persisted.value,
+          lastAnalysisAt: persisted.analyzedAt,
+          generatedFresh: false,
+        });
+      }
     }
 
     // Build a concise context object for Claude
@@ -195,15 +226,38 @@ export async function POST(req: NextRequest) {
         SYSTEM_PROMPT,
         `Analyze this portfolio and generate insights:\n${JSON.stringify(context, null, 2)}`,
         1024,
-        workspaceId ? { workspaceId } : undefined
+        { workspaceId }
       );
       const validated = validate(text);
-      if (validated) return NextResponse.json({ insights: validated });
+      if (validated) {
+        const persisted = await upsertPersistedAnalysis(
+          workspaceId,
+          userId,
+          reportKey,
+          validated
+        );
+        return NextResponse.json({
+          insights: validated,
+          lastAnalysisAt: persisted.analyzedAt,
+          generatedFresh: true,
+        });
+      }
     } catch {
       // fall through to rule-based
     }
 
-    return NextResponse.json({ insights: fallback(holdings, totalValue) });
+    const fallbackInsights = fallback(holdings, totalValue);
+    const persisted = await upsertPersistedAnalysis(
+      workspaceId,
+      userId,
+      reportKey,
+      fallbackInsights
+    );
+    return NextResponse.json({
+      insights: fallbackInsights,
+      lastAnalysisAt: persisted.analyzedAt,
+      generatedFresh: true,
+    });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to generate insights";
     return NextResponse.json({ error: message }, { status: 500 });

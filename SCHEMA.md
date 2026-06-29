@@ -192,7 +192,29 @@ reversed  → (terminal)
 
 ---
 
-### 7. `creditMonitoring`
+### 7. `aiReports`
+
+> Durable AI analysis outputs by user/workspace and report key. Keeps latest generated report and timestamp until next run.
+
+| Attribute | Type | Required | Size/Constraints | Description |
+|-----------|------|----------|------------------|-------------|
+| `$id` | Document ID | auto | — | Internal report document ID |
+| `workspaceId` | string | yes | max 36 | Parent workspace |
+| `userId` | string | yes | max 36 | Owner user |
+| `reportKey` | string | yes | max 120 | Analysis key (`insights`, `forecast`, `budgets:imported`, etc.) |
+| `payloadJson` | string | yes | max 60000 | JSON payload of latest report result |
+| `lastRunAt` | datetime | yes | — | Timestamp of last successful run |
+
+**Indexes:**
+
+| Name | Type | Attributes | Order |
+|------|------|------------|-------|
+| `idx_workspace_user` | key | `[workspaceId, userId]` | ASC, ASC |
+| `idx_workspace_user_report` | unique | `[workspaceId, userId, reportKey]` | ASC, ASC, ASC |
+
+---
+
+### 8. `creditMonitoring`
 
 > User-scoped credit report persistence: saved reports, AI strategy revisions, score timeline points, and reminders.
 
@@ -232,7 +254,8 @@ reversed  → (terminal)
        │ N          │ N            │ N            │ N
 ┌──────┴───────┐ ┌──┴──────────┐ ┌┴─────────────┐ ┌┴─────────────┐ ┌┴──────────────────┐
 │    users     │ │    banks    │ │ transactions │ │  transfers   │
-│ $id = usr-*  │ │ $id = bnk-* │ │ $id = txn-*  │ │ $id = xfr-*  │ │ creditMonitoring   │
+│ $id = usr-*  │ │ $id = bnk-* │ │ $id = txn-*  │ │ $id = xfr-*  │ │ aiReports          │
+│              │ │             │ │              │ │              │ │ creditMonitoring   │
 └──────┬───────┘ └──────┬──────┘ └──────────────┘ └──────────────┘ │ $id = report-*      │
        │                                                         └─────────────────────┘
        │ 1              │ 1              ▲                ▲
@@ -262,6 +285,7 @@ reversed  → (terminal)
 | Session validation | sessions | `idx_token` | `token = ?` |
 | Session cleanup | sessions | `idx_expires` | `expiresAt < now()` |
 | User login | users | `idx_email` | `email = ?` |
+| Read latest AI report | aiReports | `idx_workspace_user_report` | `workspaceId = ? AND userId = ? AND reportKey = ?` |
 
 ---
 

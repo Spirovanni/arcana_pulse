@@ -2,26 +2,27 @@ import { NextRequest, NextResponse } from "next/server";
 import { generateInsights } from "@/lib/services/ai/insights";
 import { requireAuth } from "@/lib/auth/withAuth";
 import {
-  getAnalysisCache,
-  setAnalysisCache,
-} from "@/lib/services/ai/analysisCache";
+  getPersistedAnalysis,
+  upsertPersistedAnalysis,
+} from "@/lib/services/db/aiReports";
 
 export async function GET(request: NextRequest) {
   const auth = await requireAuth(request, { requiredRole: "viewer" });
   if (!auth.ok) return auth.response;
-  const { workspaceId } = auth;
+  const { workspaceId, session } = auth;
+  const userId = session.user.userId;
   const force = request.nextUrl.searchParams.get("force") === "true";
-  const cacheKey = `insights:${workspaceId}`;
+  const reportKey = "insights";
 
   try {
     if (!force) {
-      const cached = getAnalysisCache<Awaited<ReturnType<typeof generateInsights>>>(
-        cacheKey
-      );
-      if (cached) {
+      const persisted = await getPersistedAnalysis<
+        Awaited<ReturnType<typeof generateInsights>>
+      >(workspaceId, userId, reportKey);
+      if (persisted) {
         return NextResponse.json({
-          insights: cached.value,
-          lastAnalysisAt: cached.analyzedAt,
+          insights: persisted.value,
+          lastAnalysisAt: persisted.analyzedAt,
           generatedFresh: false,
         });
       }
@@ -34,11 +35,16 @@ export async function GET(request: NextRequest) {
     }
 
     const insights = await generateInsights(workspaceId);
-    const cached = setAnalysisCache(cacheKey, insights);
+    const persisted = await upsertPersistedAnalysis(
+      workspaceId,
+      userId,
+      reportKey,
+      insights
+    );
 
     return NextResponse.json({
       insights,
-      lastAnalysisAt: cached.analyzedAt,
+      lastAnalysisAt: persisted.analyzedAt,
       generatedFresh: true,
     });
   } catch (error: unknown) {

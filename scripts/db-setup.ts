@@ -758,6 +758,41 @@ async function setupPaperOrders() {
 }
 
 // ---------------------------------------------------------------------------
+// Collection: aiReports
+// ---------------------------------------------------------------------------
+
+async function setupAiReports() {
+  console.log("\n[aiReports]");
+  const created = await createCollection("aiReports", "AI Reports");
+  if (!created) return;
+
+  await db.createStringAttribute(DATABASE_ID, "aiReports", "workspaceId", 36, true);
+  await db.createStringAttribute(DATABASE_ID, "aiReports", "userId", 36, true);
+  await db.createStringAttribute(DATABASE_ID, "aiReports", "reportKey", 120, true);
+  await db.createStringAttribute(DATABASE_ID, "aiReports", "payloadJson", 60000, true);
+  await db.createDatetimeAttribute(DATABASE_ID, "aiReports", "lastRunAt", true);
+
+  await wait(1500);
+
+  await db.createIndex(
+    DATABASE_ID,
+    "aiReports",
+    "idx_workspace_user",
+    IndexType.Key,
+    ["workspaceId", "userId"],
+    [OrderBy.Asc, OrderBy.Asc]
+  );
+  await db.createIndex(
+    DATABASE_ID,
+    "aiReports",
+    "idx_workspace_user_report",
+    IndexType.Unique,
+    ["workspaceId", "userId", "reportKey"],
+    [OrderBy.Asc, OrderBy.Asc, OrderBy.Asc]
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Collection: creditMonitoring
 // ---------------------------------------------------------------------------
 
@@ -877,6 +912,7 @@ async function main() {
   await setupTransfers();
   await setupSessions();
   await setupPaperOrders();
+  await setupAiReports();
   await setupCreditMonitoring();
 
   console.log("\nDone — all collections, attributes, and indexes created.");

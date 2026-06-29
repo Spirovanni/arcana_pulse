@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { completeForFeature } from "@/lib/ai-router";
+import { requireAuth } from "@/lib/auth/withAuth";
 import type { TLHSummary, TLHOpportunity } from "@/lib/services/tlh";
+import {
+  getPersistedAnalysis,
+  upsertPersistedAnalysis,
+} from "@/lib/services/db/aiReports";
 
 export interface TLHSuggestion {
   id: string;
@@ -76,14 +81,38 @@ function fallback(summary: TLHSummary): TLHSuggestion[] {
 }
 
 export async function POST(req: NextRequest) {
+  const auth = await requireAuth(req, { requiredRole: "viewer" });
+  if (!auth.ok) return auth.response;
+
   try {
-    const { summary, workspaceId } = await req.json() as {
+    const {
+      summary,
+      force,
+    } = (await req.json()) as {
       summary: TLHSummary;
-      workspaceId?: string;
+      force?: boolean;
     };
+    const workspaceId = auth.workspaceId;
+    const userId = auth.session.user.userId;
+    const reportKey = "tax_loss_harvesting";
 
     if (!summary || summary.opportunities.length === 0) {
       return NextResponse.json({ suggestions: [] });
+    }
+
+    if (!force) {
+      const persisted = await getPersistedAnalysis<TLHSuggestion[]>(
+        workspaceId,
+        userId,
+        reportKey
+      );
+      if (persisted) {
+        return NextResponse.json({
+          suggestions: persisted.value,
+          lastAnalysisAt: persisted.analyzedAt,
+          generatedFresh: false,
+        });
+      }
     }
 
     // Build compact context for Claude
@@ -115,7 +144,7 @@ export async function POST(req: NextRequest) {
         SYSTEM_PROMPT,
         `Generate tax-loss harvesting suggestions for this portfolio:\n${JSON.stringify(context, null, 2)}`,
         1024,
-        workspaceId ? { workspaceId } : undefined
+        { workspaceId }
       );
       let cleaned = text.trim().replace(/^```(?:json)?\s*/, "").replace(/```\s*$/, "");
 
@@ -126,13 +155,37 @@ export async function POST(req: NextRequest) {
         const valid = (parsed as TLHSuggestion[]).filter(
           (s) => s.id && s.title && s.body && ["action", "warning", "info"].includes(s.severity)
         );
-        if (valid.length > 0) return NextResponse.json({ suggestions: valid.slice(0, 5) });
+        if (valid.length > 0) {
+          const suggestions = valid.slice(0, 5);
+          const persisted = await upsertPersistedAnalysis(
+            workspaceId,
+            userId,
+            reportKey,
+            suggestions
+          );
+          return NextResponse.json({
+            suggestions,
+            lastAnalysisAt: persisted.analyzedAt,
+            generatedFresh: true,
+          });
+        }
       }
     } catch {
       // fall through
     }
 
-    return NextResponse.json({ suggestions: fallback(summary) });
+    const fallbackSuggestions = fallback(summary);
+    const persisted = await upsertPersistedAnalysis(
+      workspaceId,
+      userId,
+      reportKey,
+      fallbackSuggestions
+    );
+    return NextResponse.json({
+      suggestions: fallbackSuggestions,
+      lastAnalysisAt: persisted.analyzedAt,
+      generatedFresh: true,
+    });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to generate suggestions";
     return NextResponse.json({ error: message }, { status: 500 });

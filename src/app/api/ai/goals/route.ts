@@ -1,12 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isAppwriteConfigured } from "@/lib/appwrite";
+import { requireAuth } from "@/lib/auth/withAuth";
 import { generateGoalProjections } from "@/lib/services/ai/goals";
 import {
-  getAnalysisCache,
-  setAnalysisCache,
-} from "@/lib/services/ai/analysisCache";
+  getPersistedAnalysis,
+  upsertPersistedAnalysis,
+} from "@/lib/services/db/aiReports";
 
 export async function GET(request: NextRequest) {
+  const auth = await requireAuth(request, { requiredRole: "viewer" });
+  if (!auth.ok) return auth.response;
+
   if (!isAppwriteConfigured()) {
     return NextResponse.json(
       { error: "Appwrite is not configured" },
@@ -15,19 +19,19 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const workspaceId =
-      request.nextUrl.searchParams.get("workspaceId") ?? "ws-001";
+    const workspaceId = auth.workspaceId;
+    const userId = auth.session.user.userId;
     const force = request.nextUrl.searchParams.get("force") === "true";
-    const cacheKey = `goals:${workspaceId}`;
+    const reportKey = "goals";
 
     if (!force) {
-      const cached = getAnalysisCache<
+      const persisted = await getPersistedAnalysis<
         Awaited<ReturnType<typeof generateGoalProjections>>
-      >(cacheKey);
-      if (cached) {
+      >(workspaceId, userId, reportKey);
+      if (persisted) {
         return NextResponse.json({
-          projections: cached.value,
-          lastAnalysisAt: cached.analyzedAt,
+          projections: persisted.value,
+          lastAnalysisAt: persisted.analyzedAt,
           generatedFresh: false,
         });
       }
@@ -40,11 +44,16 @@ export async function GET(request: NextRequest) {
     }
 
     const projections = await generateGoalProjections(workspaceId);
-    const cached = setAnalysisCache(cacheKey, projections);
+    const persisted = await upsertPersistedAnalysis(
+      workspaceId,
+      userId,
+      reportKey,
+      projections
+    );
 
     return NextResponse.json({
       projections,
-      lastAnalysisAt: cached.analyzedAt,
+      lastAnalysisAt: persisted.analyzedAt,
       generatedFresh: true,
     });
   } catch (error: unknown) {

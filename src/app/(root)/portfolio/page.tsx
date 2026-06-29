@@ -69,6 +69,7 @@ import PlanGate from "@/components/PlanGate";
 import type { SavingsGoal } from "@/lib/types";
 import { BarChart, Bar } from "recharts";
 import { notifyAiUsageUpdated } from "@/lib/aiUsageRefresh";
+import LastAnalysisStamp from "@/components/LastAnalysisStamp";
 
 // ── Static mock performance history (fallback) ───────────────────────────────
 const MOCK_PERFORMANCE_HISTORY = [
@@ -553,8 +554,9 @@ export default function PortfolioPage() {
   const [insights, setInsights] = useState<PortfolioInsight[]>([]);
   const [insightsLoading, setInsightsLoading] = useState(false);
   const [insightsFetched, setInsightsFetched] = useState(false);
+  const [insightsLastAnalysisAt, setInsightsLastAnalysisAt] = useState<string | null>(null);
 
-  const fetchInsights = useCallback(async () => {
+  const fetchInsights = useCallback(async (force = false) => {
     setInsightsLoading(true);
     try {
       const res = await fetch("/api/ai/portfolio-insights", {
@@ -564,12 +566,13 @@ export default function PortfolioPage() {
           holdings: mockAllHoldings,
           accounts: mockAccounts,
           totalValue,
-          workspaceId: DEFAULT_WORKSPACE_ID,
+          force,
         }),
       });
       const data = await res.json();
       if (data.insights) {
         setInsights(data.insights);
+        setInsightsLastAnalysisAt(data.lastAnalysisAt ?? null);
         notifyAiUsageUpdated();
       }
     } catch { /* non-critical */ }
@@ -590,7 +593,8 @@ export default function PortfolioPage() {
   const [tlhSuggestions, setTlhSuggestions] = useState<TLHSuggestion[]>([]);
   const [tlhLoading, setTlhLoading] = useState(false);
   const [tlhFetched, setTlhFetched] = useState(false);
-  const fetchTlhSuggestions = useCallback(async () => {
+  const [tlhLastAnalysisAt, setTlhLastAnalysisAt] = useState<string | null>(null);
+  const fetchTlhSuggestions = useCallback(async (force = false) => {
     if (tlhSummary.opportunities.length === 0) { setTlhFetched(true); return; }
     setTlhLoading(true);
     try {
@@ -599,12 +603,13 @@ export default function PortfolioPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           summary: tlhSummary,
-          workspaceId: DEFAULT_WORKSPACE_ID,
+          force,
         }),
       });
       const data = await res.json();
       if (data.suggestions) {
         setTlhSuggestions(data.suggestions);
+        setTlhLastAnalysisAt(data.lastAnalysisAt ?? null);
         notifyAiUsageUpdated();
       }
     } catch { /* non-critical */ }
@@ -1111,12 +1116,16 @@ export default function PortfolioPage() {
               <Brain className="w-4 h-4 text-primary" />
               <h2 className="text-sm font-semibold text-white uppercase tracking-wider">AI Portfolio Analysis</h2>
             </div>
-            <button type="button" onClick={fetchInsights} disabled={insightsLoading} className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-white transition-colors disabled:opacity-50">
+            <button type="button" onClick={() => void fetchInsights(true)} disabled={insightsLoading} className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-white transition-colors disabled:opacity-50">
               {insightsLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
               Refresh
             </button>
           </div>
           <div className="p-6">
+            <LastAnalysisStamp
+              lastAnalysisAt={insightsLastAnalysisAt}
+              className="mb-3 block text-[10px] uppercase tracking-[1.5px] text-slate-500"
+            />
             {insightsLoading && !insightsFetched ? (
               <div className="flex items-center justify-center gap-2 py-8 text-slate-400 text-sm">
                 <Loader2 className="w-4 h-4 animate-spin" /> Analyzing portfolio…
@@ -1165,7 +1174,7 @@ export default function PortfolioPage() {
                   </span>
                 )}
               </div>
-              <button type="button" onClick={fetchTlhSuggestions} disabled={tlhLoading} className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-white transition-colors disabled:opacity-50">
+              <button type="button" onClick={() => void fetchTlhSuggestions(true)} disabled={tlhLoading} className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-white transition-colors disabled:opacity-50">
                 {tlhLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
                 Refresh
               </button>
@@ -1186,6 +1195,10 @@ export default function PortfolioPage() {
             </div>
 
             <div className="p-6 space-y-4">
+              <LastAnalysisStamp
+                lastAnalysisAt={tlhLastAnalysisAt}
+                className="block text-[10px] uppercase tracking-[1.5px] text-slate-500"
+              />
               {tlhSummary.opportunities.map((opp) => (
                 <div key={opp.holdingId} className={`rounded-lg border p-4 ${opp.washSaleRisk ? "border-red-400/20 bg-red-400/5" : "border-amber-400/20 bg-amber-400/5"}`}>
                   <div className="flex items-start justify-between gap-4 flex-wrap">
