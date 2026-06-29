@@ -17,6 +17,7 @@ import { DEFAULT_WORKSPACE_ID } from "@/lib/services/workspace";
 import type { AssistantModelOption } from "@/lib/services/ai/assistant";
 import { ASSISTANT_MODELS } from "@/lib/services/ai/assistant";
 import { notifyAiUsageUpdated } from "@/lib/aiUsageRefresh";
+import type { Conversation as ElevenLabsConversation } from "@elevenlabs/client";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -159,6 +160,11 @@ export default function AssistantPage() {
   const [voiceEnabled, setVoiceEnabled] = useState(true);
   const [allowSpeechInterrupt, setAllowSpeechInterrupt] = useState(true);
   const [isAssistantSpeaking, setIsAssistantSpeaking] = useState(false);
+  const [agentVoiceMode, setAgentVoiceMode] = useState(false);
+  const [agentSessionStatus, setAgentSessionStatus] = useState<
+    "idle" | "connecting" | "connected" | "error"
+  >("idle");
+  const [agentMicMuted, setAgentMicMuted] = useState(false);
   const [selectedModel, setSelectedModel] = useState<AssistantModelOption>(ASSISTANT_MODELS[0]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -167,6 +173,7 @@ export default function AssistantPage() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const currentAudioUrlRef = useRef<string | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
+  const elevenConversationRef = useRef<ElevenLabsConversation | null>(null);
   const silenceIntervalRef = useRef<number | null>(null);
   const silenceStartedAtRef = useRef<number | null>(null);
   const recordingStartedAtRef = useRef<number>(0);
@@ -212,6 +219,20 @@ export default function AssistantPage() {
     setIsAssistantSpeaking(false);
   }, []);
 
+  const stopElevenLabsSession = useCallback(async () => {
+    const conversation = elevenConversationRef.current;
+    elevenConversationRef.current = null;
+    setAgentVoiceMode(false);
+    setAgentMicMuted(false);
+    setAgentSessionStatus("idle");
+    if (!conversation) return;
+    try {
+      await conversation.endSession();
+    } catch {
+      // Safe to ignore if already disconnected.
+    }
+  }, []);
+
   useEffect(() => {
     return () => {
       clearSilenceDetection();
@@ -220,8 +241,9 @@ export default function AssistantPage() {
       }
       mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
       stopAssistantSpeech();
+      void stopElevenLabsSession();
     };
-  }, [clearSilenceDetection, stopAssistantSpeech]);
+  }, [clearSilenceDetection, stopAssistantSpeech, stopElevenLabsSession]);
 
   const speakAssistantReply = useCallback(
     async (text: string): Promise<void> => {
@@ -520,9 +542,125 @@ export default function AssistantPage() {
     }
   }, [listening, transcribing, loading]);
 
+  const startElevenLabsSession = useCallback(async () => {
+    if (agentSessionStatus === "connecting" || agentSessionStatus === "connected") return;
+
+    stopFreeFlow();
+    setLoading(false);
+    setTranscribing(false);
+    setListening(false);
+    setVoiceMode(false);
+    setVoiceTurnState("idle");
+    setAgentSessionStatus("connecting");
+    setAgentMicMuted(false);
+
+    try {
+      const res = await fetch("/api/ai/assistant/agent/signed-url", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ workspaceId: DEFAULT_WORKSPACE_ID }),
+      });
+      const data = (await res.json().catch(() => ({}))) as {
+        signedUrl?: string;
+        error?: string;
+      };
+      if (!res.ok || !data.signedUrl) {
+        throw new Error(data.error ?? "Failed to start ElevenLabs agent session.");
+      }
+
+      const { Conversation } = await import("@elevenlabs/client");
+      const conversation = await Conversation.startSession({
+        signedUrl: data.signedUrl,
+        onConnect: () => {
+          setAgentSessionStatus("connected");
+          setAgentVoiceMode(true);
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: `msg-${Date.now()}-agent-connected`,
+              role: "assistant",
+              content: "ElevenLabs Agent voice session connected. You can speak naturally now.",
+            },
+          ]);
+        },
+        onDisconnect: () => {
+          elevenConversationRef.current = null;
+          setAgentSessionStatus("idle");
+          setAgentVoiceMode(false);
+          setAgentMicMuted(false);
+        },
+        onError: (message: string) => {
+          setAgentSessionStatus("error");
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: `msg-${Date.now()}-agent-error`,
+              role: "assistant",
+              content: `ElevenLabs Agent error: ${message}`,
+            },
+          ]);
+        },
+        onMessage: (payload: { role: "user" | "agent"; message: string }) => {
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: `msg-${Date.now()}-agent-msg-${payload.role}`,
+              role: payload.role === "agent" ? "assistant" : "user",
+              content: payload.message,
+              model: payload.role === "agent" ? "elevenlabs-agent" : undefined,
+            },
+          ]);
+        },
+      });
+
+      elevenConversationRef.current = conversation;
+    } catch (error) {
+      setAgentVoiceMode(false);
+      setAgentSessionStatus("error");
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `msg-${Date.now()}-agent-start-error`,
+          role: "assistant",
+          content:
+            error instanceof Error
+              ? `Unable to start ElevenLabs Agent mode: ${error.message}`
+              : "Unable to start ElevenLabs Agent mode right now.",
+        },
+      ]);
+    }
+  }, [agentSessionStatus, stopFreeFlow]);
+
+  const toggleElevenLabsMicMute = useCallback(() => {
+    const conversation = elevenConversationRef.current;
+    if (!conversation) return;
+    const next = !agentMicMuted;
+    conversation.setMicMuted(next);
+    setAgentMicMuted(next);
+  }, [agentMicMuted]);
+
   const sendMessage = useCallback(
     async (text: string, options?: { fromVoice?: boolean }) => {
-      if (!text.trim() || loading) return;
+      if (!text.trim()) return;
+
+      if (agentVoiceMode && elevenConversationRef.current) {
+        try {
+          elevenConversationRef.current.sendUserMessage(text.trim());
+          setInput("");
+        } catch {
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: `msg-${Date.now()}-agent-send-error`,
+              role: "assistant",
+              content: "Failed to send message to ElevenLabs Agent session.",
+            },
+          ]);
+        }
+        return;
+      }
+
+      if (loading) return;
 
       const userMsg: Message = {
         id: `msg-${Date.now()}-user`,
@@ -599,7 +737,15 @@ export default function AssistantPage() {
         }
       }
     },
-    [loading, messages, selectedModel, speakAssistantReply, listening, transcribing]
+    [
+      agentVoiceMode,
+      loading,
+      messages,
+      selectedModel,
+      speakAssistantReply,
+      listening,
+      transcribing,
+    ]
   );
 
   useEffect(() => {
@@ -755,7 +901,7 @@ export default function AssistantPage() {
               <button
                 type="button"
                 onClick={listening ? stopListening : startListening}
-                disabled={loading}
+                disabled={loading || agentVoiceMode}
                 className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg border text-xs font-semibold uppercase tracking-wider transition-colors ${
                   listening
                     ? "bg-red-500/20 border-red-400/30 text-red-300"
@@ -770,11 +916,12 @@ export default function AssistantPage() {
               <button
                 type="button"
                 onClick={() => setVoiceMode((v) => !v)}
+                disabled={agentVoiceMode}
                 className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg border text-xs font-semibold uppercase tracking-wider transition-colors ${
                   voiceMode
                     ? "bg-arcana-blue/20 border-arcana-blue/40 text-arcana-blue"
                     : "bg-arcana-navy border-arcana-border text-slate-400 hover:border-arcana-blue"
-                }`}
+                } disabled:opacity-50 disabled:cursor-not-allowed`}
                 title="When enabled, speech is sent automatically when listening ends."
               >
                 <Sparkles className="w-3.5 h-3.5" />
@@ -783,11 +930,12 @@ export default function AssistantPage() {
               <button
                 type="button"
                 onClick={freeFlowActive ? stopFreeFlow : startFreeFlow}
+                disabled={agentVoiceMode}
                 className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg border text-xs font-semibold uppercase tracking-wider transition-colors ${
                   freeFlowActive
                     ? "bg-red-500/20 border-red-400/30 text-red-300"
                     : "bg-arcana-navy border-arcana-border text-slate-300 hover:border-arcana-blue"
-                }`}
+                } disabled:opacity-50 disabled:cursor-not-allowed`}
                 title="Continuous hands-free conversation powered by ElevenLabs transcription and voice output."
               >
                 {freeFlowActive ? <Square className="w-3.5 h-3.5" /> : <Mic className="w-3.5 h-3.5" />}
@@ -806,9 +954,54 @@ export default function AssistantPage() {
                 <VolumeX className="w-3.5 h-3.5" />
                 Interrupt Speech
               </button>
+              <button
+                type="button"
+                onClick={
+                  agentVoiceMode
+                    ? () => {
+                        void stopElevenLabsSession();
+                      }
+                    : () => {
+                        void startElevenLabsSession();
+                      }
+                }
+                disabled={agentSessionStatus === "connecting"}
+                className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg border text-xs font-semibold uppercase tracking-wider transition-colors ${
+                  agentVoiceMode
+                    ? "bg-red-500/20 border-red-400/30 text-red-300"
+                    : "bg-arcana-blue/20 border-arcana-blue/40 text-arcana-blue"
+                } disabled:opacity-50 disabled:cursor-not-allowed`}
+                title="Use ElevenLabs Conversational Agent with full agent voice capabilities."
+              >
+                {agentVoiceMode ? <Square className="w-3.5 h-3.5" /> : <Sparkles className="w-3.5 h-3.5" />}
+                {agentSessionStatus === "connecting"
+                  ? "Connecting Agent..."
+                  : agentVoiceMode
+                  ? "Stop Agent Voice"
+                  : "Agent Voice Mode"}
+              </button>
+              {agentVoiceMode && (
+                <button
+                  type="button"
+                  onClick={toggleElevenLabsMicMute}
+                  className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg border text-xs font-semibold uppercase tracking-wider transition-colors ${
+                    agentMicMuted
+                      ? "bg-red-500/20 border-red-400/30 text-red-300"
+                      : "bg-arcana-navy border-arcana-border text-slate-300 hover:border-arcana-blue"
+                  }`}
+                  title="Mute or unmute your microphone in ElevenLabs Agent mode."
+                >
+                  {agentMicMuted ? <VolumeX className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5" />}
+                  {agentMicMuted ? "Unmute Agent Mic" : "Mute Agent Mic"}
+                </button>
+              )}
             </div>
             <div className="hidden sm:block text-[10px] uppercase tracking-wider text-slate-500">
-              {isAssistantSpeaking && allowSpeechInterrupt
+              {agentVoiceMode
+                ? agentMicMuted
+                  ? "ElevenLabs agent connected — mic muted"
+                  : "ElevenLabs agent connected"
+                : isAssistantSpeaking && allowSpeechInterrupt
                 ? "Assistant speaking — tap mic to interrupt"
                 : transcribing
                 ? "Transcribing with ElevenLabs..."
@@ -858,12 +1051,19 @@ export default function AssistantPage() {
             <button
               type="button"
               onClick={() => setVoiceEnabled((v) => !v)}
-              title={voiceEnabled ? "Disable voice replies" : "Enable voice replies"}
+              disabled={agentVoiceMode}
+              title={
+                agentVoiceMode
+                  ? "Voice replies are controlled by ElevenLabs Agent mode."
+                  : voiceEnabled
+                  ? "Disable voice replies"
+                  : "Enable voice replies"
+              }
               className={`flex items-center justify-center w-10 h-10 rounded-lg border transition-colors flex-shrink-0 ${
                 voiceEnabled
                   ? "bg-arcana-blue/20 border-arcana-blue/30 text-arcana-blue"
                   : "bg-arcana-navy border-arcana-border text-slate-400 hover:border-arcana-blue"
-              }`}
+              } disabled:opacity-50 disabled:cursor-not-allowed`}
             >
               {voiceEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
             </button>

@@ -26,6 +26,7 @@
   "homepage": "https://github.com/Spirovanni/arcana_pulse#readme",
   "dependencies": {
     "@anthropic-ai/sdk": "^0.78.0",
+    "@elevenlabs/client": "^1.14.0",
     "@google/generative-ai": "^0.24.1",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "@sentry/nextjs": "^10.43.0",
