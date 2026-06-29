@@ -1,4 +1,4 @@
-import { getAnthropicClient } from "@/lib/anthropic";
+import { getAnthropicClient, isAnthropicConfigured } from "@/lib/anthropic";
 import { getOpenAIClient, isOpenAIConfigured } from "@/lib/openai";
 import { getGoogleAIClient, isGoogleAIConfigured } from "@/lib/google-ai";
 import * as DbTx from "@/lib/services/db/transactions";
@@ -74,6 +74,25 @@ export const ASSISTANT_MODELS: AssistantModelOption[] = [
     description: "Google's fast model",
   },
 ];
+
+const DEFAULT_MODEL_BY_PROVIDER: Record<AssistantProvider, string> = {
+  anthropic: "claude-haiku-4-5-20251001",
+  openai: "gpt-4o-mini",
+  google: "gemini-1.5-flash",
+};
+
+function isProviderConfigured(provider: AssistantProvider): boolean {
+  switch (provider) {
+    case "anthropic":
+      return isAnthropicConfigured();
+    case "openai":
+      return isOpenAIConfigured();
+    case "google":
+      return isGoogleAIConfigured();
+    default:
+      return false;
+  }
+}
 
 // ---------------------------------------------------------------------------
 // System prompt
@@ -530,27 +549,38 @@ export async function chat(
   model: string = "claude-haiku-4-5-20251001",
   provider: AssistantProvider = "anthropic"
 ): Promise<string> {
-  try {
-    switch (provider) {
-      case "anthropic":
-        return await chatWithAnthropic(userMessage, history, workspaceId, model);
+  const orderedProviders = Array.from(
+    new Set<AssistantProvider>([provider, "anthropic", "openai", "google"])
+  );
+  const attemptedErrors: string[] = [];
 
-      case "openai":
-        if (!isOpenAIConfigured()) {
-          return "OpenAI is not configured on this server. Please use Claude or Gemini, or contact your administrator.";
-        }
-        return await chatWithOpenAI(userMessage, history, workspaceId, model);
+  for (const candidate of orderedProviders) {
+    if (!isProviderConfigured(candidate)) continue;
 
-      case "google":
-        if (!isGoogleAIConfigured()) {
-          return "Google AI is not configured on this server. Please use Claude or GPT-4o, or contact your administrator.";
-        }
-        return await chatWithGoogle(userMessage, history, workspaceId, model);
+    const candidateModel =
+      candidate === provider ? model : DEFAULT_MODEL_BY_PROVIDER[candidate];
 
-      default:
-        return await chatWithAnthropic(userMessage, history, workspaceId, "claude-haiku-4-5-20251001");
+    try {
+      switch (candidate) {
+        case "anthropic":
+          return await chatWithAnthropic(userMessage, history, workspaceId, candidateModel);
+        case "openai":
+          return await chatWithOpenAI(userMessage, history, workspaceId, candidateModel);
+        case "google":
+          return await chatWithGoogle(userMessage, history, workspaceId, candidateModel);
+      }
+    } catch (error) {
+      const detail =
+        error instanceof Error && error.message.trim().length > 0
+          ? error.message
+          : "unknown provider error";
+      attemptedErrors.push(`${candidate}: ${detail}`);
     }
-  } catch {
+  }
+
+  if (attemptedErrors.length > 0) {
     return "I'm having trouble processing your request right now. Please try again in a moment.";
   }
+
+  return "No AI providers are configured on this server right now. Please ask your administrator to configure Anthropic, OpenAI, or Google AI keys.";
 }

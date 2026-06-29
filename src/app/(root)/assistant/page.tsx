@@ -283,6 +283,14 @@ export default function AssistantPage() {
         recorder.onerror = () => {
           setListening(false);
           mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: `msg-${Date.now()}-voice-recorder-error`,
+              role: "assistant",
+              content: "Voice recording failed. Please try again.",
+            },
+          ]);
         };
 
         recorder.onstop = async () => {
@@ -313,8 +321,20 @@ export default function AssistantPage() {
 
         setListening(true);
         recorder.start();
-      } catch {
+      } catch (error) {
         setListening(false);
+        const reason =
+          error instanceof DOMException && error.name === "NotAllowedError"
+            ? "Microphone access is blocked. Please allow microphone permissions for this site."
+            : "Unable to access your microphone right now. Please check browser permissions and try again.";
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: `msg-${Date.now()}-voice-permission-error`,
+            role: "assistant",
+            content: reason,
+          },
+        ]);
       }
     })();
   }, [transcribeAudio, voiceMode]);

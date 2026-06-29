@@ -15,3 +15,7 @@ export function getAnthropicClient(): Anthropic {
   _client = new Anthropic({ apiKey });
   return _client;
 }
+
+export function isAnthropicConfigured(): boolean {
+  return !!process.env.ANTHROPIC_API_KEY;
+}
