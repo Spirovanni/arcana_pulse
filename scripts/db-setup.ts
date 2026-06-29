@@ -17,9 +17,8 @@ import { Client, Databases, IndexType, OrderBy } from "node-appwrite";
 import fs from "fs";
 import path from "path";
 
-const DATABASE_ID =
-  process.env.APPWRITE_DATABASE_ID ?? "arcana_pulse";
-const DATABASE_NAME = "Arcana Pulse";
+let DATABASE_ID = (process.env.APPWRITE_DATABASE_ID ?? "").trim();
+const DATABASE_NAME = process.env.APPWRITE_DATABASE_NAME ?? "Arcana Pulse";
 
 // ---------------------------------------------------------------------------
 // Init
@@ -83,6 +82,11 @@ const client = new Client()
 
 const db = new Databases(client);
 
+type AppwriteDatabaseInfo = {
+  $id: string;
+  name?: string;
+};
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -111,6 +115,53 @@ async function ensureDatabase() {
       throw createErr;
     }
   }
+}
+
+async function listExistingDatabases(): Promise<AppwriteDatabaseInfo[]> {
+  try {
+    // list() exists on modern node-appwrite Databases but may lag in typings.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const response = await (db as any).list();
+    const items = Array.isArray(response?.databases)
+      ? (response.databases as AppwriteDatabaseInfo[])
+      : [];
+    return items.filter((item) => typeof item?.$id === "string");
+  } catch {
+    return [];
+  }
+}
+
+async function resolveDatabaseId() {
+  if (DATABASE_ID) {
+    console.log(`Using database from env: ${DATABASE_ID}`);
+    return;
+  }
+
+  const databases = await listExistingDatabases();
+  if (databases.length === 0) {
+    DATABASE_ID = "arcana_pulse";
+    console.log(`No existing databases listed; defaulting to create "${DATABASE_ID}"`);
+    return;
+  }
+
+  const byName = databases.find((dbInfo) => dbInfo.name === DATABASE_NAME);
+  if (byName) {
+    DATABASE_ID = byName.$id;
+    console.log(`Selected existing database by name "${DATABASE_NAME}": ${DATABASE_ID}`);
+    return;
+  }
+
+  if (databases.length === 1) {
+    DATABASE_ID = databases[0].$id;
+    console.log(`Selected only existing database: ${DATABASE_ID}`);
+    return;
+  }
+
+  console.error("Multiple databases found in Appwrite. Set APPWRITE_DATABASE_ID to choose one.");
+  for (const dbInfo of databases) {
+    console.error(`  - ${dbInfo.$id}${dbInfo.name ? ` (${dbInfo.name})` : ""}`);
+  }
+  process.exit(1);
 }
 
 async function createCollection(id: string, name: string) {
@@ -803,6 +854,8 @@ async function main() {
   console.log("Arcana Pulse — Database Setup");
   console.log(`Endpoint: ${endpoint}`);
   console.log(`Project:  ${projectId}`);
+  await resolveDatabaseId();
+  console.log(`Database: ${DATABASE_ID}`);
 
   await ensureDatabase();
 
