@@ -39,6 +39,16 @@ function getPlatformAdminIds(): Set<string> {
   );
 }
 
+function getPlatformAdminEmails(): Set<string> {
+  const raw = process.env.ADMIN_EMAILS ?? "";
+  return new Set(
+    raw
+      .split(",")
+      .map((s) => s.trim().toLowerCase())
+      .filter(Boolean)
+  );
+}
+
 export async function requirePlatformAdmin(
   request: NextRequest
 ): Promise<AdminAuthResult> {
@@ -63,8 +73,10 @@ export async function requirePlatformAdmin(
   }
 
   const adminIds = getPlatformAdminIds();
+  const adminEmails = getPlatformAdminEmails();
+  const emailNormalized = email.toLowerCase();
 
-  if (!adminIds.has(userId)) {
+  if (!adminIds.has(userId) && !adminEmails.has(emailNormalized)) {
     return {
       ok: false,
       response: NextResponse.json(

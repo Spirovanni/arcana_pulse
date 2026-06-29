@@ -19,6 +19,7 @@ import type {
   FeatureFlag,
   SupportTicket,
   MembershipType,
+  UserRole,
 } from "@/lib/types";
 import type { Models } from "node-appwrite";
 
@@ -114,6 +115,10 @@ function toAdminUser(doc: UserDoc): AdminUser {
     email: typeof doc.email === "string" ? doc.email : "",
     firstName: typeof doc.firstName === "string" ? doc.firstName : "",
     lastName: typeof doc.lastName === "string" ? doc.lastName : "",
+    role:
+      typeof doc.role === "string"
+        ? (doc.role as UserRole)
+        : "member",
     membershipType:
       typeof doc.membershipType === "string"
         ? (doc.membershipType as MembershipType)
@@ -124,7 +129,32 @@ function toAdminUser(doc: UserDoc): AdminUser {
       typeof doc.createdAt === "string" ? doc.createdAt : doc.$createdAt,
     emailVerified:
       typeof doc.emailVerified === "boolean" ? doc.emailVerified : false,
+    mfaEnabled: typeof doc.mfaEnabled === "boolean" ? doc.mfaEnabled : false,
   };
+}
+
+export async function updateAdminUser(
+  userId: string,
+  updates: Partial<{
+    role: UserRole;
+    membershipType: MembershipType;
+    emailVerified: boolean;
+  }>
+): Promise<AdminUser | null> {
+  if (!isAppwriteConfigured()) return null;
+  const db = getDatabase();
+
+  try {
+    const doc = await db.updateDocument(
+      DATABASE_ID,
+      COLLECTIONS.users,
+      userId,
+      updates
+    );
+    return toAdminUser(doc as UserDoc);
+  } catch {
+    return null;
+  }
 }
 
 export async function searchUsers(

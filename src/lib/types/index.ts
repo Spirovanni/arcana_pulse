@@ -678,10 +678,12 @@ export interface AdminUser {
   email: string;
   firstName: string;
   lastName: string;
+  role: UserRole;
   membershipType: MembershipType;
   workspaceId: string;
   createdAt: string;
   emailVerified: boolean;
+  mfaEnabled: boolean;
 }
 
 export interface SupportTicket {

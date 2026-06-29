@@ -21,6 +21,7 @@ import {
   ToggleLeft,
   ToggleRight,
   Loader2,
+  BadgeCheck,
 } from "lucide-react";
 import type { PlatformMetrics, AdminUser, FeatureFlag, SupportTicket } from "@/lib/types";
 
@@ -216,6 +217,8 @@ function UsersTab() {
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [searching, setSearching] = useState(false);
+  const [updatingUserId, setUpdatingUserId] = useState<string | null>(null);
+  const [updateError, setUpdateError] = useState<string | null>(null);
 
   const load = useCallback(async (q = "") => {
     if (q) setSearching(true);
@@ -246,6 +249,30 @@ function UsersTab() {
     return () => clearTimeout(t);
   }, [query, load]);
 
+  async function patchUser(
+    userId: string,
+    updates: Partial<Pick<AdminUser, "role" | "membershipType" | "emailVerified">>
+  ) {
+    setUpdatingUserId(userId);
+    setUpdateError(null);
+    try {
+      const res = await fetch("/api/admin/users", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId, ...updates }),
+      });
+      const data = await res.json().catch(() => ({} as { error?: string; user?: AdminUser }));
+      if (!res.ok) throw new Error(data.error ?? "Failed to update user");
+      if (data.user) {
+        setUsers((prev) => prev.map((u) => (u.userId === userId ? data.user : u)));
+      }
+    } catch (err) {
+      setUpdateError(err instanceof Error ? err.message : "Failed to update user");
+    } finally {
+      setUpdatingUserId(null);
+    }
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -253,6 +280,11 @@ function UsersTab() {
           User Lookup <span className="text-slate-500 text-sm font-normal">({total} total)</span>
         </h2>
       </div>
+      {updateError && (
+        <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-300">
+          {updateError}
+        </div>
+      )}
 
       {/* Search */}
       <div className="relative">
@@ -286,6 +318,7 @@ function UsersTab() {
               <tr className="bg-arcana-surface border-b border-arcana-border">
                 <th className="text-left px-4 py-3 text-slate-400 font-medium">User</th>
                 <th className="text-left px-4 py-3 text-slate-400 font-medium hidden sm:table-cell">Type</th>
+                <th className="text-left px-4 py-3 text-slate-400 font-medium hidden md:table-cell">Role</th>
                 <th className="text-left px-4 py-3 text-slate-400 font-medium hidden md:table-cell">Workspace</th>
                 <th className="text-left px-4 py-3 text-slate-400 font-medium hidden lg:table-cell">Joined</th>
                 <th className="text-left px-4 py-3 text-slate-400 font-medium">Verified</th>
@@ -308,9 +341,37 @@ function UsersTab() {
                     </div>
                   </td>
                   <td className="px-4 py-3 hidden sm:table-cell">
-                    <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-arcana-blue/20 text-arcana-blue border border-arcana-blue/30 capitalize">
-                      {u.membershipType}
-                    </span>
+                    <select
+                      value={u.membershipType}
+                      disabled={updatingUserId === u.userId}
+                      onChange={(e) =>
+                        void patchUser(u.userId, {
+                          membershipType: e.target.value as AdminUser["membershipType"],
+                        })
+                      }
+                      className="rounded bg-arcana-navy border border-arcana-border px-2 py-1 text-[10px] text-slate-200"
+                    >
+                      <option value="standard">standard</option>
+                      <option value="student">student</option>
+                      <option value="employer">employer</option>
+                    </select>
+                  </td>
+                  <td className="px-4 py-3 hidden md:table-cell">
+                    <select
+                      value={u.role}
+                      disabled={updatingUserId === u.userId}
+                      onChange={(e) =>
+                        void patchUser(u.userId, {
+                          role: e.target.value as AdminUser["role"],
+                        })
+                      }
+                      className="rounded bg-arcana-navy border border-arcana-border px-2 py-1 text-[10px] text-slate-200"
+                    >
+                      <option value="owner">owner</option>
+                      <option value="admin">admin</option>
+                      <option value="member">member</option>
+                      <option value="viewer">viewer</option>
+                    </select>
                   </td>
                   <td className="px-4 py-3 hidden md:table-cell">
                     <span className="text-slate-400 font-mono text-xs">
@@ -321,11 +382,26 @@ function UsersTab() {
                     {formatDate(u.createdAt)}
                   </td>
                   <td className="px-4 py-3">
-                    {u.emailVerified ? (
-                      <CheckCircle2 className="w-4 h-4 text-green-400" />
-                    ) : (
-                      <XCircle className="w-4 h-4 text-slate-600" />
-                    )}
+                    <button
+                      type="button"
+                      disabled={updatingUserId === u.userId}
+                      onClick={() =>
+                        void patchUser(u.userId, { emailVerified: !u.emailVerified })
+                      }
+                      className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] border border-arcana-border hover:border-arcana-blue/40"
+                    >
+                      {u.emailVerified ? (
+                        <>
+                          <CheckCircle2 className="w-3.5 h-3.5 text-green-400" />
+                          <span className="text-green-300">Verified</span>
+                        </>
+                      ) : (
+                        <>
+                          <XCircle className="w-3.5 h-3.5 text-slate-500" />
+                          <span className="text-slate-400">Unverified</span>
+                        </>
+                      )}
+                    </button>
                   </td>
                 </tr>
               ))}
@@ -333,6 +409,10 @@ function UsersTab() {
           </table>
         </div>
       )}
+      <div className="rounded-lg border border-arcana-border bg-arcana-surface px-3 py-2 text-[11px] text-slate-400 flex items-center gap-2">
+        <BadgeCheck className="w-3.5 h-3.5 text-arcana-blue" />
+        User role, membership type, and verification status can be managed inline.
+      </div>
     </div>
   );
 }
