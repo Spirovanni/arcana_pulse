@@ -29,24 +29,6 @@ interface Message {
   model?: string;
 }
 
-type BrowserSpeechRecognition = {
-  continuous: boolean;
-  interimResults: boolean;
-  lang: string;
-  onresult: ((event: SpeechRecognitionEvent) => void) | null;
-  onerror: ((event: { error: string }) => void) | null;
-  onend: (() => void) | null;
-  start: () => void;
-  stop: () => void;
-};
-
-type SpeechRecognitionEvent = {
-  results: ArrayLike<{
-    isFinal: boolean;
-    0: { transcript: string };
-  }>;
-};
-
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
@@ -167,9 +149,10 @@ export default function AssistantPage() {
   const [voiceEnabled, setVoiceEnabled] = useState(true);
   const [selectedModel, setSelectedModel] = useState<AssistantModelOption>(ASSISTANT_MODELS[0]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const recognitionRef = useRef<BrowserSpeechRecognition | null>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const mediaStreamRef = useRef<MediaStream | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const voiceTranscriptRef = useRef("");
   const sendMessageRef = useRef<(text: string) => Promise<void>>(async () => undefined);
 
   useEffect(() => {
@@ -178,7 +161,10 @@ export default function AssistantPage() {
 
   useEffect(() => {
     return () => {
-      recognitionRef.current?.stop();
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+        mediaRecorderRef.current.stop();
+      }
+      mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
       if (audioRef.current) {
         audioRef.current.pause();
         audioRef.current = null;
@@ -220,49 +206,111 @@ export default function AssistantPage() {
   );
 
   const stopListening = useCallback(() => {
-    recognitionRef.current?.stop();
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+      mediaRecorderRef.current.stop();
+    }
     setListening(false);
+  }, []);
+
+  const transcribeAudio = useCallback(async (audioBlob: Blob): Promise<string> => {
+    try {
+      const extension = audioBlob.type.includes("mp4")
+        ? "mp4"
+        : audioBlob.type.includes("ogg")
+        ? "ogg"
+        : "webm";
+      const file = new File([audioBlob], `voice.${extension}`, {
+        type: audioBlob.type || "audio/webm",
+      });
+
+      const formData = new FormData();
+      formData.append("audio", file);
+
+      const res = await fetch("/api/ai/assistant/transcribe", {
+        method: "POST",
+        body: formData,
+      });
+
+      const data = (await res.json().catch(() => ({}))) as {
+        transcript?: string;
+        error?: string;
+      };
+      if (!res.ok) throw new Error(data.error ?? "Voice transcription failed");
+      return (data.transcript ?? "").trim();
+    } catch (error) {
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `msg-${Date.now()}-voice-error`,
+          role: "assistant",
+          content:
+            error instanceof Error
+              ? `Voice input failed: ${error.message}`
+              : "Voice input failed. Please try again.",
+        },
+      ]);
+      return "";
+    }
   }, []);
 
   const startListening = useCallback(() => {
     if (typeof window === "undefined") return;
-    const SpeechRecognitionCtor =
-      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SpeechRecognitionCtor) return;
-
-    if (!recognitionRef.current) {
-      const recognition: BrowserSpeechRecognition = new SpeechRecognitionCtor();
-      recognition.continuous = false;
-      recognition.interimResults = true;
-      recognition.lang = "en-US";
-      recognition.onresult = (event: SpeechRecognitionEvent) => {
-        const transcript = Array.from(event.results)
-          .map((r) => r[0].transcript)
-          .join(" ");
-        voiceTranscriptRef.current = transcript;
-        setInput(transcript);
-      };
-      recognition.onerror = () => {
-        setListening(false);
-      };
-      recognition.onend = () => {
-        setListening(false);
-        if (voiceMode) {
-          const transcript = voiceTranscriptRef.current.trim();
-          if (transcript) {
-            void sendMessageRef.current(transcript);
-            voiceTranscriptRef.current = "";
-            setInput("");
-          }
-        }
-      };
-      recognitionRef.current = recognition;
+    if (!window.navigator.mediaDevices?.getUserMedia) {
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `msg-${Date.now()}-voice-unsupported`,
+          role: "assistant",
+          content: "Microphone recording is not supported on this browser.",
+        },
+      ]);
+      return;
     }
 
-    voiceTranscriptRef.current = "";
-    setListening(true);
-    recognitionRef.current.start();
-  }, [voiceMode]);
+    void (async () => {
+      try {
+        const stream = await window.navigator.mediaDevices.getUserMedia({ audio: true });
+        mediaStreamRef.current = stream;
+        const recorder = new MediaRecorder(stream);
+        mediaRecorderRef.current = recorder;
+        audioChunksRef.current = [];
+
+        recorder.ondataavailable = (event: BlobEvent) => {
+          if (event.data.size > 0) audioChunksRef.current.push(event.data);
+        };
+
+        recorder.onerror = () => {
+          setListening(false);
+          mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
+        };
+
+        recorder.onstop = async () => {
+          setListening(false);
+          mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
+
+          const blob = new Blob(audioChunksRef.current, {
+            type: recorder.mimeType || "audio/webm",
+          });
+          audioChunksRef.current = [];
+          if (blob.size === 0) return;
+
+          const transcript = await transcribeAudio(blob);
+          if (!transcript) return;
+          setInput(transcript);
+
+          if (voiceMode) {
+            void sendMessageRef.current(transcript);
+            setInput("");
+          }
+        };
+
+        setListening(true);
+        recorder.start();
+      } catch {
+        setListening(false);
+      }
+    })();
+  }, [transcribeAudio, voiceMode]);
 
   const sendMessage = useCallback(
     async (text: string) => {
@@ -472,7 +520,7 @@ export default function AssistantPage() {
                 } disabled:opacity-50 disabled:cursor-not-allowed`}
               >
                 {listening ? <Square className="w-3.5 h-3.5" /> : <Mic className="w-3.5 h-3.5" />}
-                {listening ? "Listening..." : voiceMode ? "Talk Mode" : "Tap To Talk"}
+                {listening ? "Recording..." : voiceMode ? "Talk Mode" : "Tap To Talk"}
               </button>
               <button
                 type="button"
