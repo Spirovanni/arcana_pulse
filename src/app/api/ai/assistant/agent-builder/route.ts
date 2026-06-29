@@ -6,6 +6,7 @@ type BuilderRequest = {
   exportMode?: "prompt" | "json";
   workspaceId?: string;
   firstSentence?: string;
+  dynamicVariables?: Record<string, unknown>;
   companyName?: string;
   appName?: string;
   agentName?: string;
@@ -58,6 +59,8 @@ type AgentBuilderConfig = {
   }>;
 };
 
+type DynamicVariableValue = string | number | boolean;
+
 function normalizeText(value: unknown, fallback: string): string {
   if (typeof value !== "string") return fallback;
   const normalized = value.trim();
@@ -93,6 +96,45 @@ function parseJsonObject(input: string): Record<string, unknown> | null {
       return null;
     }
   }
+}
+
+function normalizeDynamicVariables(
+  value: unknown
+): Record<string, DynamicVariableValue> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  const obj = value as Record<string, unknown>;
+  const normalized: Record<string, DynamicVariableValue> = {};
+  Object.entries(obj).forEach(([key, raw]) => {
+    const trimmedKey = key.trim();
+    if (!trimmedKey || trimmedKey.startsWith("system__")) return;
+    if (
+      typeof raw === "string" ||
+      typeof raw === "number" ||
+      typeof raw === "boolean"
+    ) {
+      normalized[trimmedKey] = raw;
+    }
+  });
+  return normalized;
+}
+
+function defaultDynamicVariables(): Record<string, DynamicVariableValue> {
+  return {
+    first_name: "Alex",
+    workspace_name: "Arcana Main Workspace",
+    membership_tier: "pro",
+  };
+}
+
+function toDynamicVariableMap(
+  dynamicVariables: Record<string, DynamicVariableValue>
+): Array<{ key: string; required: boolean; description: string; example: string }> {
+  return Object.entries(dynamicVariables).map(([key, value]) => ({
+    key,
+    required: false,
+    description: `Runtime dynamic variable for ${key.replace(/_/g, " ")}`,
+    example: String(value),
+  }));
 }
 
 function buildFallbackPrompt(params: {
@@ -145,6 +187,7 @@ function buildFallbackJson(params: {
   includePostCallWebhook: boolean;
   mustUseEndCall: boolean;
   enableDynamicVariables: boolean;
+  dynamicVariables: Record<string, DynamicVariableValue>;
 }): AgentBuilderConfig {
   return {
     name: params.agentName,
@@ -222,26 +265,11 @@ function buildFallbackJson(params: {
       },
     },
     dynamic_variable_map: params.enableDynamicVariables
-      ? [
-          {
-            key: "first_name",
-            required: false,
-            description: "User's preferred first name",
-            example: "Xavier",
-          },
-          {
-            key: "workspace_name",
-            required: true,
-            description: "Current workspace label",
-            example: "Arcana Main Workspace",
-          },
-          {
-            key: "membership_tier",
-            required: false,
-            description: "User subscription level",
-            example: "pro",
-          },
-        ]
+      ? toDynamicVariableMap(
+          Object.keys(params.dynamicVariables).length > 0
+            ? params.dynamicVariables
+            : defaultDynamicVariables()
+        )
       : [],
   };
 }
@@ -283,6 +311,7 @@ export async function POST(request: NextRequest) {
   const mustUseEndCall = body.mustUseEndCall ?? true;
   const enableDynamicVariables = body.enableDynamicVariables ?? true;
   const includePostCallWebhook = body.includePostCallWebhook ?? true;
+  const dynamicVariables = normalizeDynamicVariables(body.dynamicVariables);
 
   const contextBlock = `Context:
 - Product: ${appName}
@@ -294,6 +323,11 @@ export async function POST(request: NextRequest) {
 - Must include end_call policy: ${mustUseEndCall ? "yes" : "no"}
 - Include dynamic variable map: ${enableDynamicVariables ? "yes" : "no"}
 - Include post-call webhook blueprint: ${includePostCallWebhook ? "yes" : "no"}
+- Provided dynamic variables (custom, non-system__): ${
+    Object.keys(dynamicVariables).length > 0
+      ? JSON.stringify(dynamicVariables)
+      : "{}"
+  }
 ${firstSentence ? `- Preferred first sentence: ${firstSentence}` : ""}`;
 
   const userPrompt = `Generate the ${exportMode === "json" ? "JSON configuration" : "markdown prompt template"} now for:
@@ -329,6 +363,8 @@ Requirements:
 - Include guardrails suitable for finance and AI safety.
 - Add webhook_payload_schema with required fields and typed properties.
 - dynamic_variable_map must list key, required, description, example.
+- When dynamic variables are provided, include them in dynamic_variable_map examples.
+- Do not define custom variables with the reserved system__ prefix.
 - Keep first_message natural and short (1 sentence).`
         : `You generate production-ready ElevenLabs voice agent prompt templates.
 Return ONLY plain markdown text (no JSON, no code fences, no explanations).
@@ -365,6 +401,7 @@ Requirements:
           includePostCallWebhook,
           mustUseEndCall,
           enableDynamicVariables,
+          dynamicVariables,
         });
         return NextResponse.json({
           exportMode,
@@ -428,6 +465,7 @@ Requirements:
       includePostCallWebhook,
       mustUseEndCall,
       enableDynamicVariables,
+      dynamicVariables,
     });
     return NextResponse.json(
       {

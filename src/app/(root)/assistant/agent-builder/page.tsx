@@ -17,6 +17,7 @@ type BuilderForm = {
   mustUseEndCall: boolean;
   enableDynamicVariables: boolean;
   includePostCallWebhook: boolean;
+  dynamicVariablesJson: string;
 };
 
 const DEFAULT_FORM: BuilderForm = {
@@ -36,6 +37,16 @@ const DEFAULT_FORM: BuilderForm = {
   mustUseEndCall: true,
   enableDynamicVariables: true,
   includePostCallWebhook: true,
+  dynamicVariablesJson: JSON.stringify(
+    {
+      first_name: "Alex",
+      workspace_name: "Arcana Main Workspace",
+      membership_tier: "pro",
+      user_email: "alex@arcanacu.org",
+    },
+    null,
+    2
+  ),
 };
 
 const BUILDER_STORAGE_KEY = "arcana:assistant-agent-builder:v1";
@@ -61,6 +72,39 @@ export default function AssistantAgentBuilderPage() {
     if (!result) return "";
     return result.exportText;
   }, [result]);
+
+  function parseDynamicVariablesInput():
+    | { ok: true; value: Record<string, string | number | boolean> }
+    | { ok: false; error: string } {
+    try {
+      const parsed = JSON.parse(form.dynamicVariablesJson) as unknown;
+      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+        return { ok: false, error: "Dynamic variables must be a JSON object." };
+      }
+      const normalized: Record<string, string | number | boolean> = {};
+      for (const [key, raw] of Object.entries(parsed as Record<string, unknown>)) {
+        const trimmed = key.trim();
+        if (!trimmed) continue;
+        if (trimmed.startsWith("system__")) {
+          return { ok: false, error: "Custom dynamic variables cannot use system__ prefix." };
+        }
+        if (
+          typeof raw !== "string" &&
+          typeof raw !== "number" &&
+          typeof raw !== "boolean"
+        ) {
+          return {
+            ok: false,
+            error: `Dynamic variable "${trimmed}" must be string, number, or boolean.`,
+          };
+        }
+        normalized[trimmed] = raw;
+      }
+      return { ok: true, value: normalized };
+    } catch {
+      return { ok: false, error: "Dynamic variables JSON is invalid." };
+    }
+  }
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -90,6 +134,12 @@ export default function AssistantAgentBuilderPage() {
     setLoading(true);
     setError(null);
     setCopied(false);
+    const dynamicVariablesCheck = parseDynamicVariablesInput();
+    if (!dynamicVariablesCheck.ok) {
+      setError(dynamicVariablesCheck.error);
+      setLoading(false);
+      return;
+    }
     try {
       const response = await fetch("/api/ai/assistant/agent-builder", {
         method: "POST",
@@ -97,6 +147,7 @@ export default function AssistantAgentBuilderPage() {
         body: JSON.stringify({
           workspaceId: DEFAULT_WORKSPACE_ID,
           firstSentence,
+          dynamicVariables: dynamicVariablesCheck.value,
           ...form,
         }),
       });
@@ -301,6 +352,20 @@ export default function AssistantAgentBuilderPage() {
               />
             </label>
           ))}
+
+          <label className="block">
+            <span className="mb-1 block text-xs font-semibold uppercase tracking-wider text-slate-400">
+              Dynamic Variables (JSON)
+            </span>
+            <textarea
+              value={form.dynamicVariablesJson}
+              rows={6}
+              onChange={(e) =>
+                setForm((prev) => ({ ...prev, dynamicVariablesJson: e.target.value }))
+              }
+              className="w-full rounded-lg border border-arcana-border bg-arcana-navy px-3 py-2 font-mono text-xs text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-arcana-blue"
+            />
+          </label>
 
           <div className="space-y-1">
             <span className="block text-xs font-semibold uppercase tracking-wider text-slate-400">

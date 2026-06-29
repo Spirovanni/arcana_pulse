@@ -32,6 +32,8 @@ interface Message {
   model?: string;
 }
 
+type ElevenDynamicVariables = Record<string, string | number | boolean>;
+
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
@@ -642,9 +644,64 @@ export default function AssistantPage() {
         throw new Error(data.error ?? "Failed to start ElevenLabs agent session.");
       }
 
+      let dynamicVariables: ElevenDynamicVariables = {
+        app_name: "Arcana Pulse",
+        workspace_id: DEFAULT_WORKSPACE_ID,
+      };
+      try {
+        const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        if (tz) dynamicVariables.user_timezone = tz;
+      } catch {
+        // Ignore timezone detection errors.
+      }
+
+      try {
+        const workspaceRes = await fetch(
+          `/api/workspace?id=${encodeURIComponent(DEFAULT_WORKSPACE_ID)}`,
+          {
+            method: "GET",
+            cache: "no-store",
+          }
+        );
+        if (workspaceRes.ok) {
+          const workspaceData = (await workspaceRes.json().catch(() => ({}))) as {
+            workspace?: Record<string, unknown>;
+            user?: Record<string, unknown>;
+          };
+          const workspaceName =
+            typeof workspaceData.workspace?.name === "string"
+              ? workspaceData.workspace.name
+              : null;
+          const userFirstName =
+            typeof workspaceData.user?.firstName === "string"
+              ? workspaceData.user.firstName
+              : null;
+          const userLastName =
+            typeof workspaceData.user?.lastName === "string"
+              ? workspaceData.user.lastName
+              : null;
+          const userEmail =
+            typeof workspaceData.user?.email === "string"
+              ? workspaceData.user.email
+              : null;
+          const membershipTier =
+            typeof workspaceData.user?.membershipType === "string"
+              ? workspaceData.user.membershipType
+              : null;
+          if (workspaceName) dynamicVariables.workspace_name = workspaceName;
+          if (userFirstName) dynamicVariables.first_name = userFirstName;
+          if (userLastName) dynamicVariables.last_name = userLastName;
+          if (userEmail) dynamicVariables.user_email = userEmail;
+          if (membershipTier) dynamicVariables.membership_tier = membershipTier;
+        }
+      } catch {
+        // Non-fatal: proceed with baseline dynamic variables.
+      }
+
       const { Conversation } = await import("@elevenlabs/client");
       const conversation = await Conversation.startSession({
         signedUrl: data.signedUrl,
+        dynamicVariables,
         onConnect: () => {
           setAgentSessionStatus("connected");
           setAgentVoiceMode(true);
