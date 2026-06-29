@@ -165,6 +165,7 @@ export default function AssistantPage() {
     "idle" | "connecting" | "connected" | "error"
   >("idle");
   const [agentMicMuted, setAgentMicMuted] = useState(false);
+  const [agentRuntimeWarning, setAgentRuntimeWarning] = useState<string | null>(null);
   const [selectedModel, setSelectedModel] = useState<AssistantModelOption>(ASSISTANT_MODELS[0]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -182,6 +183,7 @@ export default function AssistantPage() {
   >(async () => undefined);
   const startListeningRef = useRef<() => void>(() => undefined);
   const freeFlowActiveRef = useRef(false);
+  const lastAgentErrorSignatureRef = useRef<string>("");
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -225,12 +227,43 @@ export default function AssistantPage() {
     setAgentVoiceMode(false);
     setAgentMicMuted(false);
     setAgentSessionStatus("idle");
+    setAgentRuntimeWarning(null);
     if (!conversation) return;
     try {
       await conversation.endSession();
     } catch {
       // Safe to ignore if already disconnected.
     }
+  }, []);
+
+  const isLikelyCspOrWebsocketFailure = useCallback((message: string): boolean => {
+    const normalized = message.toLowerCase();
+    return (
+      normalized.includes("content security policy") ||
+      normalized.includes("csp") ||
+      normalized.includes("connect-src") ||
+      normalized.includes("websocket") ||
+      normalized.includes("wss://") ||
+      normalized.includes("failed to connect") ||
+      normalized.includes("connection failed") ||
+      normalized.includes("connection closed") ||
+      normalized.includes("network error")
+    );
+  }, []);
+
+  const appendAgentErrorMessage = useCallback((content: string) => {
+    const signature = content.trim().toLowerCase();
+    if (!signature) return;
+    if (lastAgentErrorSignatureRef.current === signature) return;
+    lastAgentErrorSignatureRef.current = signature;
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: `msg-${Date.now()}-agent-error`,
+        role: "assistant",
+        content,
+      },
+    ]);
   }, []);
 
   useEffect(() => {
@@ -574,6 +607,8 @@ export default function AssistantPage() {
         onConnect: () => {
           setAgentSessionStatus("connected");
           setAgentVoiceMode(true);
+          setAgentRuntimeWarning(null);
+          lastAgentErrorSignatureRef.current = "";
           setMessages((prev) => [
             ...prev,
             {
@@ -591,14 +626,16 @@ export default function AssistantPage() {
         },
         onError: (message: string) => {
           setAgentSessionStatus("error");
-          setMessages((prev) => [
-            ...prev,
-            {
-              id: `msg-${Date.now()}-agent-error`,
-              role: "assistant",
-              content: `ElevenLabs Agent error: ${message}`,
-            },
-          ]);
+          if (isLikelyCspOrWebsocketFailure(message)) {
+            setAgentRuntimeWarning(
+              "Realtime voice connection failed. Check CSP / redeploy headers to allow ElevenLabs websocket traffic."
+            );
+            appendAgentErrorMessage(
+              "ElevenLabs realtime connection failed. Check CSP / redeploy headers, then reconnect Agent Voice Mode."
+            );
+            return;
+          }
+          appendAgentErrorMessage(`ElevenLabs Agent error: ${message}`);
         },
         onMessage: (payload: { role: "user" | "agent"; message: string }) => {
           setMessages((prev) => [
@@ -617,19 +654,20 @@ export default function AssistantPage() {
     } catch (error) {
       setAgentVoiceMode(false);
       setAgentSessionStatus("error");
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: `msg-${Date.now()}-agent-start-error`,
-          role: "assistant",
-          content:
-            error instanceof Error
-              ? `Unable to start ElevenLabs Agent mode: ${error.message}`
-              : "Unable to start ElevenLabs Agent mode right now.",
-        },
-      ]);
+      const detail =
+        error instanceof Error ? error.message : "Unable to start ElevenLabs Agent mode right now.";
+      if (isLikelyCspOrWebsocketFailure(detail)) {
+        setAgentRuntimeWarning(
+          "Realtime voice connection failed. Check CSP / redeploy headers to allow ElevenLabs websocket traffic."
+        );
+        appendAgentErrorMessage(
+          "Unable to start ElevenLabs Agent mode due to realtime connection policy. Check CSP / redeploy headers."
+        );
+      } else {
+        appendAgentErrorMessage(`Unable to start ElevenLabs Agent mode: ${detail}`);
+      }
     }
-  }, [agentSessionStatus, stopFreeFlow]);
+  }, [agentSessionStatus, appendAgentErrorMessage, isLikelyCspOrWebsocketFailure, stopFreeFlow]);
 
   const toggleElevenLabsMicMute = useCallback(() => {
     const conversation = elevenConversationRef.current;
@@ -1029,6 +1067,13 @@ export default function AssistantPage() {
             <div className="inline-flex items-center gap-2 rounded-lg border border-arcana-blue/30 bg-arcana-blue/10 px-3 py-2 text-xs text-arcana-blue">
               <Loader2 className="w-3.5 h-3.5 animate-spin" />
               Transcribing with ElevenLabs...
+            </div>
+          )}
+
+          {agentRuntimeWarning && (
+            <div className="inline-flex items-center gap-2 rounded-lg border border-amber-400/30 bg-amber-400/10 px-3 py-2 text-xs text-amber-200">
+              <span className="inline-block h-1.5 w-1.5 rounded-full bg-amber-300" />
+              {agentRuntimeWarning}
             </div>
           )}
 
