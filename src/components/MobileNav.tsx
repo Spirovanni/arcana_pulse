@@ -61,7 +61,7 @@ export default function MobileNav() {
       {/* Top bar */}
       <div className="flex items-center justify-between px-6 py-4 bg-background border-b border-outline">
         <Link href="/" className="hover:opacity-80 transition-opacity">
-          <BrandLogo markClassName="size-5" textSize="sm" />
+          <BrandLogo markClassName="size-8" textSize="sm" />
         </Link>
         <div className="flex items-center gap-1">
           <NotificationBell workspaceId={DEFAULT_WORKSPACE_ID} />
@@ -84,7 +84,7 @@ export default function MobileNav() {
           >
             <div className="mb-10 flex items-center justify-between">
               <Link href="/" onClick={() => setOpen(false)} className="hover:opacity-80 transition-opacity">
-                <BrandLogo markClassName="size-5" textSize="sm" />
+                <BrandLogo markClassName="size-8" textSize="sm" />
               </Link>
               <button
                 type="button"

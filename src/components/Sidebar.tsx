@@ -139,8 +139,8 @@ export default function Sidebar() {
       <Link href="/" className="block group">
         <BrandLogo
           className="group-hover:opacity-80 transition-opacity"
-          markClassName="size-5"
-          textClassName={cn("text-lg tracking-[4px]", collapsed && "hidden")}
+          markClassName={cn("size-8", collapsed && "size-10")}
+          textClassName={cn("text-lg tracking-[5px]", collapsed && "hidden")}
           showTagline={!collapsed}
         />
       </Link>
