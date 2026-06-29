@@ -48,6 +48,10 @@ const BADGE_COLORS: Record<string, string> = {
   blue: "bg-blue-500/20 text-blue-300 border-blue-500/30",
 };
 
+const FREE_FLOW_SILENCE_TIMEOUT_MS = 1400;
+const FREE_FLOW_MIN_TURN_MS = 900;
+const FREE_FLOW_SILENCE_RMS_THRESHOLD = 0.02;
+
 // ---------------------------------------------------------------------------
 // ModelSelector component
 // ---------------------------------------------------------------------------
@@ -148,6 +152,10 @@ export default function AssistantPage() {
   const [transcribing, setTranscribing] = useState(false);
   const [voiceMode, setVoiceMode] = useState(false);
   const [freeFlowActive, setFreeFlowActive] = useState(false);
+  const [voiceTurnState, setVoiceTurnState] = useState<
+    "idle" | "listening" | "end_turn" | "transcribing" | "thinking" | "speaking"
+  >("idle");
+  const [silenceCountdownMs, setSilenceCountdownMs] = useState<number | null>(null);
   const [voiceEnabled, setVoiceEnabled] = useState(true);
   const [selectedModel, setSelectedModel] = useState<AssistantModelOption>(ASSISTANT_MODELS[0]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -155,6 +163,10 @@ export default function AssistantPage() {
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const silenceIntervalRef = useRef<number | null>(null);
+  const silenceStartedAtRef = useRef<number | null>(null);
+  const recordingStartedAtRef = useRef<number>(0);
   const sendMessageRef = useRef<
     (text: string, options?: { fromVoice?: boolean }) => Promise<void>
   >(async () => undefined);
@@ -169,8 +181,22 @@ export default function AssistantPage() {
     freeFlowActiveRef.current = freeFlowActive;
   }, [freeFlowActive]);
 
+  const clearSilenceDetection = useCallback(() => {
+    if (silenceIntervalRef.current !== null) {
+      window.clearInterval(silenceIntervalRef.current);
+      silenceIntervalRef.current = null;
+    }
+    silenceStartedAtRef.current = null;
+    setSilenceCountdownMs(null);
+    if (audioContextRef.current) {
+      void audioContextRef.current.close().catch(() => undefined);
+      audioContextRef.current = null;
+    }
+  }, []);
+
   useEffect(() => {
     return () => {
+      clearSilenceDetection();
       if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
         mediaRecorderRef.current.stop();
       }
@@ -180,7 +206,7 @@ export default function AssistantPage() {
         audioRef.current = null;
       }
     };
-  }, []);
+  }, [clearSilenceDetection]);
 
   const speakAssistantReply = useCallback(
     async (text: string): Promise<void> => {
@@ -226,8 +252,10 @@ export default function AssistantPage() {
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
       mediaRecorderRef.current.stop();
     }
+    clearSilenceDetection();
     setListening(false);
-  }, []);
+    setVoiceTurnState("idle");
+  }, [clearSilenceDetection]);
 
   const stopFreeFlow = useCallback(() => {
     setFreeFlowActive(false);
@@ -275,6 +303,59 @@ export default function AssistantPage() {
     }
   }, []);
 
+  const setupFreeFlowSilenceDetection = useCallback(
+    (stream: MediaStream, recorder: MediaRecorder) => {
+      clearSilenceDetection();
+      try {
+        const AudioContextCtor = window.AudioContext || (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+        if (!AudioContextCtor) return;
+
+        const context = new AudioContextCtor();
+        audioContextRef.current = context;
+        const source = context.createMediaStreamSource(stream);
+        const analyser = context.createAnalyser();
+        analyser.fftSize = 2048;
+        analyser.smoothingTimeConstant = 0.2;
+        source.connect(analyser);
+        const data = new Uint8Array(analyser.fftSize);
+
+        recordingStartedAtRef.current = Date.now();
+        silenceIntervalRef.current = window.setInterval(() => {
+          if (recorder.state !== "recording" || !freeFlowActiveRef.current) return;
+          analyser.getByteTimeDomainData(data);
+
+          let sumSquares = 0;
+          for (let i = 0; i < data.length; i += 1) {
+            const normalized = (data[i] - 128) / 128;
+            sumSquares += normalized * normalized;
+          }
+          const rms = Math.sqrt(sumSquares / data.length);
+          const now = Date.now();
+          const recordingElapsed = now - recordingStartedAtRef.current;
+
+          if (rms < FREE_FLOW_SILENCE_RMS_THRESHOLD && recordingElapsed > FREE_FLOW_MIN_TURN_MS) {
+            if (silenceStartedAtRef.current === null) {
+              silenceStartedAtRef.current = now;
+            }
+            const silenceElapsed = now - silenceStartedAtRef.current;
+            const remaining = Math.max(0, FREE_FLOW_SILENCE_TIMEOUT_MS - silenceElapsed);
+            setSilenceCountdownMs(remaining);
+            if (silenceElapsed >= FREE_FLOW_SILENCE_TIMEOUT_MS) {
+              setVoiceTurnState("end_turn");
+              recorder.stop();
+            }
+          } else {
+            silenceStartedAtRef.current = null;
+            setSilenceCountdownMs(FREE_FLOW_SILENCE_TIMEOUT_MS);
+          }
+        }, 120);
+      } catch {
+        // Fallback: keep manual stop behavior if analyser init fails.
+      }
+    },
+    [clearSilenceDetection]
+  );
+
   const startListening = useCallback(() => {
     if (typeof window === "undefined") return;
     if (!window.navigator.mediaDevices?.getUserMedia) {
@@ -296,6 +377,8 @@ export default function AssistantPage() {
         const recorder = new MediaRecorder(stream);
         mediaRecorderRef.current = recorder;
         audioChunksRef.current = [];
+        setVoiceTurnState("listening");
+        setSilenceCountdownMs(FREE_FLOW_SILENCE_TIMEOUT_MS);
 
         recorder.ondataavailable = (event: BlobEvent) => {
           if (event.data.size > 0) audioChunksRef.current.push(event.data);
@@ -303,8 +386,10 @@ export default function AssistantPage() {
 
         recorder.onerror = () => {
           setListening(false);
+          clearSilenceDetection();
           mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
           setFreeFlowActive(false);
+          setVoiceTurnState("idle");
           setMessages((prev) => [
             ...prev,
             {
@@ -317,22 +402,37 @@ export default function AssistantPage() {
 
         recorder.onstop = async () => {
           setListening(false);
+          clearSilenceDetection();
           mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
 
           const blob = new Blob(audioChunksRef.current, {
             type: recorder.mimeType || "audio/webm",
           });
           audioChunksRef.current = [];
-          if (blob.size === 0) return;
+          if (blob.size === 0) {
+            setVoiceTurnState("idle");
+            return;
+          }
 
           setTranscribing(true);
+          setVoiceTurnState("transcribing");
           let transcript = "";
           try {
             transcript = await transcribeAudio(blob);
           } finally {
             setTranscribing(false);
           }
-          if (!transcript) return;
+          if (!transcript) {
+            setVoiceTurnState("idle");
+            if (freeFlowActiveRef.current && !loading) {
+              window.setTimeout(() => {
+                if (freeFlowActiveRef.current) {
+                  startListeningRef.current();
+                }
+              }, 300);
+            }
+            return;
+          }
           setInput(transcript);
 
           if (voiceMode) {
@@ -342,10 +442,15 @@ export default function AssistantPage() {
         };
 
         setListening(true);
+        if (freeFlowActiveRef.current) {
+          setupFreeFlowSilenceDetection(stream, recorder);
+        }
         recorder.start();
       } catch (error) {
         setListening(false);
+        clearSilenceDetection();
         setFreeFlowActive(false);
+        setVoiceTurnState("idle");
         const reason =
           error instanceof DOMException && error.name === "NotAllowedError"
             ? "Microphone access is blocked. Please allow microphone permissions for this site."
@@ -360,7 +465,7 @@ export default function AssistantPage() {
         ]);
       }
     })();
-  }, [transcribeAudio, voiceMode]);
+  }, [clearSilenceDetection, setupFreeFlowSilenceDetection, transcribeAudio, voiceMode, loading]);
 
   useEffect(() => {
     startListeningRef.current = startListening;
@@ -369,6 +474,8 @@ export default function AssistantPage() {
   const startFreeFlow = useCallback(() => {
     setVoiceMode(true);
     setFreeFlowActive(true);
+    setVoiceTurnState("listening");
+    setSilenceCountdownMs(FREE_FLOW_SILENCE_TIMEOUT_MS);
     if (!listening && !transcribing && !loading) {
       startListeningRef.current();
     }
@@ -389,6 +496,9 @@ export default function AssistantPage() {
       setMessages((prev) => [...prev, userMsg]);
       setInput("");
       setLoading(true);
+      if (options?.fromVoice && freeFlowActiveRef.current) {
+        setVoiceTurnState("thinking");
+      }
 
       let shouldResumeFreeFlow = false;
       try {
@@ -415,6 +525,7 @@ export default function AssistantPage() {
 
         setMessages((prev) => [...prev, assistantMsg]);
         if (options?.fromVoice && freeFlowActiveRef.current) {
+          setVoiceTurnState("speaking");
           await speakAssistantReply(assistantMsg.content);
           shouldResumeFreeFlow = true;
         } else {
@@ -440,9 +551,12 @@ export default function AssistantPage() {
         ) {
           window.setTimeout(() => {
             if (freeFlowActiveRef.current) {
+              setVoiceTurnState("listening");
               startListeningRef.current();
             }
           }, 450);
+        } else if (!freeFlowActiveRef.current) {
+          setVoiceTurnState("idle");
         }
       }
     },
@@ -461,6 +575,18 @@ export default function AssistantPage() {
   }
 
   const selectedBadgeClass = BADGE_COLORS[selectedModel.badgeColor] ?? BADGE_COLORS.purple;
+  const turnLabel =
+    voiceTurnState === "listening"
+      ? "Listening"
+      : voiceTurnState === "end_turn"
+      ? "End of turn detected"
+      : voiceTurnState === "transcribing"
+      ? "Transcribing"
+      : voiceTurnState === "thinking"
+      ? "Thinking"
+      : voiceTurnState === "speaking"
+      ? "Speaking"
+      : "Idle";
 
   return (
     <div className="mx-auto w-full max-w-6xl space-y-5 lg:space-y-6">
@@ -639,6 +765,18 @@ export default function AssistantPage() {
                 : "Manual send mode"}
             </div>
           </div>
+
+          {freeFlowActive && (
+            <div className="inline-flex items-center gap-2 rounded-lg border border-arcana-blue/30 bg-arcana-blue/10 px-3 py-2 text-xs text-arcana-blue">
+              <span className="inline-block h-2 w-2 rounded-full bg-arcana-blue animate-pulse" />
+              <span>{turnLabel}</span>
+              {voiceTurnState === "listening" && silenceCountdownMs !== null ? (
+                <span className="text-[10px] uppercase tracking-wide text-arcana-blue/80">
+                  End turn in {Math.max(0.2, silenceCountdownMs / 1000).toFixed(1)}s of silence
+                </span>
+              ) : null}
+            </div>
+          )}
 
           {transcribing && (
             <div className="inline-flex items-center gap-2 rounded-lg border border-arcana-blue/30 bg-arcana-blue/10 px-3 py-2 text-xs text-arcana-blue">
