@@ -188,7 +188,8 @@ const wait = (ms = 1000) => new Promise((r) => setTimeout(r, ms));
 
 async function setupWorkspaces() {
   console.log("\n[workspaces]");
-  await createCollection("workspaces", "Workspaces");
+  const created = await createCollection("workspaces", "Workspaces");
+  if (!created) return;
 
   await db.createStringAttribute(DATABASE_ID, "workspaces", "name", 128, true);
   await db.createStringAttribute(
@@ -246,7 +247,8 @@ async function setupWorkspaces() {
 
 async function setupUsers() {
   console.log("\n[users]");
-  await createCollection("users", "Users");
+  const created = await createCollection("users", "Users");
+  if (!created) return;
 
   await db.createStringAttribute(
     DATABASE_ID,
@@ -320,7 +322,8 @@ async function setupUsers() {
 
 async function setupBanks() {
   console.log("\n[banks]");
-  await createCollection("banks", "Banks");
+  const created = await createCollection("banks", "Banks");
+  if (!created) return;
 
   await db.createStringAttribute(
     DATABASE_ID,
@@ -399,7 +402,8 @@ async function setupBanks() {
 
 async function setupTransactions() {
   console.log("\n[transactions]");
-  await createCollection("transactions", "Transactions");
+  const created = await createCollection("transactions", "Transactions");
+  if (!created) return;
 
   await db.createStringAttribute(
     DATABASE_ID,
@@ -570,7 +574,8 @@ async function setupTransactions() {
 
 async function setupTransfers() {
   console.log("\n[transfers]");
-  await createCollection("transfers", "Transfers");
+  const created = await createCollection("transfers", "Transfers");
+  if (!created) return;
 
   await db.createStringAttribute(
     DATABASE_ID,
@@ -657,7 +662,8 @@ async function setupTransfers() {
 
 async function setupSessions() {
   console.log("\n[sessions]");
-  await createCollection("sessions", "Sessions");
+  const created = await createCollection("sessions", "Sessions");
+  if (!created) return;
 
   await db.createStringAttribute(
     DATABASE_ID,
@@ -714,7 +720,8 @@ async function setupSessions() {
 
 async function setupPaperOrders() {
   console.log("\n[paperOrders]");
-  await createCollection("paperOrders", "Paper Orders");
+  const created = await createCollection("paperOrders", "Paper Orders");
+  if (!created) return;
 
   await db.createStringAttribute(DATABASE_ID, "paperOrders", "workspaceId", 36, true);
   await db.createStringAttribute(DATABASE_ID, "paperOrders", "strategyId", 36, false);
@@ -756,7 +763,8 @@ async function setupPaperOrders() {
 
 async function setupCreditMonitoring() {
   console.log("\n[creditMonitoring]");
-  await createCollection("creditMonitoring", "Credit Monitoring");
+  const created = await createCollection("creditMonitoring", "Credit Monitoring");
+  if (!created) return;
 
   await db.createStringAttribute(
     DATABASE_ID,
