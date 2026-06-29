@@ -49,7 +49,7 @@ const SECURITY_HEADERS = [
   // Disable browser features not needed by the app
   h(
     "Permissions-Policy",
-    "camera=(), microphone=(), geolocation=(), payment=(self), usb=(), bluetooth=(), midi=()"
+    "camera=(), microphone=(self), geolocation=(), payment=(self), usb=(), bluetooth=(), midi=()"
   ),
   // CSP
   h("Content-Security-Policy", CSP),
