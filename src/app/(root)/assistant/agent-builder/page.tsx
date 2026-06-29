@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Copy, Download, Loader2, Sparkles } from "lucide-react";
 import { DEFAULT_WORKSPACE_ID } from "@/lib/services/workspace";
 
@@ -38,6 +38,8 @@ const DEFAULT_FORM: BuilderForm = {
   includePostCallWebhook: true,
 };
 
+const BUILDER_STORAGE_KEY = "arcana:assistant-agent-builder:v1";
+
 export default function AssistantAgentBuilderPage() {
   const [form, setForm] = useState<BuilderForm>(DEFAULT_FORM);
   const [loading, setLoading] = useState(false);
@@ -46,6 +48,8 @@ export default function AssistantAgentBuilderPage() {
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [firstSentence, setFirstSentence] = useState("");
+  const [savedAt, setSavedAt] = useState<string | null>(null);
+  const [saveNotice, setSaveNotice] = useState<string | null>(null);
   const [result, setResult] = useState<{
     exportMode: "prompt" | "json";
     exportText: string;
@@ -57,6 +61,30 @@ export default function AssistantAgentBuilderPage() {
     if (!result) return "";
     return result.exportText;
   }, [result]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const raw = window.localStorage.getItem(BUILDER_STORAGE_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as {
+        form?: BuilderForm;
+        firstSentence?: string;
+        savedAt?: string;
+      };
+      if (parsed.form) {
+        setForm(parsed.form);
+      }
+      if (typeof parsed.firstSentence === "string") {
+        setFirstSentence(parsed.firstSentence);
+      }
+      if (typeof parsed.savedAt === "string") {
+        setSavedAt(parsed.savedAt);
+      }
+    } catch {
+      // Ignore malformed local storage values.
+    }
+  }, []);
 
   async function generateConfig() {
     setLoading(true);
@@ -109,6 +137,26 @@ export default function AssistantAgentBuilderPage() {
     await navigator.clipboard.writeText(textOutput);
     setCopied(true);
     window.setTimeout(() => setCopied(false), 1500);
+  }
+
+  function saveDataPoints() {
+    if (typeof window === "undefined") return;
+    try {
+      const nextSavedAt = new Date().toISOString();
+      window.localStorage.setItem(
+        BUILDER_STORAGE_KEY,
+        JSON.stringify({
+          form,
+          firstSentence,
+          savedAt: nextSavedAt,
+        })
+      );
+      setSavedAt(nextSavedAt);
+      setSaveNotice("Saved");
+      window.setTimeout(() => setSaveNotice(null), 1600);
+    } catch {
+      setError("Unable to save data points on this browser.");
+    }
   }
 
   async function generateFirstSentence() {
@@ -321,15 +369,29 @@ export default function AssistantAgentBuilderPage() {
             </div>
           )}
 
-          <button
-            type="button"
-            onClick={() => void generateConfig()}
-            disabled={loading}
-            className="inline-flex items-center gap-2 rounded-lg bg-arcana-blue px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-600 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-            {form.exportMode === "json" ? "Generate Advanced JSON Export" : "Generate Prompt Export"}
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={saveDataPoints}
+              className="inline-flex items-center gap-2 rounded-lg border border-arcana-border bg-arcana-navy px-4 py-2 text-sm font-semibold text-slate-300 transition-colors hover:border-arcana-blue"
+            >
+              Save Data Points
+            </button>
+            <button
+              type="button"
+              onClick={() => void generateConfig()}
+              disabled={loading}
+              className="inline-flex items-center gap-2 rounded-lg bg-arcana-blue px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-600 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+              {form.exportMode === "json" ? "Generate Advanced JSON Export" : "Generate Prompt Export"}
+            </button>
+            {(saveNotice || savedAt) && (
+              <span className="text-xs text-slate-500">
+                {saveNotice ?? `Saved ${new Date(savedAt as string).toLocaleString()}`}
+              </span>
+            )}
+          </div>
         </div>
 
         <div className="space-y-3 rounded-2xl border border-arcana-border bg-arcana-surface p-4">
