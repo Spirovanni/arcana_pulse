@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
+import Link from "next/link";
 import {
   Send,
   Loader2,
@@ -842,10 +843,19 @@ export default function AssistantPage() {
               Ask me anything about your finances
             </p>
           </div>
-          {/* Active model badge */}
-          <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs ${selectedBadgeClass}`}>
-            <Sparkles className="w-3 h-3" />
-            {selectedModel.label}
+          <div className="flex items-center gap-2">
+            <Link
+              href="/assistant/agent-builder"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-arcana-border bg-arcana-navy px-2.5 py-1 text-xs text-slate-300 transition-colors hover:border-arcana-blue"
+            >
+              <Sparkles className="h-3 w-3" />
+              Agent Builder
+            </Link>
+            {/* Active model badge */}
+            <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs ${selectedBadgeClass}`}>
+              <Sparkles className="w-3 h-3" />
+              {selectedModel.label}
+            </div>
           </div>
         </div>
       </div>

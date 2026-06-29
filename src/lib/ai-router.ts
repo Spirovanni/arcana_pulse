@@ -68,6 +68,7 @@ export const FEATURE_MODELS: Record<string, { provider: AIProvider; model: strin
   forecast:            { provider: "google",     model: MODELS.GEMINI_PRO },
   goals:               { provider: "anthropic",  model: MODELS.CLAUDE_HAIKU },
   credit_monitoring:   { provider: "anthropic",  model: MODELS.CLAUDE_SONNET },
+  agent_builder:       { provider: "anthropic",  model: MODELS.CLAUDE_SONNET },
 };
 
 // ─── Core completion ─────────────────────────────────────────────────────────
