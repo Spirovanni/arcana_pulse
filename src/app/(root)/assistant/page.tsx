@@ -53,7 +53,8 @@ const BADGE_COLORS: Record<string, string> = {
 
 const FREE_FLOW_SILENCE_TIMEOUT_MS = 1400;
 const FREE_FLOW_MIN_TURN_MS = 900;
-const FREE_FLOW_SILENCE_RMS_THRESHOLD = 0.02;
+const FREE_FLOW_SILENCE_RMS_THRESHOLD = 0.026;
+const FREE_FLOW_MAX_TURN_MS = 12000;
 
 // ---------------------------------------------------------------------------
 // ModelSelector component
@@ -179,6 +180,7 @@ export default function AssistantPage() {
   const audioContextRef = useRef<AudioContext | null>(null);
   const elevenConversationRef = useRef<ElevenLabsConversation | null>(null);
   const silenceIntervalRef = useRef<number | null>(null);
+  const maxTurnTimeoutRef = useRef<number | null>(null);
   const silenceStartedAtRef = useRef<number | null>(null);
   const recordingStartedAtRef = useRef<number>(0);
   const sendMessageRef = useRef<
@@ -200,6 +202,10 @@ export default function AssistantPage() {
     if (silenceIntervalRef.current !== null) {
       window.clearInterval(silenceIntervalRef.current);
       silenceIntervalRef.current = null;
+    }
+    if (maxTurnTimeoutRef.current !== null) {
+      window.clearTimeout(maxTurnTimeoutRef.current);
+      maxTurnTimeoutRef.current = null;
     }
     silenceStartedAtRef.current = null;
     setSilenceCountdownMs(null);
@@ -420,6 +426,13 @@ export default function AssistantPage() {
         const data = new Uint8Array(analyser.fftSize);
 
         recordingStartedAtRef.current = Date.now();
+        maxTurnTimeoutRef.current = window.setTimeout(() => {
+          if (recorder.state === "recording" && freeFlowActiveRef.current) {
+            setVoiceTurnState("end_turn");
+            recorder.stop();
+          }
+        }, FREE_FLOW_MAX_TURN_MS);
+
         silenceIntervalRef.current = window.setInterval(() => {
           if (recorder.state !== "recording" || !freeFlowActiveRef.current) return;
           analyser.getByteTimeDomainData(data);
@@ -585,6 +598,13 @@ export default function AssistantPage() {
   useEffect(() => {
     startListeningRef.current = startListening;
   }, [startListening]);
+
+  const forceEndTurn = useCallback(() => {
+    const recorder = mediaRecorderRef.current;
+    if (!recorder || recorder.state !== "recording") return;
+    setVoiceTurnState("end_turn");
+    recorder.stop();
+  }, []);
 
   const startFreeFlow = useCallback(() => {
     setVoiceMode(true);
@@ -1009,6 +1029,18 @@ export default function AssistantPage() {
                 {freeFlowActive ? <Square className="w-3.5 h-3.5" /> : <Mic className="w-3.5 h-3.5" />}
                 {freeFlowActive ? "Stop Free Flow" : "Free Flow Agent"}
               </button>
+              {freeFlowActive && listening && (
+                <button
+                  type="button"
+                  onClick={forceEndTurn}
+                  disabled={agentVoiceMode}
+                  className="inline-flex items-center gap-2 rounded-lg border border-arcana-blue/40 bg-arcana-blue/20 px-3 py-2 text-xs font-semibold uppercase tracking-wider text-arcana-blue transition-colors hover:bg-arcana-blue/25 disabled:cursor-not-allowed disabled:opacity-50"
+                  title="Force end current turn and start transcription now."
+                >
+                  <Square className="w-3.5 h-3.5" />
+                  End Turn
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => setAllowSpeechInterrupt((prev) => !prev)}
