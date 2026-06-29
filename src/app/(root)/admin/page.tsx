@@ -749,7 +749,7 @@ export default function AdminPage() {
             Platform admin access is required to view this page.
           </p>
           <p className="text-xs text-slate-500 mt-2">
-            Contact your system administrator to be added to the ADMIN_USER_IDS list.
+            Contact your system administrator to be added to ADMIN_USER_IDS or ADMIN_EMAILS.
           </p>
         </div>
       </div>

