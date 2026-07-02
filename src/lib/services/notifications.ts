@@ -1,7 +1,14 @@
+import {
+  getDatabase,
+  DATABASE_ID,
+  COLLECTIONS,
+  Query,
+} from "@/lib/appwrite";
 import type { Transaction } from "@/lib/types";
 import { CATEGORY_LABELS } from "@/lib/constants";
 import { formatCurrency, generateId } from "@/lib/utils";
 import { mockTransactions } from "@/lib/mock/data";
+import type { Models } from "node-appwrite";
 
 export type NotificationType =
   | "large_transaction"
@@ -9,7 +16,11 @@ export type NotificationType =
   | "ai_insight"
   | "transfer_status"
   | "anomaly"
-  | "goal_progress";
+  | "goal_progress"
+  | "price_threshold"
+  | "strategy_signal"
+  | "paper_order_event"
+  | "risk_limit_breach";
 
 export type NotificationSeverity = "info" | "warning" | "critical";
 
@@ -23,17 +34,25 @@ export interface Notification {
   read: boolean;
   createdAt: string;
   href?: string;
+  alertRuleId?: string;
 }
 
-// ─── In-memory store ─────────────────────────────────────────────────────────
+function toNotification(doc: Models.Document & Record<string, any>): Notification {
+  return {
+    id: doc.$id,
+    workspaceId: doc.workspaceId,
+    type: doc.type as NotificationType,
+    severity: doc.severity as NotificationSeverity,
+    title: doc.title,
+    body: doc.body,
+    read: doc.read,
+    createdAt: doc.$createdAt,
+    href: doc.href ?? undefined,
+    alertRuleId: doc.alertRuleId ?? undefined,
+  };
+}
 
-let store: Notification[] = [];
-let seeded = false;
-
-function seedFromTransactions(workspaceId: string): void {
-  if (seeded) return;
-  seeded = true;
-
+async function seedInitialNotifications(workspaceId: string): Promise<void> {
   const txns = mockTransactions.filter((t) => t.workspaceId === workspaceId);
 
   // Large transactions (top 3 by amount)
@@ -42,108 +61,177 @@ function seedFromTransactions(workspaceId: string): void {
     .sort((a, b) => b.amount - a.amount)
     .slice(0, 3);
 
-  large.forEach((txn) => {
-    store.push({
-      id: generateId("notif"),
+  for (const txn of large) {
+    await addNotification({
       workspaceId,
       type: "large_transaction",
       severity: txn.amount > 1000 ? "warning" : "info",
       title: "Large transaction detected",
       body: `${txn.title} — ${formatCurrency(txn.amount)} in ${CATEGORY_LABELS[txn.category] ?? txn.category}`,
-      read: false,
-      createdAt: txn.date,
       href: "/transactions",
     });
-  });
+  }
 
   // Budget warning — synthetic
-  store.push({
-    id: generateId("notif"),
+  await addNotification({
     workspaceId,
     type: "budget_warning",
     severity: "warning",
     title: "Budget limit approaching",
     body: "You've used 87% of your Dining & Food budget for this month.",
-    read: false,
-    createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
     href: "/budgets",
   });
 
   // AI insight
-  store.push({
-    id: generateId("notif"),
+  await addNotification({
     workspaceId,
     type: "ai_insight",
     severity: "info",
     title: "New AI insight available",
     body: "Your discretionary spending dropped 18% vs last month. Arcana has updated your cash flow forecast.",
-    read: false,
-    createdAt: new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString(),
     href: "/dashboard",
   });
 
   // Anomaly
   const anomalyTxn = txns.find((t) => t.transactionType === "expense" && t.amount > 500);
   if (anomalyTxn) {
-    store.push({
-      id: generateId("notif"),
+    await addNotification({
       workspaceId,
       type: "anomaly",
       severity: "critical",
       title: "Unusual spending pattern",
       body: `${anomalyTxn.title} (${formatCurrency(anomalyTxn.amount)}) is 3× your average in this category.`,
-      read: false,
-      createdAt: anomalyTxn.date,
       href: "/transactions",
     });
   }
 
   // Goal progress
-  store.push({
-    id: generateId("notif"),
+  await addNotification({
     workspaceId,
     type: "goal_progress",
     severity: "info",
     title: "Savings goal milestone",
     body: "You've reached 50% of your Emergency Fund goal. On track to complete by July 2026.",
-    read: true,
-    createdAt: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
     href: "/goals",
   });
-
-  // Sort newest first
-  store.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 }
 
 // ─── Service functions ────────────────────────────────────────────────────────
 
-export function getNotifications(workspaceId: string): Notification[] {
-  seedFromTransactions(workspaceId);
-  return store.filter((n) => n.workspaceId === workspaceId);
+export async function getNotifications(
+  workspaceId: string,
+  limit: number = 100
+): Promise<Notification[]> {
+  try {
+    const result = await getDatabase().listDocuments(
+      DATABASE_ID,
+      COLLECTIONS.notifications,
+      [
+        Query.equal("workspaceId", workspaceId),
+        Query.orderDesc("$createdAt"),
+        Query.limit(limit),
+      ]
+    );
+
+    if (result.documents.length === 0) {
+      await seedInitialNotifications(workspaceId);
+      const refetched = await getDatabase().listDocuments(
+        DATABASE_ID,
+        COLLECTIONS.notifications,
+        [
+          Query.equal("workspaceId", workspaceId),
+          Query.orderDesc("$createdAt"),
+          Query.limit(limit),
+        ]
+      );
+      return refetched.documents.map(toNotification);
+    }
+
+    return result.documents.map(toNotification);
+  } catch (err) {
+    console.error("Failed to fetch notifications from DB:", err);
+    return [];
+  }
 }
 
-export function getUnreadCount(workspaceId: string): number {
-  return getNotifications(workspaceId).filter((n) => !n.read).length;
+export async function getUnreadCount(workspaceId: string): Promise<number> {
+  try {
+    const result = await getDatabase().listDocuments(
+      DATABASE_ID,
+      COLLECTIONS.notifications,
+      [
+        Query.equal("workspaceId", workspaceId),
+        Query.equal("read", false),
+        Query.limit(1),
+      ]
+    );
+    return result.total;
+  } catch {
+    return 0;
+  }
 }
 
-export function markRead(notificationId: string): void {
-  const n = store.find((n) => n.id === notificationId);
-  if (n) n.read = true;
+export async function markRead(notificationId: string): Promise<void> {
+  try {
+    await getDatabase().updateDocument(
+      DATABASE_ID,
+      COLLECTIONS.notifications,
+      notificationId,
+      { read: true }
+    );
+  } catch (err) {
+    console.error(`Failed to mark notification ${notificationId} as read:`, err);
+  }
 }
 
-export function markAllRead(workspaceId: string): void {
-  store.filter((n) => n.workspaceId === workspaceId).forEach((n) => { n.read = true; });
+export async function markAllRead(workspaceId: string): Promise<void> {
+  try {
+    const result = await getDatabase().listDocuments(
+      DATABASE_ID,
+      COLLECTIONS.notifications,
+      [
+        Query.equal("workspaceId", workspaceId),
+        Query.equal("read", false),
+        Query.limit(100),
+      ]
+    );
+
+    await Promise.all(
+      result.documents.map((doc) =>
+        getDatabase().updateDocument(
+          DATABASE_ID,
+          COLLECTIONS.notifications,
+          doc.$id,
+          { read: true }
+        )
+      )
+    );
+  } catch (err) {
+    console.error(`Failed to mark all notifications as read for workspace ${workspaceId}:`, err);
+  }
 }
 
-export function addNotification(notification: Omit<Notification, "id" | "read" | "createdAt">): Notification {
-  const n: Notification = {
-    ...notification,
-    id: generateId("notif"),
+export async function addNotification(
+  notification: Omit<Notification, "id" | "read" | "createdAt">
+): Promise<Notification> {
+  const data: Record<string, any> = {
+    workspaceId: notification.workspaceId,
+    type: notification.type,
+    severity: notification.severity,
+    title: notification.title,
+    body: notification.body,
     read: false,
-    createdAt: new Date().toISOString(),
   };
-  store.unshift(n);
-  return n;
+  if (notification.href) data.href = notification.href;
+  if (notification.alertRuleId) data.alertRuleId = notification.alertRuleId;
+
+  const doc = await getDatabase().createDocument(
+    DATABASE_ID,
+    COLLECTIONS.notifications,
+    generateId("notif"),
+    data
+  );
+  return toNotification(doc);
 }
 
 export { type Transaction };

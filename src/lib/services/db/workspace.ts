@@ -34,6 +34,7 @@ function toUser(doc: Models.Document & Record<string, any>): User {
     imageUrl: doc.imageUrl ?? undefined,
     role: doc.role,
     membershipType: doc.membershipType ?? "standard",
+    notificationPreferences: doc.notificationPreferences ?? undefined,
     createdAt: doc.$createdAt,
     updatedAt: doc.$updatedAt,
   };
@@ -111,4 +112,17 @@ export async function getUserByEmail(email: string): Promise<
   if (result.documents.length === 0) return null;
   const doc = result.documents[0];
   return { ...toUser(doc), passwordHash: doc.passwordHash };
+}
+
+export async function updateUserPreferences(
+  userId: string,
+  preferences: string
+): Promise<User> {
+  const doc = await getDatabase().updateDocument(
+    DATABASE_ID,
+    COLLECTIONS.users,
+    userId,
+    { notificationPreferences: preferences }
+  );
+  return toUser(doc);
 }

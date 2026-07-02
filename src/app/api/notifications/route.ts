@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
   });
   if (!auth.ok) return auth.response;
 
-  const notifications = getNotifications(auth.workspaceId);
+  const notifications = await getNotifications(auth.workspaceId);
   return NextResponse.json({ notifications });
 }
 
@@ -33,12 +33,12 @@ export async function PATCH(request: NextRequest) {
   if (!auth.ok) return auth.response;
 
   if (body.all) {
-    markAllRead(auth.workspaceId);
+    await markAllRead(auth.workspaceId);
     return NextResponse.json({ success: true });
   }
 
   if (body.id) {
-    markRead(body.id);
+    await markRead(body.id);
     return NextResponse.json({ success: true });
   }
 
@@ -69,7 +69,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const notification = addNotification({
+  const notification = await addNotification({
     workspaceId: auth.workspaceId,
     type: body.type,
     severity: body.severity,

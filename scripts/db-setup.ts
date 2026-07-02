@@ -287,6 +287,13 @@ async function setupUsers() {
     ["owner", "admin", "member"],
     true
   );
+  await db.createStringAttribute(
+    DATABASE_ID,
+    "users",
+    "notificationPreferences",
+    1024,
+    false
+  );
 
   await wait();
 
@@ -893,6 +900,111 @@ async function setupCreditMonitoring() {
 }
 
 // ---------------------------------------------------------------------------
+// Collection: notifications
+// ---------------------------------------------------------------------------
+
+async function setupNotifications() {
+  console.log("\n[notifications]");
+  const created = await createCollection("notifications", "Notifications");
+  if (!created) return;
+
+  await db.createStringAttribute(DATABASE_ID, "notifications", "workspaceId", 36, true);
+  await db.createEnumAttribute(
+    DATABASE_ID,
+    "notifications",
+    "type",
+    [
+      "large_transaction",
+      "budget_warning",
+      "ai_insight",
+      "transfer_status",
+      "anomaly",
+      "goal_progress",
+      "price_threshold",
+      "strategy_signal",
+      "paper_order_event",
+      "risk_limit_breach",
+    ],
+    true
+  );
+  await db.createEnumAttribute(
+    DATABASE_ID,
+    "notifications",
+    "severity",
+    ["info", "warning", "critical"],
+    true
+  );
+  await db.createStringAttribute(DATABASE_ID, "notifications", "title", 256, true);
+  await db.createStringAttribute(DATABASE_ID, "notifications", "body", 1024, true);
+  await db.createBooleanAttribute(DATABASE_ID, "notifications", "read", false, false);
+  await db.createStringAttribute(DATABASE_ID, "notifications", "href", 256, false);
+  await db.createStringAttribute(DATABASE_ID, "notifications", "alertRuleId", 36, false);
+
+  await wait(2000);
+
+  await db.createIndex(
+    DATABASE_ID,
+    "notifications",
+    "idx_workspace",
+    IndexType.Key,
+    ["workspaceId"],
+    [OrderBy.Asc]
+  );
+  await db.createIndex(
+    DATABASE_ID,
+    "notifications",
+    "idx_workspace_read",
+    IndexType.Key,
+    ["workspaceId", "read"],
+    [OrderBy.Asc, OrderBy.Asc]
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Collection: alertRules
+// ---------------------------------------------------------------------------
+
+async function setupAlertRules() {
+  console.log("\n[alertRules]");
+  const created = await createCollection("alertRules", "Alert Rules");
+  if (!created) return;
+
+  await db.createStringAttribute(DATABASE_ID, "alertRules", "workspaceId", 36, true);
+  await db.createStringAttribute(DATABASE_ID, "alertRules", "createdBy", 36, true);
+  await db.createStringAttribute(DATABASE_ID, "alertRules", "name", 128, true);
+  await db.createEnumAttribute(
+    DATABASE_ID,
+    "alertRules",
+    "kind",
+    ["price_threshold", "strategy_signal", "paper_order_event", "risk_limit_breach"],
+    true
+  );
+  await db.createStringAttribute(DATABASE_ID, "alertRules", "config", 4096, true);
+  await db.createStringAttribute(DATABASE_ID, "alertRules", "channels", 256, true, undefined, true);
+  await db.createBooleanAttribute(DATABASE_ID, "alertRules", "active", true, true);
+  await db.createDatetimeAttribute(DATABASE_ID, "alertRules", "lastTriggeredAt", false);
+
+  await wait(2000);
+
+  await db.createIndex(
+    DATABASE_ID,
+    "alertRules",
+    "idx_workspace",
+    IndexType.Key,
+    ["workspaceId"],
+    [OrderBy.Asc]
+  );
+  await db.createIndex(
+    DATABASE_ID,
+    "alertRules",
+    "idx_workspace_active",
+    IndexType.Key,
+    ["workspaceId", "active"],
+    [OrderBy.Asc, OrderBy.Asc]
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------------
 
@@ -914,6 +1026,8 @@ async function main() {
   await setupPaperOrders();
   await setupAiReports();
   await setupCreditMonitoring();
+  await setupNotifications();
+  await setupAlertRules();
 
   console.log("\nDone — all collections, attributes, and indexes created.");
 }

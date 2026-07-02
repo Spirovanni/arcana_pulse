@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, Suspense } from "react";
-import { ShieldCheck, ShieldOff, Copy, Check, Clock, Activity, Download, Trash2, AlertTriangle } from "lucide-react";
+import { ShieldCheck, ShieldOff, Copy, Check, Clock, Activity, Download, Trash2, AlertTriangle, Bell } from "lucide-react";
 import { signOut, useSession } from "next-auth/react";
 import TeamSettings from "@/components/TeamSettings";
 import BillingSettings from "@/components/BillingSettings";
@@ -56,6 +56,44 @@ export default function SettingsPage() {
   const [deletePhase, setDeletePhase] = useState<"idle" | "confirm" | "deleting">("idle");
   const [deleteError, setDeleteError] = useState("");
   const [exportLoading, setExportLoading] = useState(false);
+
+  const [preferences, setPreferences] = useState({ email: true, in_app: true });
+  const [prefsLoading, setPrefsLoading] = useState(true);
+  const [prefsSaving, setPrefsSaving] = useState(false);
+  const [prefsMessage, setPrefsMessage] = useState("");
+
+  useEffect(() => {
+    fetch("/api/user/preferences")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data && data.preferences) {
+          setPreferences(data.preferences);
+        }
+      })
+      .catch((err) => console.error("Failed to fetch preferences:", err))
+      .finally(() => setPrefsLoading(false));
+  }, []);
+
+  async function handleSavePrefs() {
+    setPrefsSaving(true);
+    setPrefsMessage("");
+    try {
+      const res = await fetch("/api/user/preferences", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ preferences }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Failed to save preferences");
+      setPrefsMessage("Preferences saved successfully!");
+      setTimeout(() => setPrefsMessage(""), 3000);
+    } catch (err) {
+      console.error(err);
+      setPrefsMessage(err instanceof Error ? err.message : "Failed to save preferences");
+    } finally {
+      setPrefsSaving(false);
+    }
+  }
 
   useEffect(() => {
     if (status !== "authenticated") {
@@ -324,6 +362,60 @@ export default function SettingsPage() {
             </div>
           ))}
         </div>
+      </div>
+
+      {/* Notification Preferences */}
+      <div className="rounded-sm bg-surface-container-high border border-outline p-6">
+        <div className="flex items-center gap-2 mb-4">
+          <Bell className="h-4 w-4 text-primary" />
+          <h3 className="text-[9px] uppercase tracking-[2px] text-secondary font-bold">Notification Preferences</h3>
+        </div>
+        <p className="text-xs text-secondary mb-5">
+          Configure how you want to receive alerts, signals, and system updates.
+        </p>
+
+        {prefsLoading ? (
+          <p className="text-xs text-secondary/50 animate-pulse">Loading preferences...</p>
+        ) : (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between py-3 border-b border-outline/40">
+              <div>
+                <p className="text-sm text-on-surface font-medium">In-App Inbox Alerts</p>
+                <p className="text-xs text-secondary mt-0.5">Receive alerts inside the platform notifications center.</p>
+              </div>
+              <span className="text-[10px] uppercase font-bold text-primary/60 bg-primary/5 px-2 py-1 rounded-sm">Always On</span>
+            </div>
+
+            <div className="flex items-center justify-between py-3">
+              <div>
+                <p className="text-sm text-on-surface font-medium">Email Alerts</p>
+                <p className="text-xs text-secondary mt-0.5">Receive copy of alerts and strategy signals via email.</p>
+              </div>
+              <input
+                type="checkbox"
+                checked={preferences.email}
+                onChange={(e) => setPreferences(prev => ({ ...prev, email: e.target.checked }))}
+                className="size-4 rounded-sm border-outline bg-surface-container text-primary focus:ring-primary/20 accent-primary cursor-pointer"
+              />
+            </div>
+
+            <div className="flex items-center gap-3 pt-3 border-t border-outline/40">
+              <button
+                type="button"
+                onClick={handleSavePrefs}
+                disabled={prefsSaving}
+                className="btn-metallic px-5 py-2 text-xs uppercase tracking-[2px] font-bold disabled:opacity-50"
+              >
+                {prefsSaving ? "Saving..." : "Save Preferences"}
+              </button>
+              {prefsMessage && (
+                <span className={`text-xs ${prefsMessage.includes("successfully") ? "text-arcana-success" : "text-arcana-danger"}`}>
+                  {prefsMessage}
+                </span>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Two-Factor Authentication */}

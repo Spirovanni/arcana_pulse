@@ -4,6 +4,7 @@ import { requireAuth } from "@/lib/auth/withAuth";
 import { isAppwriteConfigured } from "@/lib/appwrite";
 import { getPaperOrder, getPaperOrderByAlpacaId, updatePaperOrder } from "@/lib/services/db/paperOrders";
 import { logAuditEvent } from "@/lib/services/db/auditLog";
+import { evaluateAndNotify } from "@/lib/services/hermes";
 
 interface RouteParams {
   params: Promise<{ orderId: string }>;
@@ -99,6 +100,9 @@ export async function DELETE(
     const updatedOrder = await updatePaperOrder(paperOrder.orderId, {
       status: "canceled",
     });
+
+    // Trigger Hermes alert matching and delivery
+    await evaluateAndNotify(workspaceId, "paper_order_event", updatedOrder);
 
     // 6. Log audit event
     void logAuditEvent({

@@ -114,6 +114,7 @@ export interface User {
   imageUrl?: string;
   role: UserRole;
   membershipType: MembershipType;
+  notificationPreferences?: string; // JSON string e.g. '{"email":true,"in_app":true}'
   createdAt: string;
   updatedAt: string;
 }
@@ -741,3 +742,36 @@ export interface CreatePaperOrderInput {
   status: PaperOrderStatus;
   confirmedAt?: string;
 }
+
+// ─── Hermes (Alert Rules) ──────────────────────────────────────
+
+export type AlertRuleKind =
+  | "price_threshold"
+  | "strategy_signal"
+  | "paper_order_event"
+  | "risk_limit_breach";
+
+export interface AlertRule {
+  id: string;
+  workspaceId: string;
+  createdBy: string;
+  name: string;
+  kind: AlertRuleKind;
+  config: string; // JSON string representation of rule config
+  channels: string[]; // e.g. ["in_app", "email"]
+  active: boolean;
+  lastTriggeredAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateAlertRuleInput {
+  workspaceId: string;
+  createdBy: string;
+  name: string;
+  kind: AlertRuleKind;
+  config: string;
+  channels: string[];
+  active?: boolean;
+}
+

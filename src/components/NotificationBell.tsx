@@ -13,6 +13,10 @@ const TYPE_ICON: Record<NotificationType, React.ComponentType<{ className?: stri
   ai_insight: BarChart3,
   transfer_status: Zap,
   goal_progress: Target,
+  price_threshold: TrendingUp,
+  strategy_signal: Zap,
+  paper_order_event: Bell,
+  risk_limit_breach: AlertTriangle,
 };
 
 const SEVERITY_DOT: Record<string, string> = {

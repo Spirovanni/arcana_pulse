@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Bell, CheckCheck, AlertTriangle, BarChart3, Zap, Target } from "lucide-react";
+import { Bell, CheckCheck, AlertTriangle, BarChart3, Zap, Target, TrendingUp } from "lucide-react";
 import Link from "next/link";
 import type { Notification, NotificationType } from "@/lib/services/notifications";
 import { cn } from "@/lib/utils";
@@ -14,6 +14,10 @@ const TYPE_ICON: Record<NotificationType, React.ComponentType<{ className?: stri
   ai_insight: BarChart3,
   transfer_status: Zap,
   goal_progress: Target,
+  price_threshold: TrendingUp,
+  strategy_signal: Zap,
+  paper_order_event: Bell,
+  risk_limit_breach: AlertTriangle,
 };
 
 const TYPE_LABEL: Record<NotificationType, string> = {
@@ -23,6 +27,10 @@ const TYPE_LABEL: Record<NotificationType, string> = {
   ai_insight: "AI Insight",
   transfer_status: "Transfer",
   goal_progress: "Goal Progress",
+  price_threshold: "Price Threshold",
+  strategy_signal: "Strategy Signal",
+  paper_order_event: "Paper Order",
+  risk_limit_breach: "Risk Limit Breach",
 };
 
 const SEVERITY_DOT: Record<string, string> = {

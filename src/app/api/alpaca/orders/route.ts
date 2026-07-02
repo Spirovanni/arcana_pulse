@@ -6,6 +6,8 @@ import { isAppwriteConfigured } from "@/lib/appwrite";
 import { getWorkspace } from "@/lib/services/db/workspace";
 import { createPaperOrder, getPaperOrderByClientOrderId, updatePaperOrder } from "@/lib/services/db/paperOrders";
 import { logAuditEvent } from "@/lib/services/db/auditLog";
+import { evaluateAndNotify } from "@/lib/services/hermes";
+import { triggerRiskLimitBreachAlert } from "@/lib/services/strategyEngine";
 import type { AlpacaOrder, PlaceOrderInput } from "@/lib/types";
 
 interface RawOrder {
@@ -156,6 +158,7 @@ export async function POST(req: NextRequest) {
           reason: "Workspace trading is currently paused by administrator"
         }
       });
+      await triggerRiskLimitBreachAlert(workspaceId, "kill_switch", "true", "false", "paper-trading");
       return NextResponse.json({ error: "Paper trading is currently paused for this workspace." }, { status: 403 });
     }
 
@@ -179,6 +182,7 @@ export async function POST(req: NextRequest) {
           reason: "Symbol is not in the allow-list"
         }
       });
+      await triggerRiskLimitBreachAlert(workspaceId, "symbol_scope", symbolUpper, ALLOWED_SYMBOLS.join(", "), "paper-trading");
       return NextResponse.json({ error: `Symbol ${body.symbol} is not allow-listed for paper trading` }, { status: 400 });
     }
 
@@ -200,6 +204,9 @@ export async function POST(req: NextRequest) {
     }
 
     if (limitReason) {
+      const attemptedVal = body.type === "limit" ? estimatedNotional : body.qty;
+      const limitVal = body.type === "limit" ? MAX_NOTIONAL_LIMIT : MAX_MARKET_QTY_LIMIT;
+
       void logAuditEvent({
         workspaceId,
         userId,
@@ -211,11 +218,12 @@ export async function POST(req: NextRequest) {
           side: body.side,
           qty: body.qty,
           limitType: "position_sizing",
-          attemptedValue: body.type === "limit" ? estimatedNotional : body.qty,
-          limitValue: body.type === "limit" ? MAX_NOTIONAL_LIMIT : MAX_MARKET_QTY_LIMIT,
+          attemptedValue: attemptedVal,
+          limitValue: limitVal,
           reason: limitReason
         }
       });
+      await triggerRiskLimitBreachAlert(workspaceId, "position_sizing", attemptedVal, limitVal, "paper-trading");
       return NextResponse.json({ error: limitReason }, { status: 400 });
     }
 
@@ -278,8 +286,9 @@ export async function POST(req: NextRequest) {
     const mapped = mapOrder(raw);
 
     // 5. Update local paperOrders document
+    let orderRecord;
     if (existingOrder) {
-      await updatePaperOrder(existingOrder.orderId, {
+      orderRecord = await updatePaperOrder(existingOrder.orderId, {
         status: "submitted",
         alpacaOrderId: mapped.orderId,
         confirmedAt: new Date().toISOString(),
@@ -299,9 +308,14 @@ export async function POST(req: NextRequest) {
         confirmedAt: new Date().toISOString(),
         strategyId: body.strategyId,
       });
-      await updatePaperOrder(newOrder.orderId, {
+      orderRecord = await updatePaperOrder(newOrder.orderId, {
         alpacaOrderId: mapped.orderId,
       });
+    }
+
+    // Trigger Hermes alert matching and delivery
+    if (orderRecord) {
+      await evaluateAndNotify(workspaceId, "paper_order_event", orderRecord);
     }
 
     // 6. Audit Log Entry
@@ -327,7 +341,8 @@ export async function POST(req: NextRequest) {
       try {
         const order = await getPaperOrderByClientOrderId(clientOrderId);
         if (order && order.status === "pending_confirmation") {
-          await updatePaperOrder(order.orderId, { status: "rejected" });
+          const rejectedOrder = await updatePaperOrder(order.orderId, { status: "rejected" });
+          await evaluateAndNotify(workspaceId, "paper_order_event", rejectedOrder);
         }
       } catch (dbErr) {
         console.error("Failed to mark order as rejected in database:", dbErr);

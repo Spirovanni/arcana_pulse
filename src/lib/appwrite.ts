@@ -44,6 +44,8 @@ export const COLLECTIONS = {
   aiUsage:            process.env.APPWRITE_AI_USAGE_COLLECTION_ID     ?? "aiUsage",
   aiReports:          process.env.APPWRITE_AI_REPORTS_COLLECTION_ID   ?? "aiReports",
   creditMonitoring:   process.env.APPWRITE_CREDIT_MONITORING_COLLECTION_ID ?? "creditMonitoring",
+  notifications:      "notifications",
+  alertRules:         "alertRules",
 } as const;
 
 
